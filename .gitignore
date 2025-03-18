@@ -1,2 +1,4 @@
-
 .env
+utils/previous-rates.text
+utils/current-rates.text
+rate-notification-channels.json
