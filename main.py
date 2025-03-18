@@ -8,7 +8,7 @@ import re
 from discord.ext import tasks, commands
 from discord import Interaction, User, TextChannel, Role, app_commands
 from dotenv import load_dotenv
-import commands as custom_commands  # Import the commands module
+import asarates as custom_commands  # Import the commands module
 
 # Enable message content intent
 intents = discord.Intents.default()
