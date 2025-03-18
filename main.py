@@ -8,7 +8,8 @@ import re
 from discord.ext import tasks, commands
 from discord import Interaction, User, TextChannel, Role, app_commands
 from dotenv import load_dotenv
-import asarates as custom_commands  # Import the commands module
+import asarates as custom_commands  # Import the custom commands module
+import commands as rate_commands  # Import the rate commands module
 
 # Enable message content intent
 intents = discord.Intents.default()
@@ -110,6 +111,5 @@ async def ratecheck():
                 await channel.send(f"The {role.mention} have changed!")
             except KeyError:
                 print("Server channel missing or something else went wrong!")
-                
 
 bot.run(my_secret)
