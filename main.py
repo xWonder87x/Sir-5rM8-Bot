@@ -8,7 +8,6 @@ import re
 from discord.ext import tasks, commands
 from discord import Interaction, User, TextChannel, Role, app_commands
 from dotenv import load_dotenv
-import asarates as custom_commands  # Import the custom commands module
 import commands as rate_commands  # Import the rate commands module
 
 # Enable message content intent
