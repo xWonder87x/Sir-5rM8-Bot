@@ -43,14 +43,14 @@ rate_url = "https://cdn2.arkdedicated.com/asa/dynamicconfig.ini"
 @app_commands.describe(channel="channel")
 @app_commands.describe(role="role")
 @app_commands.checks.has_permissions(administrator=True)
-async def set_rate_channel(int:discord.Integration,channel:TextChannel,role:Role):
-    functions.add_server_channel(str(int.guild.id),str(channel.id),str(role.id))
+async def set_rate_channel(interaction:discord.Interaction, channel:TextChannel, role:Role):
+    functions.add_server_channel(str(interaction.guild.id), str(channel.id), str(role.id))
     await channel.send("This channel is been set for automatic Official PVE rates updates.")
-    await int.response.send_message(f"{channel.mention} is set for automatic Official PVE rates updates.")
+    await interaction.response.send_message(f"{channel.mention} is set for automatic Official PVE rates updates.")
 
 @bot.tree.error
-async def on_app_commandError(int:discord.Interaction,error):
-    await int.response.send_message(error,ephemeral=True)
+async def on_app_command_error(interaction:discord.Interaction, error):
+    await interaction.response.send_message(error, ephemeral=True)
 
 # Server status command
 @bot.tree.command(name="serverstatus", description="Checks the server status")
