@@ -12,10 +12,11 @@ intents.message_content = True
 # Initialize the bot with proper intents
 bot = commands.Bot(command_prefix='!', intents=intents)
 
-# Load commands
-bot.load_extension('commands.general')
-bot.load_extension('commands.admin')
-bot.load_extension('commands.rates')
+async def load_extensions():
+    await bot.load_extension('commands.general')
+    await bot.load_extension('commands.admin')
+    await bot.load_extension('commands.rates')
+    await bot.load_extension('cogs.ratecheck')
 
 @bot.event
 async def on_ready():
@@ -23,9 +24,16 @@ async def on_ready():
     try:
         synced = await bot.tree.sync()
         print(f"Synced {len(synced)} command(s)")
-        bot.get_cog('RateCheckCog').ratecheck.start()  # Start the background task
+        ratecheck_cog = bot.get_cog('RateCheckCog')
+        if ratecheck_cog:
+            ratecheck_cog.ratecheck.start()  # Start the background task
     except Exception as e:
         print(f"Error syncing commands: {e}")
 
 load_dotenv()
-bot.run(os.getenv('TOKEN'))
+
+async def main():
+    await load_extensions()
+    await bot.start(os.getenv('TOKEN'))
+
+asyncio.run(main())
