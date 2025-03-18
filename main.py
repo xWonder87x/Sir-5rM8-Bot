@@ -7,9 +7,8 @@ import requests
 import re
 from discord.ext import tasks, commands
 from discord import Interaction, User, TextChannel, Role, app_commands
-from discord.ext import tasks, commands
-from discord import Interaction, User, TextChannel, Role
 from dotenv import load_dotenv
+import commands as custom_commands  # Import the commands module
 
 # Enable message content intent
 intents = discord.Intents.default()
@@ -38,34 +37,6 @@ my_secret = os.environ['TOKEN']
 # ASA Server search
 server_url = 'https://cdn2.arkdedicated.com/servers/asa/officialserverlist.json'
 rate_url = "https://cdn2.arkdedicated.com/asa/dynamicconfig.ini"
-
-# Fetch the current ASA PVE rates
-@bot.tree.command(name="rates", description="Current ASA Server Rates")
-async def rates(interaction: discord.Interaction):
-    rate = requests.get(rate_url).text
-    pattern = r"^\s*([\w.]+)\s*=\s*([\w.-]+)\s*$"
-    values = []
-    for line in rate.split('\n'):
-        match = re.match(pattern, line)
-        if match:
-            values.append(match.groups()[1])
-
-    emb = discord.Embed(
-        title='ASA Official Server Rates',
-        description="",
-        colour=discord.Colour.pink()
-    )
-    emb.set_thumbnail(url='https://ark.wiki.gg/images/thumb/0/0a/ASA_Logo_transparent.png/198px-ASA_Logo_transparent.png')
-    emb.add_field(name=f"**✨ `{values[2]}x` EXP**", value='', inline=False)
-    emb.add_field(name=f"**🌴 `{values[1]}x` Harvesting**", value='', inline=False)
-    emb.add_field(name=f"**🦖 `{values[0]}x` Taming**", value='', inline=False)
-    emb.add_field(name=f"**💞 `{values[3]}x` Mating Interval**", value='', inline=False)
-    emb.add_field(name=f"**🐣 `{values[5]}x` Egg Hatch**", value='', inline=False)
-    emb.add_field(name=f"**🐤 `{values[4]}x` Baby Mature**", value='', inline=False)
-    emb.add_field(name=f"**🤗 `{values[7]}x` Imprint**", value='', inline=False)
-    emb.add_field(name=f"**🤗 `{values[6]}x` Cuddle Interval**", value='', inline=False)
-  
-    await interaction.response.send_message(embed=emb)
 
 # Set server rates auto update channel and role 
 @bot.tree.command(name="set_rate_channel",description="set channel for rate updates")
