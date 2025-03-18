@@ -67,6 +67,20 @@ async def rates(interaction: discord.Interaction):
   
     await interaction.response.send_message(embed=emb)
 
+# Set server rates auto update channel and role 
+@bot.tree.command(name="set_rate_channel",description="set channel for rate updates")
+@app_commands.describe(channel="channel")
+@app_commands.describe(role="role")
+@app_commands.checks.has_permissions(administrator=True)
+async def set_rate_channel(int:discord.Integration,channel:TextChannel,role:Role):
+    functions.add_server_channel(str(int.guild.id),str(channel.id),str(role.id))
+    await channel.send("This channel is been set for automatic Official PVE rates updates.")
+    await int.response.send_message(f"{channel.mention} is set for automatic Official PVE rates updates.")
+
+@bot.tree.error
+async def on_app_commandError(int:discord.Interaction,error):
+    await int.response.send_message(error,ephemeral=True)
+
 # Server status command
 @bot.tree.command(name="serverstatus", description="Checks the server status")
 @app_commands.describe(server="Server Number")
@@ -122,9 +136,9 @@ async def ratecheck():
                 emb.add_field(name=f"**🤗 `{values[7]}x` Imprint**", value='', inline=False)
                 emb.add_field(name=f"**🤗 `{values[6]}x` Cuddle Interval**", value='', inline=False)
                 await channel.send(embed=emb)
-                await channel.send(f"{role.mention}")
+                await channel.send(f"The {role.mention} have changed!")
             except KeyError:
-                print("Server channel missing or something went wrong!")
+                print("Server channel missing or something else went wrong!")
                 
 
 bot.run(my_secret)
