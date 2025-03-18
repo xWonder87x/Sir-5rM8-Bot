@@ -27,7 +27,7 @@ def find_server(find):
 
 def add_server_channel(server_id: str, channel_id: str, role: str):
     try:
-        with open("rate-notification-channels.json", "r") as file:
+        with open("utils/rate-notification-channels.json", "r") as file:  # Updated path
             data = json.load(file)
             for entry in data:
                 if entry["server_id"] == server_id:
@@ -41,7 +41,7 @@ def add_server_channel(server_id: str, channel_id: str, role: str):
     except FileNotFoundError:
         data = [{"server_id": server_id, "channel_id": channel_id, "role": role}]
     
-    with open("rate-notification-channels.json", "w") as file:
+    with open("utils/rate-notification-channels.json", "w") as file:  # Updated path
         json.dump(data, file)
 
 last = None
@@ -60,19 +60,26 @@ def loop():
     current_data = requests.get(rate_url)
     new = current_data.text + '\n'
     lines = current_data.text.strip().splitlines()
-    with open("previous-rates.text", "r") as file1:
+    
+    # Update path for previous-rates.text
+    with open("utils/previous-rates.text", "r") as file1:
         last = str(file1.read())
-    with open("current-rates.text", "w") as file2:
+    
+    # Update path for current-rates.text
+    with open("utils/current-rates.text", "w") as file2:
         for line1 in lines:
             file2.write(line1 + "\n")
-    with open("current-rates.text", "r") as file3:
+    
+    with open("utils/current-rates.text", "r") as file3:  # Updated path
         newfile = str(file3.read())
     
     if last != newfile:
-        with open("rate-notification-channels.json", "r") as file:
+        with open("utils/rate-notification-channels.json", "r") as file:  # Ensure this is updated too
             data = json.load(file)
         lines = current_data.text.strip().splitlines()
-        with open("previous-rates.text", "w") as file:
+        
+        # Update path for previous-rates.text
+        with open("utils/previous-rates.text", "w") as file:
             for line in lines:
                 file.write(line + "\n")
         return data, new, 0
