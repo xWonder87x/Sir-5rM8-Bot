@@ -18,6 +18,12 @@ async def load_extensions():
     await bot.load_extension('commands.rates')
     await bot.load_extension('cogs.ratecheck')
 
+@tasks.loop(minutes=5)
+async def update_presence():
+    """Periodically update the bot's rich presence."""
+    activity = discord.Game(name="Dynamic Rates Monitoring")
+    await bot.change_presence(activity=activity)
+
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user}')
@@ -27,8 +33,8 @@ async def on_ready():
         ratecheck_cog = bot.get_cog('RateCheckCog')
         if ratecheck_cog:
             ratecheck_cog.ratecheck.start()  # Start the background task
-        # Set rich presence
-        await bot.change_presence(activity=discord.Game(name="Monitoring Rates"))
+        # Start the presence update task
+        update_presence.start()
     except Exception as e:
         print(f"Error syncing commands: {e}")
 
