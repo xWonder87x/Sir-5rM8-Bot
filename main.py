@@ -27,6 +27,8 @@ async def on_ready():
         ratecheck_cog = bot.get_cog('RateCheckCog')
         if ratecheck_cog:
             ratecheck_cog.ratecheck.start()  # Start the background task
+        # Set rich presence
+        await bot.change_presence(activity=discord.Game(name="Monitoring Rates"))
     except Exception as e:
         print(f"Error syncing commands: {e}")
 
