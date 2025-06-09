@@ -11,7 +11,7 @@ user_cooldowns = {}
 
 COOLDOWN_HOURS = 24
 LOG_FILE = "karma_log.json"
-BALANCE_FILE = "karma_balances.json"
+BALANCE_FILE = "karma_balancesheet.json"
 
 def log_karma_action(action, user_id, target_id=None, amount=0, result=None):
     log_entry = {
@@ -125,6 +125,42 @@ class Karma(commands.Cog):
                 f"{member.mention} has no karma to take."
             )
             log_karma_action("take-karma-failed", interaction.user.id, user_id, 0, "no karma")
+
+    @app_commands.command(name="karma-check", description="Check how much karma another user has")
+    @app_commands.describe(member="The user whose karma you want to check")
+    async def karma_check(self, interaction: discord.Interaction, member: discord.Member):
+        user_id = member.id
+        karma = user_karma.get(user_id, 0)
+        await interaction.response.send_message(
+            f"{member.display_name} has {karma} karma."
+        )
+        log_karma_action("check-other-karma", interaction.user.id, user_id, 0, karma)
+
+    @app_commands.command(name="karma-log", description="Show the last 10 karma adds/removals for a user")
+    @app_commands.describe(member="The user whose karma log you want to see")
+    async def karma_log(self, interaction: discord.Interaction, member: discord.Member):
+        user_id = str(member.id)
+        if os.path.exists(BALANCE_FILE):
+            with open(BALANCE_FILE, "r", encoding="utf-8") as f:
+                balances = json.load(f)
+        else:
+            balances = {}
+
+        if user_id not in balances or not balances[user_id]["history"]:
+            await interaction.response.send_message(
+                f"No karma history found for {member.display_name}.", ephemeral=True
+            )
+            return
+
+        history = balances[user_id]["history"][-10:]
+        lines = []
+        for entry in history:
+            action = "Added" if entry["amount"] > 0 else "Removed"
+            lines.append(
+                f'`{entry["timestamp"]}`: {action} {abs(entry["amount"])} by {entry["by"]}'
+            )
+        msg = f"Last {len(lines)} karma actions for **{member.display_name}**:\n" + "\n".join(lines)
+        await interaction.response.send_message(msg, ephemeral=True)
 
 async def setup(bot):
     await bot.add_cog(Karma(bot))
