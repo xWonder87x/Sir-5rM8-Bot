@@ -28,6 +28,7 @@ async def load_extensions():
     await bot.load_extension('commands.rates')
     await bot.load_extension("commands.exp_count")
     await bot.load_extension('cogs.ratecheck')
+    await bot.load_extension('commands.karma')
     
 
 @tasks.loop(minutes=5)
@@ -50,17 +51,13 @@ async def on_ready():
     except Exception as e:
         print(f"Error syncing commands: {e}")
 
-def load_data(self):
-    """Load the XP data from a JSON file."""
-    self.data_file.parent.mkdir(parents=True, exist_ok=True)
-    if self.data_file.exists():
-        try:
-            with self.data_file.open("r") as f:
-                self.message_counts.update(json.load(f))
-        except json.JSONDecodeError:
-            print("JSONDecodeError: The data file is empty or corrupted. Resetting XP data.")
-            self.message_counts.clear()
-            self.save_data()  # Save an empty JSON object to reset the file
+# Add this to your main.py
+
+@bot.command()
+@commands.is_owner()
+async def sync(ctx):
+    synced = await bot.tree.sync()
+    await ctx.send(f"Synced {len(synced)} command(s).")
 
 load_dotenv()
 
