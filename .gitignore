@@ -1,4 +1,12 @@
 .env
+__pycache__/
+*.pyc
+
+# Bot data (contains guild configs, rate state)
+data/config.json
+data/rate_state/
+
+# Legacy (no longer used)
 previous-rates.text
 current-rates.text
 rate-notification-channels.json

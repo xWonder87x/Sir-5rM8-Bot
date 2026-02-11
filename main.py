@@ -1,15 +1,13 @@
 import asyncio
 import discord
 import os
-import json
 from discord import app_commands
 from discord.ext import tasks, commands
 from dotenv import load_dotenv
 from utils import functions, config
 
-# Enable message content intent
+# Initialize the bot (message_content not needed for slash commands)
 intents = discord.Intents.default()
-intents.message_content = True
 
 # Initialize the bot with proper intents
 bot = commands.Bot(command_prefix='!', intents=intents)
@@ -26,9 +24,7 @@ async def load_extensions():
     await bot.load_extension('commands.general')
     await bot.load_extension('commands.admin')
     await bot.load_extension('commands.rates')
-    await bot.load_extension("commands.exp_count")
     await bot.load_extension('cogs.ratecheck')
-    await bot.load_extension('commands.karma')
     
 
 @tasks.loop(minutes=5)

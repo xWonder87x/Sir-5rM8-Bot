@@ -1,9 +1,20 @@
-import requests
-import re
 import discord
 from discord import app_commands
 from discord.ext import commands
-from utils import config
+from utils import config, functions
+
+# Display order: (emoji, label, rate_key)
+RATE_DISPLAY = [
+    ("✨", "EXP", "XPMultiplier"),
+    ("🌴", "Harvesting", "HarvestAmountMultiplier"),
+    ("🦖", "Taming", "TamingSpeedMultiplier"),
+    ("💞", "Mating Interval", "MatingIntervalMultiplier"),
+    ("🐣", "Egg Hatch", "EggHatchSpeedMultiplier"),
+    ("🐤", "Baby Mature", "BabyMatureSpeedMultiplier"),
+    ("🤗", "Imprint", "BabyImprintAmountMultiplier"),
+    ("🤗", "Cuddle Interval", "BabyCuddleIntervalMultiplier"),
+]
+
 
 class Rates(commands.Cog):
     def __init__(self, bot):
@@ -11,13 +22,13 @@ class Rates(commands.Cog):
 
     @app_commands.command(name="rates", description="Current ASA Server Rates")
     async def rates(self, interaction: discord.Interaction):
-        rate = requests.get(config.RATE_URL).text
-        pattern = r"^\s*([\w.]+)\s*=\s*([\w.-]+)\s*$"
-        values = []
-        for line in rate.split('\n'):
-            match = re.match(pattern, line)
-            if match:
-                values.append(match.groups()[1])
+        rate_data = functions.fetch_current_rates()
+        if not rate_data:
+            await interaction.response.send_message(
+                "Could not fetch rates. Please try again later.",
+                ephemeral=True
+            )
+            return
 
         emb = discord.Embed(
             title='ASA Official Server Rates',
@@ -25,16 +36,12 @@ class Rates(commands.Cog):
             colour=discord.Colour.pink()
         )
         emb.set_thumbnail(url=config.THUMBNAIL_URL)
-        emb.add_field(name=f"**✨ `{values[4]}x` EXP**", value='', inline=False)
-        emb.add_field(name=f"**🌴 `{values[3]}x` Harvesting**", value='', inline=False)
-        emb.add_field(name=f"**🦖 `{values[2]}x` Taming**", value='', inline=False)
-        emb.add_field(name=f"**💞 `{values[5]}x` Mating Interval**", value='', inline=False)
-        emb.add_field(name=f"**🐣 `{values[7]}x` Egg Hatch**", value='', inline=False)
-        emb.add_field(name=f"**🐤 `{values[6]}x` Baby Mature**", value='', inline=False)
-        emb.add_field(name=f"**🤗 `{values[9]}x` Imprint**", value='', inline=False)
-        emb.add_field(name=f"**🤗 `{values[8]}x` Cuddle Interval**", value='', inline=False)
-    
+        for emoji, label, key in RATE_DISPLAY:
+            value = rate_data.get(key, "?")
+            emb.add_field(name=f"**{emoji} `{value}x` {label}**", value='', inline=False)
+
         await interaction.response.send_message(embed=emb)
+
 
 async def setup(bot):
     await bot.add_cog(Rates(bot))

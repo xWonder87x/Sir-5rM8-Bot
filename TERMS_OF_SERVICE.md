@@ -14,8 +14,6 @@ Sir-5rM8 is a Discord bot that provides:
 
 - **ASA Rates** — Displays current ARK: Survival Ascended official server rates
 - **Rate Monitoring** — Automatic notifications when server rates change
-- **Karma System** — Member-to-member karma giving with cooldowns
-- **XP & Giveaways** — Message activity tracking and hourly giveaway events
 - **Server Status** — ASA server status lookups
 
 ## 3. Acceptable Use

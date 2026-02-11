@@ -30,8 +30,6 @@
 |--------|-------------|
 | **🦖 ASA Rates** | Live server rates: EXP, Harvesting, Taming, Mating, Egg Hatch, Baby Mature, Imprint & Cuddle |
 | **⚡ Dynamic Monitoring** | Auto-detects rate changes every minute and notifies your community |
-| **💫 Karma System** | Give karma to helpful members (24h cooldown). Admins can manage balances |
-| **📊 XP & Giveaways** | Tracks message activity as XP. Hourly giveaways for most active members |
 | **🖥️ Server Status** | Quick lookup for ASA server status by number |
 | **🔧 Admin Tools** | Configure rate notification channels and roles |
 
@@ -47,29 +45,11 @@
 | `/serverstatus [server]` | Checks ASA server status |
 | `/rates` | Shows current official PVE server rates |
 
-### Karma
-
-| Command | Description |
-|---------|-------------|
-| `/send-karma @member` | Give 1 karma (24h cooldown) |
-| `/karma` | Check your karma |
-| `/karma-check @member` | Check another user's karma |
-| `/karma-log @member` | View karma history (last 10 actions) |
-| `/take-karma @member` | Remove karma *(Admin)* |
-
 ### Admin
 
 | Command | Description |
 |---------|-------------|
 | `/set_rate_channel [channel] [role]` | Set channel for automatic rate updates |
-
-### XP & Giveaways *(Prefix: `!`)*
-
-| Command | Description |
-|---------|-------------|
-| `!list_exp` | View XP leaderboard |
-| `!start_giveaway [channel] [role]` | Start hourly giveaway *(Admin)* |
-| `!time_left` | Time remaining in current giveaway |
 
 ---
 

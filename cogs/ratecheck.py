@@ -1,46 +1,60 @@
-import re
 import discord
 from discord.ext import tasks, commands
 from utils import functions, config
+
+# Display order: (emoji, label, rate_key)
+RATE_DISPLAY = [
+    ("✨", "EXP", "XPMultiplier"),
+    ("🌴", "Harvesting", "HarvestAmountMultiplier"),
+    ("🦖", "Taming", "TamingSpeedMultiplier"),
+    ("💞", "Mating Interval", "MatingIntervalMultiplier"),
+    ("🐣", "Egg Hatch", "EggHatchSpeedMultiplier"),
+    ("🐤", "Baby Mature", "BabyMatureSpeedMultiplier"),
+    ("🤗", "Imprint", "BabyImprintAmountMultiplier"),
+    ("🤗", "Cuddle Interval", "BabyCuddleIntervalMultiplier"),
+]
+
 
 class RateCheckCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
+    def _build_embed(self, current: dict, previous: dict | None = None) -> discord.Embed:
+        """Build rates embed, optionally marking changed values."""
+        emb = discord.Embed(
+            title='ASA Official Server Rates',
+            description="",
+            colour=discord.Colour.pink()
+        )
+        emb.set_thumbnail(url=config.THUMBNAIL_URL)
+
+        for emoji, label, key in RATE_DISPLAY:
+            value = current.get(key, "?")
+            if previous and previous.get(key) != value:
+                name = f"**{emoji} `{value}x` {label}** *(changed)*"
+            else:
+                name = f"**{emoji} `{value}x` {label}**"
+            emb.add_field(name=name, value='', inline=False)
+        return emb
+
     @tasks.loop(minutes=1)
     async def ratecheck(self):
-        serverlist, data, flag = functions.loop()
+        serverlist, current, previous, flag = functions.loop()
         if flag == 0:
-            pattern = r"^\s*([\w.]+)\s*=\s*([\w.-]+)\s*$"
-            values = []
-            for line in data.split('\n'):
-                match = re.match(pattern, line)
-                if match:
-                    values.append(match.groups()[1])
-
+            embed = self._build_embed(current, previous)
             for ent in serverlist:
                 try:
                     guild = self.bot.get_guild(int(ent['server_id']))
-                    channel = guild.get_channel(int(ent['channel_id']))
-                    role = guild.get_role(int(ent['role']))
-                    emb = discord.Embed(
-                        title='ASA Official Server Rates',
-                        description="",
-                        colour=discord.Colour.pink()
+                    channel = guild.get_channel(int(ent['channel_id'])) if guild else None
+                    role = guild.get_role(int(ent['role'])) if guild else None
+                    if not channel or not role:
+                        continue
+                    await channel.send(
+                        f"{role.mention} — ASA rates have changed!",
+                        embed=embed
                     )
-                    emb.set_thumbnail(url=config.THUMBNAIL_URL)
-                    emb.add_field(name=f"**✨ `{values[4]}x` EXP**", value='', inline=False)
-                    emb.add_field(name=f"**🌴 `{values[3]}x` Harvesting**", value='', inline=False)
-                    emb.add_field(name=f"**🦖 `{values[2]}x` Taming**", value='', inline=False)
-                    emb.add_field(name=f"**💞 `{values[5]}x` Mating Interval**", value='', inline=False)
-                    emb.add_field(name=f"**🐣 `{values[7]}x` Egg Hatch**", value='', inline=False)
-                    emb.add_field(name=f"**🐤 `{values[6]}x` Baby Mature**", value='', inline=False)
-                    emb.add_field(name=f"**🤗 `{values[9]}x` Imprint**", value='', inline=False)
-                    emb.add_field(name=f"**🤗 `{values[8]}x` Cuddle Interval**", value='', inline=False)
-                    await channel.send(embed=emb)
-                    await channel.send(f"The {role.mention} have changed!")
-                except KeyError:
-                    print("Server channel missing or something else went wrong!")
+                except (KeyError, AttributeError, discord.Forbidden) as e:
+                    print(f"Rate notification skipped for guild {ent.get('server_id', '?')}: {e}")
 
 async def setup(bot):
     await bot.add_cog(RateCheckCog(bot))
