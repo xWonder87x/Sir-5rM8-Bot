@@ -40,13 +40,15 @@
 ## 📜 Commands
 
 ### General
+
 | Command | Description |
 |---------|-------------|
-| `/say <message>` | Repeats a message |
-| `/serverstatus <server>` | Checks ASA server status |
+| `/say [message]` | Repeats a message |
+| `/serverstatus [server]` | Checks ASA server status |
 | `/rates` | Shows current official PVE server rates |
 
 ### Karma
+
 | Command | Description |
 |---------|-------------|
 | `/send-karma @member` | Give 1 karma (24h cooldown) |
@@ -56,15 +58,17 @@
 | `/take-karma @member` | Remove karma *(Admin)* |
 
 ### Admin
+
 | Command | Description |
 |---------|-------------|
-| `/set_rate_channel <channel> <role>` | Set channel for automatic rate updates |
+| `/set_rate_channel [channel] [role]` | Set channel for automatic rate updates |
 
 ### XP & Giveaways *(Prefix: `!`)*
+
 | Command | Description |
 |---------|-------------|
 | `!list_exp` | View XP leaderboard |
-| `!start_giveaway <channel> <role>` | Start hourly giveaway *(Admin)* |
+| `!start_giveaway [channel] [role]` | Start hourly giveaway *(Admin)* |
 | `!time_left` | Time remaining in current giveaway |
 
 ---
