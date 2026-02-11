@@ -41,7 +41,7 @@
 
 | Command | Description |
 |---------|-------------|
-| `/say [message]` | Repeats a message |
+| `/say [message]` | Repeats a message *(Admin)* |
 | `/serverstatus [server]` | Check ASA official server (by name or number, e.g. 5313) |
 | `/rates` | Shows current official PVE server rates |
 

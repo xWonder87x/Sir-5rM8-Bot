@@ -1,19 +1,7 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
-from utils import config, functions
-
-# Display order: (emoji, label, rate_key)
-RATE_DISPLAY = [
-    ("✨", "EXP", "XPMultiplier"),
-    ("🌴", "Harvesting", "HarvestAmountMultiplier"),
-    ("🦖", "Taming", "TamingSpeedMultiplier"),
-    ("💞", "Mating Interval", "MatingIntervalMultiplier"),
-    ("🐣", "Egg Hatch", "EggHatchSpeedMultiplier"),
-    ("🐤", "Baby Mature", "BabyMatureSpeedMultiplier"),
-    ("🤗", "Imprint", "BabyImprintAmountMultiplier"),
-    ("🤗", "Cuddle Interval", "BabyCuddleIntervalMultiplier"),
-]
+from utils import config, constants, functions
 
 
 class Rates(commands.Cog):
@@ -22,9 +10,10 @@ class Rates(commands.Cog):
 
     @app_commands.command(name="rates", description="Current ASA Server Rates")
     async def rates(self, interaction: discord.Interaction):
+        await interaction.response.defer()
         rate_data = functions.fetch_current_rates()
         if not rate_data:
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 "Could not fetch rates. Please try again later.",
                 ephemeral=True
             )
@@ -36,11 +25,11 @@ class Rates(commands.Cog):
             colour=discord.Colour.pink()
         )
         emb.set_thumbnail(url=config.THUMBNAIL_URL)
-        for emoji, label, key in RATE_DISPLAY:
+        for emoji, label, key in constants.RATE_DISPLAY:
             value = rate_data.get(key, "?")
             emb.add_field(name=f"**{emoji} `{value}x` {label}**", value='', inline=False)
 
-        await interaction.response.send_message(embed=emb)
+        await interaction.followup.send(embed=emb)
 
 
 async def setup(bot):

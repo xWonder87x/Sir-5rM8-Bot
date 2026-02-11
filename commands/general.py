@@ -6,9 +6,11 @@ class General(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @app_commands.command(name="say", description="Repeats a message")
+    @app_commands.command(name="say", description="Repeats a message (admin only)")
+    @app_commands.checks.has_permissions(administrator=True)
     async def say(self, interaction: discord.Interaction, message: str):
         await interaction.response.send_message(message)
+
 
 async def setup(bot):
     await bot.add_cog(General(bot))

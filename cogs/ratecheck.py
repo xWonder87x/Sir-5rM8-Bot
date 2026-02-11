@@ -1,18 +1,6 @@
 import discord
 from discord.ext import tasks, commands
-from utils import functions, config
-
-# Display order: (emoji, label, rate_key)
-RATE_DISPLAY = [
-    ("✨", "EXP", "XPMultiplier"),
-    ("🌴", "Harvesting", "HarvestAmountMultiplier"),
-    ("🦖", "Taming", "TamingSpeedMultiplier"),
-    ("💞", "Mating Interval", "MatingIntervalMultiplier"),
-    ("🐣", "Egg Hatch", "EggHatchSpeedMultiplier"),
-    ("🐤", "Baby Mature", "BabyMatureSpeedMultiplier"),
-    ("🤗", "Imprint", "BabyImprintAmountMultiplier"),
-    ("🤗", "Cuddle Interval", "BabyCuddleIntervalMultiplier"),
-]
+from utils import config, constants, functions
 
 
 class RateCheckCog(commands.Cog):
@@ -28,7 +16,7 @@ class RateCheckCog(commands.Cog):
         )
         emb.set_thumbnail(url=config.THUMBNAIL_URL)
 
-        for emoji, label, key in RATE_DISPLAY:
+        for emoji, label, key in constants.RATE_DISPLAY:
             value = current.get(key, "?")
             if previous and previous.get(key) != value:
                 name = f"**{emoji} `{value}x` {label}** *(changed)*"
@@ -39,7 +27,7 @@ class RateCheckCog(commands.Cog):
 
     @tasks.loop(minutes=1)
     async def ratecheck(self):
-        serverlist, current, previous, flag = functions.loop()
+        serverlist, current, previous, flag = functions.check_rate_changes()
         if flag == 0:
             embed = self._build_embed(current, previous)
             for ent in serverlist:
@@ -55,6 +43,7 @@ class RateCheckCog(commands.Cog):
                     )
                 except (KeyError, AttributeError, discord.Forbidden) as e:
                     print(f"Rate notification skipped for guild {ent.get('server_id', '?')}: {e}")
+
 
 async def setup(bot):
     await bot.add_cog(RateCheckCog(bot))

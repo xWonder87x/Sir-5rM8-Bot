@@ -1,16 +1,12 @@
 import asyncio
+
 import discord
-import os
-from discord import app_commands
 from discord.ext import tasks, commands
-from dotenv import load_dotenv
+
 from utils import config
 
-# Initialize the bot (message_content not needed for slash commands)
 intents = discord.Intents.default()
-
-# Initialize the bot with proper intents
-bot = commands.Bot(command_prefix='!', intents=intents)
+bot = commands.Bot(command_prefix="!", intents=intents)
 
 async def load_extensions():
     await bot.load_extension('commands.general')
@@ -26,6 +22,11 @@ async def update_presence():
     activity = discord.Game(name="Dynamic Rates Monitoring")
     await bot.change_presence(activity=activity)
 
+
+@update_presence.before_loop
+async def before_update_presence():
+    await bot.wait_until_ready()
+
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user}')
@@ -40,18 +41,11 @@ async def on_ready():
     except Exception as e:
         print(f"Error syncing commands: {e}")
 
-# Add this to your main.py
-
-@bot.command()
-@commands.is_owner()
-async def sync(ctx):
-    synced = await bot.tree.sync()
-    await ctx.send(f"Synced {len(synced)} command(s).")
-
-load_dotenv()
 
 async def main():
+    if not config.TOKEN:
+        raise ValueError("TOKEN not set. Add TOKEN=your_bot_token to .env")
     await load_extensions()
-    await bot.start(os.getenv('TOKEN'))
+    await bot.start(config.TOKEN)
 
 asyncio.run(main())

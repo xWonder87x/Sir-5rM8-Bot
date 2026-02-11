@@ -3,9 +3,10 @@ Centralized data storage for Sir-5rM8.
 All guild and bot state is stored under data/ with a consistent structure.
 """
 import json
-from pathlib import Path
 
-DATA_DIR = Path("data")
+from utils import config
+
+DATA_DIR = config.DATA_DIR
 CONFIG_FILE = DATA_DIR / "config.json"
 RATE_STATE_DIR = DATA_DIR / "rate_state"
 RATE_STATE_FILE = RATE_STATE_DIR / "previous_values.json"
@@ -34,26 +35,26 @@ def _load_config() -> dict:
         return default
 
 
-def _save_config(config: dict) -> None:
+def _save_config(data: dict) -> None:
     """Save config to disk."""
     _ensure_data_dir()
     with open(CONFIG_FILE, "w", encoding="utf-8") as f:
-        json.dump(config, f, indent=2)
+        json.dump(data, f, indent=2)
 
 
 def set_rate_notification(guild_id: str, channel_id: str, role_id: str) -> None:
     """Set rate notification channel and role for a guild."""
-    config = _load_config()
-    if "guilds" not in config:
-        config["guilds"] = {}
-    if guild_id not in config["guilds"]:
-        config["guilds"][guild_id] = {}
+    data = _load_config()
+    if "guilds" not in data:
+        data["guilds"] = {}
+    if guild_id not in data["guilds"]:
+        data["guilds"][guild_id] = {}
 
-    config["guilds"][guild_id]["rate_notifications"] = {
+    data["guilds"][guild_id]["rate_notifications"] = {
         "channel_id": channel_id,
         "role_id": role_id,
     }
-    _save_config(config)
+    _save_config(data)
 
 
 def get_rate_notification_channels() -> list[dict]:
@@ -61,8 +62,8 @@ def get_rate_notification_channels() -> list[dict]:
     Get list of guilds with rate notifications configured.
     Returns list of {server_id, channel_id, role} for compatibility with ratecheck.
     """
-    config = _load_config()
-    guilds = config.get("guilds", {})
+    data = _load_config()
+    guilds = data.get("guilds", {})
     result = []
     for server_id, guild_data in guilds.items():
         rn = guild_data.get("rate_notifications")
