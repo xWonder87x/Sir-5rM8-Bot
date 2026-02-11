@@ -45,26 +45,27 @@ def _rates_changed(previous: dict, current: dict) -> bool:
     return False
 
 
-def find_server(find):
-    resp = requests.get(server_url)
-    found = False
-    if resp.status_code == 200:
-        data = resp.json()
-        for server in data:
-            if 'SessionName' in server:
-                if find.lower() in server['SessionName'].lower():
-                    found = True
-                    return (
-                        f"**Server is online!**\n{server['SessionName']}\n"
-                        f"**IP Address:**  {server['IP']}\n"
-                        f"**Day:**  {server['DayTime']}\n"
-                        f"**Players Online:**  {server['NumPlayers']}\n"
-                        f"**Ping:** {server['ServerPing']}\n"
-                    )
-    if not found:
-        return "I couldn't find the Server, probably it's offline."
-    else:
-        return "I couldn't find the Server, probably it's offline."
+def find_server(query: str) -> dict | None:
+    """
+    Search for an ASA server by name or number.
+    Returns server dict if found, None otherwise.
+    """
+    for attempt in range(HTTP_RETRIES):
+        try:
+            resp = requests.get(server_url, timeout=10)
+            resp.raise_for_status()
+            data = resp.json()
+            query_lower = query.lower().strip()
+            for server in data:
+                if 'SessionName' in server and query_lower in server['SessionName'].lower():
+                    return server
+            return None
+        except (requests.RequestException, requests.HTTPError) as e:
+            if attempt < HTTP_RETRIES - 1:
+                time.sleep(HTTP_RETRY_DELAY)
+            else:
+                print(f"find_server failed: {e}")
+                return None
 
 
 def fetch_current_rates() -> dict | None:

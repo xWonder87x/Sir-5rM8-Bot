@@ -4,7 +4,7 @@ import os
 from discord import app_commands
 from discord.ext import tasks, commands
 from dotenv import load_dotenv
-from utils import functions, config
+from utils import config
 
 # Initialize the bot (message_content not needed for slash commands)
 intents = discord.Intents.default()
@@ -12,16 +12,9 @@ intents = discord.Intents.default()
 # Initialize the bot with proper intents
 bot = commands.Bot(command_prefix='!', intents=intents)
 
-#server status command
-@bot.tree.command(name="serverstatus", description="Checks the server status")
-@app_commands.describe(server="Server Number")
-async def serverstatus(int: discord.Interaction,server:str):
-   await int.response.send_message(f"Searching for {server}\n-------------------------------")
-   result=functions.find_server(server)
-   await int.channel.send(result)
-
 async def load_extensions():
     await bot.load_extension('commands.general')
+    await bot.load_extension('commands.server')
     await bot.load_extension('commands.admin')
     await bot.load_extension('commands.rates')
     await bot.load_extension('cogs.ratecheck')
