@@ -76,3 +76,5 @@ This project is licensed under the GNU GPL v3 — see the [LICENSE](LICENSE) fil
 ---
 
 **Built with** ⚡ *for ARK communities*
+
+[Terms of Service](TERMS_OF_SERVICE.md) · [Privacy Policy](PRIVACY_POLICY.md)
