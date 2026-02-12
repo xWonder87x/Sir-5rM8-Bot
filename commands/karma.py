@@ -84,10 +84,9 @@ class Karma(commands.Cog):
                 f"Removed 1 karma from {member.mention}. Total: **{new_balance}**"
             )
 
-    @app_commands.group(name="karma", description="View karma balance", invoke_without_command=True)
+    @app_commands.command(name="karma", description="View karma balance")
     @app_commands.describe(member="The user whose karma to check (omit for yourself)")
     async def karma(self, interaction: discord.Interaction, member: discord.Member | None = None):
-        """View karma balance."""
         if interaction.guild is None:
             await interaction.response.send_message("This command can only be used in a server.", ephemeral=True)
             return
@@ -98,7 +97,7 @@ class Karma(commands.Cog):
         else:
             await interaction.response.send_message(f"{target.display_name} has **{balance}** karma.")
 
-    @karma.command(name="history", description="View karma history for a user")
+    @app_commands.command(name="karma_history", description="View karma history for a user")
     @app_commands.describe(member="The user whose karma history to view (omit for yourself)")
     async def karma_history(self, interaction: discord.Interaction, member: discord.Member | None = None):
         if interaction.guild is None:
@@ -129,7 +128,7 @@ class Karma(commands.Cog):
         msg = f"**Karma history for {target.display_name}:**\n" + "\n".join(lines)
         await interaction.response.send_message(msg, ephemeral=True)
 
-    @karma.command(name="audit", description="View recent remove_karma events (admin only)")
+    @app_commands.command(name="karma_audit", description="View recent remove_karma events (admin only)")
     @app_commands.describe(limit="Number of events to show (default 20)")
     @app_commands.checks.has_permissions(administrator=True)
     async def karma_audit(self, interaction: discord.Interaction, limit: int = 20):
