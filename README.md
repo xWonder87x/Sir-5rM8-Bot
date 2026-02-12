@@ -22,6 +22,8 @@
 
 [**Add Sir-5rM8 to Discord**](https://discord.com/oauth2/authorize?client_id=1236457243222868010)
 
+**[📖 Server Setup Guide](docs/SERVER_SETUP_GUIDE.md)** — For server owners: configure rate notifications, karma, and more.
+
 ---
 
 ## ✨ Features
@@ -49,10 +51,11 @@
 
 | Command | Description |
 |---------|-------------|
-| `/give-karma [member]` | Give 1 karma (24h cooldown, global) |
-| `/karma [member]` | Check karma (omit member for yourself) |
-| `/karma-log [member]` | View karma history (last 10) |
-| `/take-karma [member]` | Remove 1 karma *(Admin)* |
+| `/karma action:add member reason` | Give 1 karma (24h cooldown per person) |
+| `/karma action:remove member` | Remove 1 karma *(Admin)* |
+| `/manage_karma action:check [member]` | Check karma balance |
+| `/manage_karma action:history [member]` | View karma history |
+| `/manage_karma action:audit` | Recent removals *(Admin)* |
 
 ### Admin
 
