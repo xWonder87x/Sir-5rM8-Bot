@@ -15,21 +15,18 @@ Add Sir-5rM8 to your server using the [invite link](https://discord.com/oauth2/a
 
 ---
 
-## 2. Rate Notifications (Optional)
+## 2. ASA Official PVE Rate Fetch & Dynamic Rate Monitoring
 
-Get notified automatically when ARK official server rates change (checked every minute).
+**`/rates`** — View live official PVE rates (EXP, Harvesting, Taming, etc.). No setup required.
+
+**Rate notifications** — Get notified automatically when rates change (checked every minute).
 
 ### Setup
 
 1. Create a **channel** for rate updates (e.g. `#asa-rates` or `#announcements`)
 2. Create a **role** for people who want notifications (e.g. `ASA Rates` or `Rate Watchers`)
-3. Run:
-   ```
-   /set_rate_channel [channel] [role]
-   ```
-   Example: `/set_rate_channel #asa-rates @ASA Rates`
-
-4. Members who want notifications: assign themselves the role (or have admins assign it)
+3. Run: `/set_rate_channel [channel] [role]` (e.g. `/set_rate_channel #asa-rates @ASA Rates`)
+4. Members who want notifications: assign themselves the role
 
 ### Management
 
@@ -40,65 +37,37 @@ Get notified automatically when ARK official server rates change (checked every 
 
 ---
 
-## 3. Karma System
+## 3. Server Status
 
-Karma rewards helpful community members. It’s **global** (shared across all servers using the bot).
+**`/serverstatus [server]`** — Check ASA official server by name or number.
 
-### How It Works
-
-- **Give karma:** `/karma action:add [member] [reason]` — Anyone can give 1 karma with a reason. 24-hour cooldown per person you give karma to.
-- **Remove karma:** `/karma action:remove [member]` — Admins only.
-- **Check balance:** `/manage_karma action:check [member]` — Omit member to check yourself.
-- **View history:** `/manage_karma action:history [member]` — View your own history; admins can view anyone’s.
-- **Audit log:** `/manage_karma action:audit` — Admins only. Last 10 karma removals.
-
-### Quick Reference
-
-| Command | Description |
-|---------|-------------|
-| `/karma action:add member:@User reason:Helped with taming` | Give 1 karma (reason required) |
-| `/karma action:remove member:@User` | Remove 1 karma *(Admin)* |
-| `/manage_karma action:check` | Your karma balance |
-| `/manage_karma action:check member:@User` | Someone else’s balance |
-| `/manage_karma action:history` | Your karma history |
-| `/manage_karma action:history member:@User` | Their history *(Admin)* |
-| `/manage_karma action:audit` | Recent removals *(Admin)* |
-
----
-
-## 4. Server Status Lookup
-
-Check ASA official server status by name or number:
-
-```
-/serverstatus server:5313
-/serverstatus server:TheIsland
-```
+Example: `/serverstatus server:5313` or `/serverstatus server:TheIsland`
 
 Returns IP, player count, day, ping, map, and platform.
 
 ---
 
-## 5. Current Rates
+## 4. Karma System
 
-View live official PVE rates (EXP, Harvesting, Taming, etc.):
+Karma rewards helpful community members. It's **global** (shared across all servers using the bot).
 
-```
-/rates
-```
+### Commands
 
-No setup required.
+| Command | Description |
+|---------|-------------|
+| `/karma [member] [reason]` | Give 1 karma (reason required; 24h cooldown per person) |
+| `/manage_karma action:check [member]` | Check balance (omit member for yourself) |
+| `/manage_karma action:history [member]` | View history (admins can view anyone's) |
+| `/manage_karma action:remove [member]` | Remove 1 karma *(Admin)* |
+| `/manage_karma action:audit` | Recent removals *(Admin)* |
 
 ---
 
-## 6. Admin Commands
+## 5. Admin Tools
 
 | Command | Description |
 |---------|-------------|
 | `/say [message]` | Repeats a message *(Admin)* |
-| `/set_rate_channel [channel] [role]` | Configure rate notifications |
-| `/rate_channel_status` | Show rate notification setup |
-| `/clear_rate_channel` | Remove rate notifications |
 
 ---
 
@@ -107,7 +76,7 @@ No setup required.
 - [ ] Invite the bot
 - [ ] Try `/rates` and `/serverstatus server:5313`
 - [ ] *(Optional)* Set up rate notifications with `/set_rate_channel`
-- [ ] Explain karma to your community — `/karma action:add` for helpful members
+- [ ] Explain karma to your community — `/karma` for helpful members
 
 ---
 

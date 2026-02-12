@@ -4,7 +4,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from utils import functions, storage
+from utils import functions
 
 
 def _format_by(entry: dict) -> str:
@@ -20,86 +20,60 @@ class Karma(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @app_commands.command(name="karma", description="Add or remove karma")
+    @app_commands.command(name="karma", description="Give 1 karma to a member")
     @app_commands.describe(
-        action="Add or remove",
-        member="The user (to give karma to, or to remove from)",
-        reason="Reason for giving karma (required for add)",
+        member="The user to give karma to",
+        reason="Reason for giving karma",
     )
-    @app_commands.choices(action=[
-        app_commands.Choice(name="add", value="add"),
-        app_commands.Choice(name="remove", value="remove"),
-    ])
     @app_commands.checks.cooldown(1, 10, key=lambda i: i.user.id)
     async def karma(
         self,
         interaction: discord.Interaction,
-        action: app_commands.Choice[str],
         member: discord.Member,
-        reason: str | None = None,
+        reason: str,
     ):
         if interaction.guild is None:
             await interaction.response.send_message("This command can only be used in a server.", ephemeral=True)
             return
-        act = action.value
-        if act == "add":
-            giver_id = str(interaction.user.id)
-            receiver_id = str(member.id)
-            if giver_id == receiver_id:
-                await interaction.response.send_message("You can't give karma to yourself!", ephemeral=True)
-                return
-            if not reason:
-                await interaction.response.send_message("Reason is required when adding karma.", ephemeral=True)
-                return
-            settings = functions.get_karma_settings()
-            cooldown_hours = settings["cooldown_hours"]
-            cooldown = functions.karma_get_cooldown(giver_id, receiver_id)
-            if cooldown:
-                elapsed = datetime.now(timezone.utc) - cooldown
-                remaining = timedelta(hours=cooldown_hours) - elapsed
-                if remaining.total_seconds() > 0:
-                    h = int(remaining.total_seconds() // 3600)
-                    m = int((remaining.total_seconds() % 3600) // 60)
-                    await interaction.response.send_message(
-                        f"You must wait {h}h {m}m before giving karma to {member.display_name} again.",
-                        ephemeral=True
-                    )
-                    return
-            new_balance = functions.karma_add(
-                giver_id,
-                receiver_id,
-                interaction.user.display_name,
-                reason=reason,
-            )
-            next_available = f" You can give karma to {member.display_name} again in {cooldown_hours}h."
-            await interaction.response.send_message(
-                f"{member.mention} received 1 karma! Total: **{new_balance}**.{next_available}"
-            )
-
-        elif act == "remove":
-            if not interaction.user.guild_permissions.administrator:
-                await interaction.response.send_message("Admin only.", ephemeral=True)
-                return
-            new_balance = functions.karma_take(
-                str(member.id),
-                str(interaction.user.id),
-                interaction.user.display_name,
-            )
-            if new_balance is None:
-                await interaction.response.send_message(f"{member.display_name} has no karma to remove.", ephemeral=True)
-            else:
+        giver_id = str(interaction.user.id)
+        receiver_id = str(member.id)
+        if giver_id == receiver_id:
+            await interaction.response.send_message("You can't give karma to yourself!", ephemeral=True)
+            return
+        settings = functions.get_karma_settings()
+        cooldown_hours = settings["cooldown_hours"]
+        cooldown = functions.karma_get_cooldown(giver_id, receiver_id)
+        if cooldown:
+            elapsed = datetime.now(timezone.utc) - cooldown
+            remaining = timedelta(hours=cooldown_hours) - elapsed
+            if remaining.total_seconds() > 0:
+                h = int(remaining.total_seconds() // 3600)
+                m = int((remaining.total_seconds() % 3600) // 60)
                 await interaction.response.send_message(
-                    f"Removed 1 karma from {member.mention}. Total: **{new_balance}**"
+                    f"You must wait {h}h {m}m before giving karma to {member.display_name} again.",
+                    ephemeral=True
                 )
+                return
+        new_balance = functions.karma_add(
+            giver_id,
+            receiver_id,
+            interaction.user.display_name,
+            reason=reason,
+        )
+        next_available = f" You can give karma to {member.display_name} again in {cooldown_hours}h."
+        await interaction.response.send_message(
+            f"{member.mention} received 1 karma! Total: **{new_balance}**.{next_available}"
+        )
 
-    @app_commands.command(name="manage_karma", description="Check balance, view history, or audit (admin)")
+    @app_commands.command(name="manage_karma", description="Check balance, view history, remove karma, or audit (admin)")
     @app_commands.describe(
         action="What to do",
-        member="User (for check/history, omit for yourself)",
+        member="User (for check/history/remove, omit for yourself)",
     )
     @app_commands.choices(action=[
         app_commands.Choice(name="check", value="check"),
         app_commands.Choice(name="history", value="history"),
+        app_commands.Choice(name="remove", value="remove"),
         app_commands.Choice(name="audit", value="audit"),
     ])
     async def manage_karma(
@@ -145,6 +119,25 @@ class Karma(commands.Cog):
                 lines.append(f"`{ts}`: {action_str} {entry.get('amount', 1)} by {by_str}{reason_str}")
             msg = f"**Karma history for {target.display_name}:**\n" + "\n".join(lines)
             await interaction.response.send_message(msg, ephemeral=True)
+
+        elif act == "remove":
+            if not interaction.user.guild_permissions.administrator:
+                await interaction.response.send_message("Admin only.", ephemeral=True)
+                return
+            if not member:
+                await interaction.response.send_message("Member is required for remove.", ephemeral=True)
+                return
+            new_balance = functions.karma_take(
+                str(member.id),
+                str(interaction.user.id),
+                interaction.user.display_name,
+            )
+            if new_balance is None:
+                await interaction.response.send_message(f"{member.display_name} has no karma to remove.", ephemeral=True)
+            else:
+                await interaction.response.send_message(
+                    f"Removed 1 karma from {member.mention}. Total: **{new_balance}**"
+                )
 
         elif act == "audit":
             if not interaction.user.guild_permissions.administrator:

@@ -28,43 +28,36 @@
 
 ## ✨ Features
 
-| Module | Description |
-|--------|-------------|
-| **🦖 ASA Rates** | Live server rates: EXP, Harvesting, Taming, Mating, Egg Hatch, Baby Mature, Imprint & Cuddle |
-| **⚡ Dynamic Monitoring** | Auto-detects rate changes every minute and notifies your community |
-| **💫 Karma** | Global karma: give karma to helpful members (24h cooldown, shared across servers) |
-| **🖥️ Server Status** | Quick lookup for ASA server status by number |
-| **🔧 Admin Tools** | Configure rate notification channels and roles |
-
----
-
-## 📜 Commands
-
-### General
+### ASA Official PVE Rate Fetch & Dynamic Rate Monitoring
 
 | Command | Description |
 |---------|-------------|
-| `/serverstatus [server]` | Check ASA official server (by name or number, e.g. 5313) |
-| `/rates` | Shows current official PVE server rates |
+| `/rates` | Live server rates: EXP, Harvesting, Taming, Mating, Egg Hatch, Baby Mature, Imprint & Cuddle |
+| `/set_rate_channel [channel] [role]` | Set channel for automatic rate updates (auto-detects changes every minute) |
+| `/rate_channel_status` | Show current rate notification setup |
+| `/clear_rate_channel` | Remove rate notifications for this server |
 
-### Karma
+### Server Status
 
 | Command | Description |
 |---------|-------------|
-| `/karma action:add member reason` | Give 1 karma (24h cooldown per person) |
-| `/karma action:remove member` | Remove 1 karma *(Admin)* |
+| `/serverstatus [server]` | Check ASA official server by name or number (e.g. 5313, TheIsland) |
+
+### Karma System
+
+| Command | Description |
+|---------|-------------|
+| `/karma [member] [reason]` | Give 1 karma (24h cooldown per person) |
 | `/manage_karma action:check [member]` | Check karma balance |
 | `/manage_karma action:history [member]` | View karma history |
+| `/manage_karma action:remove [member]` | Remove 1 karma *(Admin)* |
 | `/manage_karma action:audit` | Recent removals *(Admin)* |
 
-### Admin
+### Admin Tools
 
 | Command | Description |
 |---------|-------------|
 | `/say [message]` | Repeats a message |
-| `/set_rate_channel [channel] [role]` | Set channel for automatic rate updates |
-| `/rate_channel_status` | Show current rate notification setup |
-| `/clear_rate_channel` | Remove rate notifications for this server |
 
 ---
 

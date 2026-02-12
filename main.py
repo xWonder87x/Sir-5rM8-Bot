@@ -9,6 +9,7 @@ intents = discord.Intents.default()
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 async def load_extensions():
+    await bot.load_extension('commands.help')
     await bot.load_extension('commands.server')
     await bot.load_extension('commands.karma')
     await bot.load_extension('commands.admin')
