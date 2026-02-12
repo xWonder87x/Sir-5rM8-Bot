@@ -1,4 +1,5 @@
 import asyncio
+import sys
 
 import discord
 from discord.ext import tasks, commands
@@ -49,4 +50,9 @@ async def main():
     await load_extensions()
     await bot.start(config.TOKEN)
 
-asyncio.run(main())
+if __name__ == "__main__":
+    try:
+        asyncio.run(main())
+    except (KeyboardInterrupt, asyncio.CancelledError):
+        print("Shutting down...")
+        sys.exit(0)
