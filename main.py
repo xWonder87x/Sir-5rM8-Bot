@@ -9,8 +9,8 @@ intents = discord.Intents.default()
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 async def load_extensions():
-    await bot.load_extension('commands.general')
     await bot.load_extension('commands.server')
+    await bot.load_extension('commands.karma')
     await bot.load_extension('commands.admin')
     await bot.load_extension('commands.rates')
     await bot.load_extension('cogs.ratecheck')

@@ -30,6 +30,7 @@
 |--------|-------------|
 | **🦖 ASA Rates** | Live server rates: EXP, Harvesting, Taming, Mating, Egg Hatch, Baby Mature, Imprint & Cuddle |
 | **⚡ Dynamic Monitoring** | Auto-detects rate changes every minute and notifies your community |
+| **💫 Karma** | Global karma: give karma to helpful members (24h cooldown, shared across servers) |
 | **🖥️ Server Status** | Quick lookup for ASA server status by number |
 | **🔧 Admin Tools** | Configure rate notification channels and roles |
 
@@ -41,15 +42,26 @@
 
 | Command | Description |
 |---------|-------------|
-| `/say [message]` | Repeats a message *(Admin)* |
 | `/serverstatus [server]` | Check ASA official server (by name or number, e.g. 5313) |
 | `/rates` | Shows current official PVE server rates |
+
+### Karma
+
+| Command | Description |
+|---------|-------------|
+| `/give-karma [member]` | Give 1 karma (24h cooldown, global) |
+| `/karma [member]` | Check karma (omit member for yourself) |
+| `/karma-log [member]` | View karma history (last 10) |
+| `/take-karma [member]` | Remove 1 karma *(Admin)* |
 
 ### Admin
 
 | Command | Description |
 |---------|-------------|
+| `/say [message]` | Repeats a message |
 | `/set_rate_channel [channel] [role]` | Set channel for automatic rate updates |
+| `/rate_channel_status` | Show current rate notification setup |
+| `/clear_rate_channel` | Remove rate notifications for this server |
 
 ---
 

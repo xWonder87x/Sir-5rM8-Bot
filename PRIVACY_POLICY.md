@@ -12,14 +12,15 @@ When you use Sir-5rM8 in a Discord server, we may collect and store the followin
 
 | Data Type | Purpose | Storage |
 |-----------|---------|---------|
-| **Server (Guild) IDs** | Identify which servers use rate notifications | `data/config.json` |
-| **Channel IDs** | Where to send rate updates per server | `data/config.json` |
-| **Role IDs** | Who to notify for rate changes per server | `data/config.json` |
+| **Server (Guild) IDs** | Identify servers and their settings | `data/config.json` |
+| **Channel IDs** | Rate update channels, per server | `data/config.json` |
+| **Role IDs** | Who to notify for rate changes | `data/config.json` |
+| **User IDs** | Karma balances and history, per server | `data/config.json` |
+| **Display Names** | Karma log (who gave/took karma) | `data/config.json` |
 
 ### Data We Do NOT Collect
 
 - Message content
-- User IDs or display names
 - Email addresses
 - Payment information
 - IP addresses (beyond what Discord provides to the bot)
@@ -28,8 +29,8 @@ When you use Sir-5rM8 in a Discord server, we may collect and store the followin
 
 We use the collected data to:
 
-- **Operate the bot** — Provide rate monitoring and notifications
-- **Maintain features** — Store each server's rate notification preferences
+- **Operate the bot** — Provide rate monitoring, karma, and notifications
+- **Maintain features** — Store each server's rate notification and karma data
 - **Improve the service** — Fix bugs and ensure stability
 
 We do **not** sell, rent, or share your data with third parties for marketing purposes.
@@ -55,7 +56,7 @@ We do not share data with advertisers or data brokers.
 You can request:
 
 - **Access** — To know what data we hold about you
-- **Deletion** — To have your server's configuration removed
+- **Deletion** — To have your server's configuration or your karma data removed
 - **Correction** — To correct inaccurate data
 
 To exercise these rights, contact us (see Section 8). Note: Removing the bot from a server does not automatically delete historical data; contact us for deletion.

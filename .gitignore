@@ -4,6 +4,7 @@ __pycache__/
 
 # Bot data (contains guild configs, rate state)
 data/config.json
+data/karma_history.jsonl
 data/rate_state/
 
 # Legacy (no longer used)
