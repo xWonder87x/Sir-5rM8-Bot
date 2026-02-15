@@ -12,7 +12,7 @@
 
 ### *Making the community better, one command at a time.*
 
-*A feature-rich Discord bot for your ARK: Survival Ascended community.*
+*A feature-rich Discord bot for your ARK: Survival Ascended discord community.*
 
 ---
 
