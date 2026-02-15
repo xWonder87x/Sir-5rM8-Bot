@@ -10,7 +10,9 @@ class Admin(commands.Cog):
     @app_commands.command(name="say", description="Repeats a message (admin only)")
     @app_commands.checks.has_permissions(administrator=True)
     async def say(self, interaction: discord.Interaction, message: str):
-        await interaction.response.send_message(message)
+        await interaction.response.send_message("Done.", ephemeral=True)
+        if interaction.channel:
+            await interaction.channel.send(message)
 
     @app_commands.command(name="set_rate_channel", description="Set channel for rate updates")
     @app_commands.describe(channel="Channel", role="Role")
