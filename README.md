@@ -59,6 +59,12 @@
 |---------|-------------|
 | `/say [message]` | Repeats a message |
 
+### Coming soon features
+
+- **XP Leaderboard & Giveaway**
+- **Auto Partner Index**
+- **Auction Monitoring**
+
 ---
 
 ## 📄 License
