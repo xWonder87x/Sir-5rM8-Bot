@@ -33,9 +33,9 @@
 | Command | Description |
 |---------|-------------|
 | `/rates` | Live server rates: EXP, Harvesting, Taming, Mating, Egg Hatch, Baby Mature, Imprint & Cuddle |
-| `/set_rate_channel [channel] [role]` | Set channel for automatic rate updates (auto-detects changes every minute) |
-| `/rate_channel_status` | Show current rate notification setup |
-| `/clear_rate_channel` | Remove rate notifications for this server |
+| `/set_rate_channel [channel] [role]` | Set channel for automatic rate updates *(Admin only)*|
+| `/rate_channel_status` | Show current rate notification setup *(Admin only)*|
+| `/clear_rate_channel` | Remove rate notifications for this server *(Admin only)*|
 
 ### Server Status
 
@@ -50,8 +50,8 @@
 | `/karma [member] [reason]` | Give 1 karma (24h cooldown per person) |
 | `/manage_karma action:check [member]` | Check karma balance |
 | `/manage_karma action:history [member]` | View karma history |
-| `/manage_karma action:remove [member]` | Remove 1 karma *(Admin)* |
-| `/manage_karma action:audit` | Recent removals *(Admin)* |
+| `/manage_karma action:remove [member]` | Remove 1 karma *(Admin only)* |
+| `/manage_karma action:audit` | Recent removals *(Admin only)* |
 
 ### Admin Tools
 
