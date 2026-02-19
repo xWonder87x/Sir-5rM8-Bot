@@ -73,9 +73,7 @@ This project is licensed under the GNU GPL v3 — see the [LICENSE](LICENSE) fil
 
 ---
 
-**Built with** ⚡ *for ARK communities*
-
-*Sir-5rM8 is not affiliated with Studio Wildcard <img src="src/wildcard.png" alt="Studio Wildcard" width="24" height="24" />.*
+**Built with** ⚡ *for ARK Discord communities*. *Sir-5rM8 is not affiliated with Studio Wildcard <img src="src/wildcard.png" alt="Studio Wildcard" width="24" height="24" />.*
 
 [Terms of Service](TERMS_OF_SERVICE.md) · [Privacy Policy](PRIVACY_POLICY.md)
 
