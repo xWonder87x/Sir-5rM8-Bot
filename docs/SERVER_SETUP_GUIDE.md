@@ -81,3 +81,5 @@ Karma rewards helpful community members. It's **global** (shared across all serv
 ---
 
 *Need help? Contact the bot developer or check the [Terms of Service](../TERMS_OF_SERVICE.md).*
+
+*Sir-5rM8 is not affiliated with Studio Wildcard ![Studio Wildcard](../src/wildcard.png). ARK: Survival Evolved, ARK: Survival Ascended, and related marks are trademarks of Studio Wildcard.*
