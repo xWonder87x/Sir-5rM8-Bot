@@ -77,6 +77,6 @@ This project is licensed under the GNU GPL v3 — see the [LICENSE](LICENSE) fil
 
 [Terms of Service](TERMS_OF_SERVICE.md) · [Privacy Policy](PRIVACY_POLICY.md)
 
-*Sir-5rM8 is not affiliated with Studio Wildcard ![Studio Wildcard](src/wildcard.png). ARK: Survival Evolved, ARK: Survival Ascended, and related marks are trademarks of Studio Wildcard.*
+*Sir-5rM8 is not affiliated with Studio Wildcard <img src="src/wildcard.png" alt="Studio Wildcard" width="24" height="24" />. ARK: Survival Evolved, ARK: Survival Ascended, and related marks are trademarks of Studio Wildcard.*
 
 <a href="https://buymeacoffee.com/xwonder87x" target="_blank" rel="noopener noreferrer" aria-label="Buy me a coffee"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy me a coffee" height="40" style="height: 2.5rem; width: auto;"></a>
