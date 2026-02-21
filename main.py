@@ -20,8 +20,9 @@ async def load_extensions():
 
 @tasks.loop(minutes=5)
 async def update_presence():
-    """Periodically update the bot's rich presence."""
-    activity = discord.Game(name="Dynamic Rates Monitoring")
+    """Periodically update the bot's rich presence with server count."""
+    count = len(bot.guilds)
+    activity = discord.Game(name=f"In {count} server{'s' if count != 1 else ''}")
     await bot.change_presence(activity=activity)
 
 
