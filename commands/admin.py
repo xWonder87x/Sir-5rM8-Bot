@@ -61,6 +61,15 @@ class Admin(commands.Cog):
         else:
             await interaction.response.send_message("No rate channel was configured.", ephemeral=True)
 
+    @app_commands.command(name="servers", description="List every server the bot is in (admin only)")
+    @app_commands.checks.has_permissions(administrator=True)
+    async def servers(self, interaction: discord.Interaction):
+        guilds = self.bot.guilds
+        count = len(guilds)
+        lines = [f"**{g.name}** — `{g.id}`" for g in sorted(guilds, key=lambda g: g.name.lower())]
+        msg = f"**Servers ({count}):**\n" + "\n".join(lines) if lines else "**Servers (0):**\nNo servers."
+        await interaction.response.send_message(msg, ephemeral=True)
+
     async def cog_app_command_error(self, interaction: discord.Interaction, error: Exception):
         msg = str(error) if str(error) else type(error).__name__
         try:
