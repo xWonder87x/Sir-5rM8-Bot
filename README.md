@@ -77,4 +77,4 @@ This project is licensed under the GNU GPL v3 — see the [LICENSE](LICENSE) fil
 
 [Terms of Service](TERMS_OF_SERVICE.md) · [Privacy Policy](PRIVACY_POLICY.md)
 
-<a href="https://buymeacoffee.com/xwonder87x" target="_blank" rel="noopener noreferrer" aria-label="Buy me a coffee"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy me a coffee" height="40" style="height: 2.5rem; width: auto;"></a>
+<script type="text/javascript" src="https://cdnjs.buymeacoffee.com/1.0.0/button.prod.min.js" data-name="bmc-button" data-slug="xwonder87x" data-color="#FFDD00" data-emoji="☕"  data-font="Bree" data-text="Support the development" data-outline-color="#000000" data-font-color="#000000" data-coffee-color="#ffffff" ></script>
