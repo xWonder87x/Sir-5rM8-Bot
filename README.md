@@ -73,8 +73,8 @@ This project is licensed under the GNU GPL v3 — see the [LICENSE](LICENSE) fil
 
 ---
 
-**Built with** ❤ *for ARK Discord communities*. *Sir-5rM8 is not affiliated with Studio Wildcard <img src="src/wildcard.png" alt="Studio Wildcard" width="24" height="24" />.*
+**Built with** ❤ *for ARK Discord communities*. *Sir-5rM8 is not affiliated with Studio Wildcard.*
 
 [Terms of Service](TERMS_OF_SERVICE.md) · [Privacy Policy](PRIVACY_POLICY.md)
 
-<a href="https://www.buymeacoffee.com/xwonder87x"><img src="https://img.buymeacoffee.com/button-api/?text=Buy me a coffee&emoji=☕&slug=xwonder87x&button_colour=FFDD00&font_colour=000000&font_family=Bree&outline_colour=000000&coffee_colour=ffffff" /></a>
+<a href="https://www.buymeacoffee.com/xwonder87x" target="_blank" rel="noopener noreferrer" aria-label="Buy me a coffee"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy me a coffee" width="150" /></a>
