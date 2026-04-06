@@ -3,6 +3,7 @@ __pycache__/
 *.pyc
 
 # Bot data (contains guild configs, rate state)
+data/bot.log
 data/config.json
 data/karma_history.jsonl
 data/rate_state/
