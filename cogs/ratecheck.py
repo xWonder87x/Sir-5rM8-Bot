@@ -19,7 +19,7 @@ class RateCheckCog(commands.Cog):
         for emoji, label, key in constants.RATE_DISPLAY:
             value = current.get(key, "?")
             if previous and previous.get(key) != value:
-                name = f"**{emoji} `{value}x` {label}** *(changed)*"
+                name = f"**{emoji} `{value}x` {label}**"
             else:
                 name = f"**{emoji} `{value}x` {label}**"
             emb.add_field(name=name, value='', inline=False)
