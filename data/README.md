@@ -1,6 +1,8 @@
 # Data Directory
 
-This directory stores bot state and guild configurations. It is created automatically when the bot runs.
+When **Supabase** is not configured (`SUPABASE_URL` + `SUPABASE_SERVICE_KEY` in `.env`), the bot stores state here. See [docs/SUPABASE.md](../docs/SUPABASE.md) to use PostgreSQL instead.
+
+This directory is created automatically when the bot runs with file storage.
 
 ## Structure
 

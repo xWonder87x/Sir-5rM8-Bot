@@ -58,8 +58,10 @@ def get_rate_notification(guild_id: str) -> dict | None:
 
 
 def clear_rate_notification(guild_id: str) -> bool:
-    r = _sb().table("guild_rate_notifications").delete().eq("guild_id", guild_id).execute()
-    return bool(r.data)
+    if get_rate_notification(guild_id) is None:
+        return False
+    _sb().table("guild_rate_notifications").delete().eq("guild_id", guild_id).execute()
+    return True
 
 
 def get_rate_notification_channels() -> list[dict]:

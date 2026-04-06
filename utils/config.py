@@ -8,6 +8,10 @@ load_dotenv()
 # Bot
 TOKEN = os.getenv("TOKEN")
 
+# Supabase (optional — if both set, storage uses PostgreSQL instead of local JSON)
+SUPABASE_URL = (os.getenv("SUPABASE_URL") or "").strip() or None
+SUPABASE_SERVICE_KEY = (os.getenv("SUPABASE_SERVICE_KEY") or "").strip() or None
+
 # ASA API URLs
 RATE_URL = "https://cdn2.arkdedicated.com/asa/dynamicconfig.ini"
 SERVER_LIST_URL = "https://cdn2.arkdedicated.com/servers/asa/officialserverlist.json"
