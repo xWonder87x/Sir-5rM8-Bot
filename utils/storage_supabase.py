@@ -24,6 +24,11 @@ def _sb() -> Client:
     return _client
 
 
+def check_connection() -> None:
+    """Verify Supabase is reachable (DNS, URL, auth). Raises on failure."""
+    _sb().table("rate_state").select("id").eq("id", 1).limit(1).execute()
+
+
 def _ensure_karma_settings_row() -> None:
     sb = _sb()
     r = sb.table("karma_global_settings").select("id").eq("id", 1).limit(1).execute()

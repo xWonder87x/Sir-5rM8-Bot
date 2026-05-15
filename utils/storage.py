@@ -4,7 +4,7 @@ otherwise JSON files under data/ (see storage_files.py).
 """
 from utils import config
 
-if config.SUPABASE_URL and config.SUPABASE_SERVICE_KEY:
+if config.USE_SUPABASE:
     from utils.storage_supabase import (  # noqa: F401
         clear_rate_notification,
         get_karma_settings,

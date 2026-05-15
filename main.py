@@ -92,9 +92,28 @@ async def reload_all(ctx):
         await ctx.send(f"Reloaded all {len(extensions)} cogs and synced slash commands.")
 
 
+def _log_storage_backend():
+    if config.USE_SUPABASE:
+        logger.info("Storage backend: Supabase (%s)", config.SUPABASE_URL)
+        try:
+            from utils.storage_supabase import check_connection
+            check_connection()
+            logger.info("Supabase connection OK")
+        except Exception as e:
+            logger.error(
+                "Supabase connection failed: %s. "
+                "Check SUPABASE_URL (https://YOUR_PROJECT.supabase.co) and SUPABASE_SERVICE_KEY. "
+                "Remove both env vars to fall back to JSON files in data/.",
+                e,
+            )
+    else:
+        logger.info("Storage backend: JSON files (%s)", config.DATA_DIR)
+
+
 @bot.event
 async def on_ready():
     logger.info("Logged in as %s (ID: %s)", bot.user, bot.user.id)
+    _log_storage_backend()
     try:
         synced = await bot.tree.sync()
         logger.info("Synced %d command(s)", len(synced))

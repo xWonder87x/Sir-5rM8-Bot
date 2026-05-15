@@ -9,8 +9,19 @@ load_dotenv()
 TOKEN = os.getenv("TOKEN")
 
 # Supabase (optional — if both set, storage uses PostgreSQL instead of local JSON)
-SUPABASE_URL = (os.getenv("SUPABASE_URL") or "").strip() or None
+def _normalize_supabase_url(url: str) -> str:
+    url = url.strip().strip('"').strip("'").rstrip("/")
+    if not url.startswith(("http://", "https://")):
+        url = "https://" + url
+    return url
+
+
+_raw_supabase_url = (os.getenv("SUPABASE_URL") or "").strip()
 SUPABASE_SERVICE_KEY = (os.getenv("SUPABASE_SERVICE_KEY") or "").strip() or None
+SUPABASE_URL = _normalize_supabase_url(_raw_supabase_url) if _raw_supabase_url else None
+
+USE_SUPABASE = bool(SUPABASE_URL and SUPABASE_SERVICE_KEY)
+STORAGE_BACKEND = "supabase" if USE_SUPABASE else "json_files"
 
 # ASA API URLs
 RATE_URL = "https://cdn2.arkdedicated.com/asa/dynamicconfig.ini"

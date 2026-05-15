@@ -1,7 +1,13 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
+
 from utils import functions
+
+try:
+    from httpx import ConnectError as HttpxConnectError
+except ImportError:
+    HttpxConnectError = ()
 
 class Admin(commands.Cog):
     def __init__(self, bot):
@@ -71,7 +77,16 @@ class Admin(commands.Cog):
         await interaction.response.send_message(msg, ephemeral=True)
 
     async def cog_app_command_error(self, interaction: discord.Interaction, error: Exception):
-        msg = str(error) if str(error) else type(error).__name__
+        if isinstance(error, HttpxConnectError) or "Name or service not known" in str(error):
+            msg = (
+                "Could not reach Supabase (DNS/network). "
+                "Check **SUPABASE_URL** in `.env` — use `https://YOUR_PROJECT.supabase.co` "
+                "(Project Settings → API). "
+                "If the host has no outbound internet, remove `SUPABASE_URL` and "
+                "`SUPABASE_SERVICE_KEY` to use local JSON storage instead."
+            )
+        else:
+            msg = str(error) if str(error) else type(error).__name__
         try:
             if interaction.response.is_done():
                 await interaction.followup.send(f"Error: {msg}", ephemeral=True)
