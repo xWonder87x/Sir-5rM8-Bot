@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import discord
 from discord import app_commands
 from discord.ext import commands
@@ -43,7 +45,8 @@ class Help(commands.Cog):
             ),
             _embed(
                 "Admin Tools",
-                "`/say [message]`\n\n"
+                "`/say [message]`\n"
+                "`/servers` *(Admin)* — list every server the bot is in\n\n"
                 "**Quick Start**\n"
                 "1. Try `/rates` and `/serverstatus server:5313`\n"
                 "2. Optional: `/set_rate_channel` for rate alerts\n"

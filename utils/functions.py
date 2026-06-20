@@ -2,17 +2,30 @@
 Orchestration layer: ASA API + storage.
 Commands and cogs use this module.
 """
+from __future__ import annotations
+
+import asyncio
+
 from utils import asa, constants, storage
+from utils.asa import ServerLookupResult
 
 
-def find_server(query: str) -> dict | None:
-    """Search for an ASA server. Returns server dict or None."""
+def find_server(query: str) -> ServerLookupResult:
+    """Search for an ASA server."""
     return asa.find_server(query)
+
+
+async def find_server_async(query: str) -> ServerLookupResult:
+    return await asyncio.to_thread(asa.find_server, query)
 
 
 def fetch_current_rates() -> dict | None:
     """Fetch current ASA rates. Returns dict or None."""
     return asa.fetch_current_rates()
+
+
+async def fetch_current_rates_async() -> dict | None:
+    return await asyncio.to_thread(asa.fetch_current_rates)
 
 
 def add_server_channel(guild_id: str, channel_id: str, role_id: str) -> None:
@@ -79,3 +92,7 @@ def check_rate_changes() -> tuple[list | None, dict | None, dict | None, int]:
         return server_list, current, previous, 0
 
     return None, None, None, 1
+
+
+async def check_rate_changes_async() -> tuple[list | None, dict | None, dict | None, int]:
+    return await asyncio.to_thread(check_rate_changes)

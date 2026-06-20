@@ -1,13 +1,42 @@
+from __future__ import annotations
+
 import discord
 from discord import app_commands
 from discord.ext import commands
 
-from utils import functions
+from utils import constants, functions
 
 try:
     from httpx import ConnectError as HttpxConnectError
 except ImportError:
     HttpxConnectError = ()
+
+def _paginate_lines(header: str, lines: list[str]) -> list[str]:
+    """Split lines into Discord messages under the character limit."""
+    max_len = constants.DISCORD_MESSAGE_MAX
+    if not lines:
+        return [header]
+
+    pages: list[str] = []
+    idx = 0
+    part = 1
+    while idx < len(lines):
+        page_header = header if part == 1 else f"{header} (continued {part})"
+        chunk: list[str] = []
+        while idx < len(lines):
+            body = "\n".join(chunk + [lines[idx]])
+            if len(f"{page_header}\n{body}") <= max_len:
+                chunk.append(lines[idx])
+                idx += 1
+            elif chunk:
+                break
+            else:
+                chunk.append(lines[idx][: max(0, max_len - len(page_header) - 2)] + "…")
+                idx += 1
+                break
+        pages.append(f"{page_header}\n" + "\n".join(chunk))
+        part += 1
+    return pages
 
 class Admin(commands.Cog):
     def __init__(self, bot):
@@ -73,8 +102,11 @@ class Admin(commands.Cog):
         guilds = self.bot.guilds
         count = len(guilds)
         lines = [f"**{g.name}** — `{g.id}`" for g in sorted(guilds, key=lambda g: g.name.lower())]
-        msg = f"**Servers ({count}):**\n" + "\n".join(lines) if lines else "**Servers (0):**\nNo servers."
-        await interaction.response.send_message(msg, ephemeral=True)
+        header = f"**Servers ({count}):**"
+        pages = _paginate_lines(header, lines) if lines else [f"**Servers (0):**\nNo servers."]
+        await interaction.response.send_message(pages[0], ephemeral=True)
+        for page in pages[1:]:
+            await interaction.followup.send(page, ephemeral=True)
 
     async def cog_app_command_error(self, interaction: discord.Interaction, error: Exception):
         if isinstance(error, HttpxConnectError) or "Name or service not known" in str(error):

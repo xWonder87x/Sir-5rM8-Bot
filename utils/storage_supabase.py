@@ -8,12 +8,9 @@ from datetime import datetime, timezone
 
 from supabase import Client, create_client
 
-from utils import config
+from utils import config, constants
 
 _client: Client | None = None
-
-DEFAULT_KARMA_HISTORY_LIMIT = 10
-DEFAULT_COOLDOWN_HOURS = 24
 
 
 def _sb() -> Client:
@@ -29,14 +26,23 @@ def check_connection() -> None:
     _sb().table("rate_state").select("id").eq("id", 1).limit(1).execute()
 
 
+def _rpc_int(result) -> int | None:
+    data = result.data
+    if data is None:
+        return None
+    if isinstance(data, list):
+        return int(data[0]) if data else None
+    return int(data)
+
+
 def _ensure_karma_settings_row() -> None:
     sb = _sb()
     r = sb.table("karma_global_settings").select("id").eq("id", 1).limit(1).execute()
     if not r.data:
         sb.table("karma_global_settings").insert({
             "id": 1,
-            "cooldown_hours": DEFAULT_COOLDOWN_HOURS,
-            "history_limit": DEFAULT_KARMA_HISTORY_LIMIT,
+            "cooldown_hours": constants.DEFAULT_COOLDOWN_HOURS,
+            "history_limit": constants.DEFAULT_KARMA_HISTORY_LIMIT,
         }).execute()
 
 
@@ -94,11 +100,14 @@ def get_karma_settings() -> dict:
     _ensure_karma_settings_row()
     r = _sb().table("karma_global_settings").select("cooldown_hours, history_limit").eq("id", 1).limit(1).execute()
     if not r.data:
-        return {"cooldown_hours": DEFAULT_COOLDOWN_HOURS, "history_limit": DEFAULT_KARMA_HISTORY_LIMIT}
+        return {
+            "cooldown_hours": constants.DEFAULT_COOLDOWN_HOURS,
+            "history_limit": constants.DEFAULT_KARMA_HISTORY_LIMIT,
+        }
     row = r.data[0]
     return {
-        "cooldown_hours": row.get("cooldown_hours") or DEFAULT_COOLDOWN_HOURS,
-        "history_limit": row.get("history_limit") or DEFAULT_KARMA_HISTORY_LIMIT,
+        "cooldown_hours": row.get("cooldown_hours") or constants.DEFAULT_COOLDOWN_HOURS,
+        "history_limit": row.get("history_limit") or constants.DEFAULT_KARMA_HISTORY_LIMIT,
     }
 
 
@@ -127,15 +136,13 @@ def karma_get_cooldown(giver_id: str, receiver_id: str) -> datetime | None:
 
 def karma_add(giver_id: str, receiver_id: str, giver_name: str, reason: str) -> int:
     sb = _sb()
-    now = datetime.now(timezone.utc)
-    now_iso = now.isoformat()
+    now_iso = datetime.now(timezone.utc).isoformat()
 
-    bal_r = sb.table("karma_balances").select("balance").eq("user_id", receiver_id).limit(1).execute()
-    new_bal = int(bal_r.data[0]["balance"]) + 1 if bal_r.data else 1
-    sb.table("karma_balances").upsert(
-        {"user_id": receiver_id, "balance": new_bal},
-        on_conflict="user_id",
-    ).execute()
+    new_bal = _rpc_int(sb.rpc("karma_increment_balance", {"p_user_id": receiver_id}).execute())
+    if new_bal is None:
+        raise RuntimeError(
+            "karma_increment_balance failed — re-run docs/supabase_schema.sql in Supabase SQL Editor"
+        )
 
     sb.table("karma_cooldowns").upsert(
         {"giver_id": giver_id, "receiver_id": receiver_id, "last_given": now_iso},
@@ -158,15 +165,10 @@ def karma_add(giver_id: str, receiver_id: str, giver_name: str, reason: str) -> 
 
 def karma_take(target_id: str, admin_id: str, admin_name: str) -> int | None:
     sb = _sb()
-    bal_r = sb.table("karma_balances").select("balance").eq("user_id", target_id).limit(1).execute()
-    balance = int(bal_r.data[0]["balance"]) if bal_r.data else 0
-    if balance <= 0:
+    new_bal = _rpc_int(sb.rpc("karma_decrement_balance", {"p_user_id": target_id}).execute())
+    if new_bal is None:
         return None
-    new_bal = balance - 1
-    sb.table("karma_balances").upsert(
-        {"user_id": target_id, "balance": new_bal},
-        on_conflict="user_id",
-    ).execute()
+
     now_iso = datetime.now(timezone.utc).isoformat()
     sb.table("karma_events").insert({
         "user_id": target_id,

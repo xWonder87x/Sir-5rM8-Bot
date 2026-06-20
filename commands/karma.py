@@ -1,10 +1,12 @@
+from __future__ import annotations
+
 from datetime import datetime, timedelta, timezone
 
 import discord
 from discord import app_commands
 from discord.ext import commands
 
-from utils import functions
+from utils import constants, functions
 
 
 def _format_by(entry: dict) -> str:
@@ -14,6 +16,37 @@ def _format_by(entry: dict) -> str:
     if by_id:
         return f"<@{by_id}>"
     return by_name
+
+
+def _truncate_reason(reason: str) -> str:
+    max_len = constants.KARMA_REASON_DISPLAY_MAX
+    if len(reason) <= max_len:
+        return reason
+    return reason[: max_len - 1] + "…"
+
+
+def _format_history_line(entry: dict) -> str:
+    action_str = "Added" if entry["action"] == "add" else "Removed"
+    ts = entry.get("timestamp", "")[:19].replace("T", " ")
+    by_str = _format_by(entry)
+    reason = entry.get("reason")
+    reason_str = f" — {_truncate_reason(reason)}" if reason else ""
+    return f"`{ts}`: {action_str} {entry.get('amount', 1)} by {by_str}{reason_str}"
+
+
+def _fit_discord_message(header: str, lines: list[str]) -> str:
+    max_len = constants.DISCORD_MESSAGE_MAX
+    omitted = 0
+    working = list(lines)
+    while working:
+        body = "\n".join(working)
+        suffix = f"\n… ({omitted} older entries omitted)" if omitted else ""
+        msg = f"{header}\n{body}{suffix}"
+        if len(msg) <= max_len:
+            return msg
+        working.pop(0)
+        omitted += 1
+    return header[: max_len - 1] + "…"
 
 
 class Karma(commands.Cog):
@@ -110,14 +143,8 @@ class Karma(commands.Cog):
                     ephemeral=True
                 )
                 return
-            lines = []
-            for entry in reversed(history):
-                action_str = "Added" if entry["action"] == "add" else "Removed"
-                ts = entry.get("timestamp", "")[:19].replace("T", " ")
-                by_str = _format_by(entry)
-                reason_str = f" — {entry['reason']}" if entry.get("reason") else ""
-                lines.append(f"`{ts}`: {action_str} {entry.get('amount', 1)} by {by_str}{reason_str}")
-            msg = f"**Karma history for {target.display_name}:**\n" + "\n".join(lines)
+            lines = [_format_history_line(entry) for entry in reversed(history)]
+            msg = _fit_discord_message(f"**Karma history for {target.display_name}:**", lines)
             await interaction.response.send_message(msg, ephemeral=True)
 
         elif act == "remove":
@@ -153,7 +180,7 @@ class Karma(commands.Cog):
                 target_id = entry.get("user_id", "?")
                 admin_str = _format_by(entry)
                 lines.append(f"`{ts}`: Removed 1 from <@{target_id}> by {admin_str}")
-            msg = "**Recent remove_karma events:**\n" + "\n".join(lines)
+            msg = _fit_discord_message("**Recent remove_karma events:**", lines)
             await interaction.response.send_message(msg, ephemeral=True)
 
     async def cog_app_command_error(self, interaction: discord.Interaction, error: Exception):

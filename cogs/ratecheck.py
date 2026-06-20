@@ -1,14 +1,23 @@
+from __future__ import annotations
+
+import logging
+
 import discord
 from discord.ext import tasks, commands
+
 from utils import config, constants, functions
+
+logger = logging.getLogger(__name__)
 
 
 class RateCheckCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    def _build_embed(self, current: dict, previous: dict | None = None) -> discord.Embed:
-        """Build rates embed, optionally marking changed values."""
+    def cog_unload(self):
+        self.ratecheck.cancel()
+
+    def _build_embed(self, current: dict) -> discord.Embed:
         emb = discord.Embed(
             title='ASA Official Server Rates',
             description="",
@@ -18,18 +27,14 @@ class RateCheckCog(commands.Cog):
 
         for emoji, label, key in constants.RATE_DISPLAY:
             value = current.get(key, "?")
-            if previous and previous.get(key) != value:
-                name = f"**{emoji} `{value}x` {label}**"
-            else:
-                name = f"**{emoji} `{value}x` {label}**"
-            emb.add_field(name=name, value='', inline=False)
+            emb.add_field(name=f"**{emoji} `{value}x` {label}**", value='', inline=False)
         return emb
 
     @tasks.loop(minutes=1)
     async def ratecheck(self):
-        serverlist, current, previous, flag = functions.check_rate_changes()
+        serverlist, current, _, flag = await functions.check_rate_changes_async()
         if flag == 0:
-            embed = self._build_embed(current, previous)
+            embed = self._build_embed(current)
             for ent in serverlist:
                 try:
                     guild = self.bot.get_guild(int(ent['server_id']))
@@ -42,7 +47,11 @@ class RateCheckCog(commands.Cog):
                         embed=embed
                     )
                 except (KeyError, AttributeError, discord.Forbidden) as e:
-                    print(f"Rate notification skipped for guild {ent.get('server_id', '?')}: {e}")
+                    logger.warning(
+                        "Rate notification skipped for guild %s: %s",
+                        ent.get('server_id', '?'),
+                        e,
+                    )
 
 
 async def setup(bot):

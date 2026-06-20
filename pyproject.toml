@@ -1,0 +1,10 @@
+[project]
+name = "sir-5rm8"
+version = "0.0.0"
+description = "Discord bot for ARK: Survival Ascended communities"
+readme = "README.md"
+requires-python = ">=3.10"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

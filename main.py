@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import logging
 import os
@@ -65,6 +67,15 @@ def _can_reload(ctx):
     return False
 
 
+def _start_background_tasks():
+    """Start periodic tasks if they are not already running."""
+    ratecheck_cog = bot.get_cog('RateCheckCog')
+    if ratecheck_cog and not ratecheck_cog.ratecheck.is_running():
+        ratecheck_cog.ratecheck.start()
+    if not update_presence.is_running():
+        update_presence.start()
+
+
 @bot.command(name="reload")
 @commands.check(_can_reload)
 async def reload_all(ctx):
@@ -90,6 +101,7 @@ async def reload_all(ctx):
         await ctx.send(f"Reloaded {reload_ok}/{len(extensions)} cogs. **Errors:**\n" + "\n".join(failed))
     else:
         await ctx.send(f"Reloaded all {len(extensions)} cogs and synced slash commands.")
+    _start_background_tasks()
 
 
 def _log_storage_backend():
@@ -117,10 +129,7 @@ async def on_ready():
     try:
         synced = await bot.tree.sync()
         logger.info("Synced %d command(s)", len(synced))
-        ratecheck_cog = bot.get_cog('RateCheckCog')
-        if ratecheck_cog:
-            ratecheck_cog.ratecheck.start()
-        update_presence.start()
+        _start_background_tasks()
     except Exception as e:
         logger.exception("Error syncing commands: %s", e)
 

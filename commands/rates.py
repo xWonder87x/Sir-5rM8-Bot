@@ -1,6 +1,9 @@
+from __future__ import annotations
+
 import discord
 from discord import app_commands
 from discord.ext import commands
+
 from utils import config, constants, functions
 
 
@@ -11,7 +14,7 @@ class Rates(commands.Cog):
     @app_commands.command(name="rates", description="Current ASA Server Rates")
     async def rates(self, interaction: discord.Interaction):
         await interaction.response.defer()
-        rate_data = functions.fetch_current_rates()
+        rate_data = await functions.fetch_current_rates_async()
         if not rate_data:
             await interaction.followup.send(
                 "Could not fetch rates. Please try again later.",

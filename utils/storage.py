@@ -1,7 +1,8 @@
-"""
-Storage backend: Supabase when SUPABASE_URL + SUPABASE_SERVICE_KEY are set,
+"""Storage backend: Supabase when SUPABASE_URL + SUPABASE_SERVICE_KEY are set,
 otherwise JSON files under data/ (see storage_files.py).
 """
+from __future__ import annotations
+
 from utils import config
 
 if config.USE_SUPABASE:

@@ -58,12 +58,28 @@
 | Command | Description |
 |---------|-------------|
 | `/say [message]` | Repeats a message |
+| `/servers` | List every server the bot is in *(Admin only)* |
 
 ### Coming soon features
 
 - **XP Leaderboard & Giveaway**
 - **Auto Partner Index**
 - **Auction Monitoring**
+
+---
+
+## Self-hosting
+
+**Requirements:** Python **3.10+**, a Discord bot token in `.env` (`TOKEN=...`).
+
+```bash
+pip install -r requirements.txt
+python main.py
+```
+
+Optional Supabase storage: see [docs/SUPABASE.md](docs/SUPABASE.md). Copy [`.env.example`](.env.example) to `.env` and fill in your values.
+
+**Developer:** After code changes without a full restart, bot owner or admins can run `!reload` in Discord to reload cogs and re-sync slash commands.
 
 ---
 

@@ -6,6 +6,7 @@ __pycache__/
 data/config.json
 data/karma_history.jsonl
 data/rate_state/
+data/bot.log
 
 # Legacy (no longer used)
 previous-rates.text

@@ -2,15 +2,33 @@
 ASA (ARK: Survival Ascended) API client.
 Handles fetching and parsing rates and server list.
 """
+from __future__ import annotations
+
+import logging
 import re
 import time
+from dataclasses import dataclass
 
 import requests
 
 from utils import config, constants
 
+logger = logging.getLogger(__name__)
+
 _HTTP_RETRIES = constants.HTTP_RETRIES
 _HTTP_RETRY_DELAY = constants.HTTP_RETRY_DELAY
+
+_SERVER_NUMBER_RE = re.compile(r"(\d+)\s*-\s*\(")
+
+
+@dataclass(frozen=True)
+class ServerLookupResult:
+    server: dict | None = None
+    error: str | None = None  # "fetch_failed" | "not_found"
+
+    @property
+    def ok(self) -> bool:
+        return self.server is not None
 
 
 def _parse_rate_config(text: str) -> dict:
@@ -39,21 +57,67 @@ def _fetch_with_retry(url: str) -> requests.Response | None:
             if attempt < _HTTP_RETRIES - 1:
                 time.sleep(_HTTP_RETRY_DELAY)
             else:
-                print(f"Fetch failed ({url}): {e}")
+                logger.error("Fetch failed (%s): %s", url, e)
                 return None
+    return None
 
 
-def find_server(query: str) -> dict | None:
-    """Search for an ASA server by name or number. Returns server dict or None."""
+def _server_number(session_name: str) -> str | None:
+    """Extract trailing server number from names like 'EU-PVE-TheIsland5313 - (v88.23)'."""
+    match = _SERVER_NUMBER_RE.search(session_name)
+    return match.group(1) if match else None
+
+
+def _score_server(server: dict, query: str) -> int:
+    query_stripped = query.strip()
+    query_lower = query_stripped.lower()
+    session_name = server.get("SessionName", "")
+    name_lower = session_name.lower()
+    name_upper = server.get("SessionNameUpper", session_name.upper())
+
+    if not session_name:
+        return 0
+
+    if query_stripped.isdigit():
+        server_num = _server_number(session_name)
+        if server_num == query_stripped:
+            return 300
+        if query_stripped in name_lower:
+            return 100
+
+    if query_lower == name_lower:
+        return 250
+    if query_stripped.upper() == name_upper:
+        return 240
+    if query_lower in name_lower:
+        return 50
+    if query_stripped.upper() in name_upper:
+        return 40
+
+    return 0
+
+
+def find_server(query: str) -> ServerLookupResult:
+    """Search for an ASA server by name or number."""
     resp = _fetch_with_retry(config.SERVER_LIST_URL)
     if not resp:
-        return None
-    data = resp.json()
-    query_lower = query.lower().strip()
-    for server in data:
-        if "SessionName" in server and query_lower in server["SessionName"].lower():
-            return server
-    return None
+        return ServerLookupResult(error="fetch_failed")
+
+    query = query.strip()
+    if not query:
+        return ServerLookupResult(error="not_found")
+
+    best: dict | None = None
+    best_score = 0
+    for server in resp.json():
+        score = _score_server(server, query)
+        if score > best_score:
+            best_score = score
+            best = server
+
+    if best is None:
+        return ServerLookupResult(error="not_found")
+    return ServerLookupResult(server=best)
 
 
 def fetch_current_rates() -> dict | None:

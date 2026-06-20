@@ -65,3 +65,35 @@ CREATE INDEX IF NOT EXISTS idx_karma_events_remove_created
 
 -- Optional: tighten API access — the Discord bot uses the service_role key and bypasses RLS.
 -- If you ever use the anon key from clients, add RLS policies here.
+
+-- Atomic karma balance updates (used by storage_supabase.py via RPC)
+CREATE OR REPLACE FUNCTION karma_increment_balance(p_user_id TEXT)
+RETURNS INT
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  new_balance INT;
+BEGIN
+  INSERT INTO karma_balances (user_id, balance)
+  VALUES (p_user_id, 1)
+  ON CONFLICT (user_id) DO UPDATE
+    SET balance = karma_balances.balance + 1
+  RETURNING balance INTO new_balance;
+  RETURN new_balance;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION karma_decrement_balance(p_user_id TEXT)
+RETURNS INT
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  new_balance INT;
+BEGIN
+  UPDATE karma_balances
+  SET balance = balance - 1
+  WHERE user_id = p_user_id AND balance > 0
+  RETURNING balance INTO new_balance;
+  RETURN new_balance;
+END;
+$$;
