@@ -18,12 +18,16 @@ class SyncCommandsCog(commands.Cog):
     async def sync_commands(self, interaction: discord.Interaction) -> None:
         await interaction.response.defer(ephemeral=True)
         try:
-            await sync_application_commands(self.bot)
+            names = await sync_application_commands(self.bot)
         except Exception:
             logger.exception("Manual slash sync failed")
             await interaction.followup.send("Sync failed — check bot logs.", ephemeral=True)
             return
-        await interaction.followup.send("Slash commands synced.", ephemeral=True)
+        listing = ", ".join(f"`/{n}`" for n in names)
+        await interaction.followup.send(
+            f"Synced **{len(names)}** slash command(s):\n{listing}",
+            ephemeral=True,
+        )
 
 
 async def setup(bot: commands.Bot) -> None:

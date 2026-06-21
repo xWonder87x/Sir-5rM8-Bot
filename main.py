@@ -102,7 +102,12 @@ async def on_ready():
         await load_all_extensions(bot)
         extensions_loaded = True
         try:
-            await sync_application_commands(bot)
+            names = await sync_application_commands(bot)
+            logger.info(
+                "Slash commands ready (%s): %s",
+                len(names),
+                ", ".join(names),
+            )
             global_sync_ok = True
         except Exception:
             logger.exception("Initial slash command sync failed")
@@ -111,7 +116,12 @@ async def on_ready():
 
     if not global_sync_ok:
         try:
-            await sync_application_commands(bot)
+            names = await sync_application_commands(bot)
+            logger.info(
+                "Slash commands ready (%s): %s",
+                len(names),
+                ", ".join(names),
+            )
             global_sync_ok = True
         except Exception:
             logger.exception("Retry slash command sync failed")

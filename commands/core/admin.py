@@ -51,13 +51,6 @@ def _paginate_lines(header: str, lines: list[str]) -> list[str]:
     return pages
 
 
-def _owner_only():
-    async def predicate(interaction: discord.Interaction) -> bool:
-        return await interaction.client.is_owner(interaction.user)
-
-    return app_commands.check(predicate)
-
-
 class Admin(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -118,13 +111,14 @@ class Admin(commands.Cog):
 
     @app_commands.command(
         name="migrate-json-to-db",
-        description="Import JSON file data into Supabase (bot owner only)",
+        description="Import JSON file data into Supabase (admin only)",
     )
     @app_commands.describe(
         apply="Write to Supabase (default: preview counts only)",
         force="Overwrite existing DB rows and append karma events again",
     )
-    @_owner_only()
+    @app_commands.default_permissions(administrator=True)
+    @app_commands.checks.has_permissions(administrator=True)
     async def migrate_json_to_db(
         self,
         interaction: discord.Interaction,
@@ -181,9 +175,7 @@ class Admin(commands.Cog):
             await interaction.followup.send(page, ephemeral=True)
 
     async def cog_app_command_error(self, interaction: discord.Interaction, error: Exception):
-        if isinstance(error, app_commands.CheckFailure):
-            msg = "Bot owner only."
-        elif isinstance(error, HttpxConnectError) or "Name or service not known" in str(error):
+        if isinstance(error, HttpxConnectError) or "Name or service not known" in str(error):
             msg = (
                 "Could not reach Supabase (DNS/network). "
                 "Check **SUPABASE_URL** in `.env` — use `https://YOUR_PROJECT.supabase.co` "
