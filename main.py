@@ -29,7 +29,6 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 intents = discord.Intents.default()
-intents.message_content = True
 intents.guilds = True
 intents.members = True
 
@@ -84,6 +83,13 @@ def _validate_env() -> None:
 def _start_background_tasks() -> None:
     if not update_presence.is_running():
         update_presence.start()
+
+
+@bot.event
+async def on_command_error(ctx: commands.Context, error: Exception) -> None:
+    if isinstance(error, commands.CommandNotFound):
+        return
+    logger.exception("Unhandled prefix command error", exc_info=error)
 
 
 @bot.event
