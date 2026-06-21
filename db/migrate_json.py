@@ -27,13 +27,6 @@ class SupabaseNotConfiguredError(MigrationError):
 class NoJsonDataError(MigrationError):
     """Raised when there is nothing to import under DATA_DIR."""
 
-    def __init__(self, data_dir: Path | str) -> None:
-        super().__init__(
-            f"No JSON data found under {data_dir}. "
-            "Production data may be in the old Supabase project — use "
-            "`/migrate-old-supabase-to-db` instead (set OLD_SUPABASE_SERVICE_KEY in Railway)."
-        )
-
 
 class DatabaseHasDataError(MigrationError):
     """Raised when Supabase already has rows and force=False."""
@@ -298,7 +291,7 @@ def _ensure_ready() -> dict[str, Any]:
             "SUPABASE_URL and credentials must be set before importing JSON data."
         )
     if not json_data_exists():
-        raise NoJsonDataError(config.DATA_DIR)
+        raise NoJsonDataError(f"No JSON data found under {config.DATA_DIR}.")
     return collect_json_payload()
 
 
