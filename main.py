@@ -28,6 +28,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Bumps when deploy verification matters; check logs after redeploy.
+DEPLOY_MARKER = "2025-06-22-migrate-cmd-v2"
+
 intents = discord.Intents.default()
 intents.guilds = True
 intents.members = True
@@ -54,6 +57,9 @@ def _validate_env() -> None:
     if not config.TOKEN:
         logger.error("Missing required environment variable: TOKEN")
         sys.exit(1)
+
+    git_sha = os.environ.get("RAILWAY_GIT_COMMIT_SHA", "unknown")
+    logger.info("Deploy marker: %s (git %s)", DEPLOY_MARKER, git_sha[:12] if git_sha != "unknown" else git_sha)
 
     if db.use_supabase():
         logger.info("Storage backend: Supabase (%s)", os.environ.get("SUPABASE_URL"))
