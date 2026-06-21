@@ -11,12 +11,12 @@ from dataclasses import dataclass
 
 import requests
 
-from utils import config, constants
+import config
 
 logger = logging.getLogger(__name__)
 
-_HTTP_RETRIES = constants.HTTP_RETRIES
-_HTTP_RETRY_DELAY = constants.HTTP_RETRY_DELAY
+_HTTP_RETRIES = config.HTTP_RETRIES
+_HTTP_RETRY_DELAY = config.HTTP_RETRY_DELAY
 
 _SERVER_NUMBER_RE = re.compile(r"(\d+)\s*-\s*\(")
 
@@ -43,7 +43,7 @@ def _parse_rate_config(text: str) -> dict:
 
 def _extract_relevant_rates(parsed: dict) -> dict:
     """Extract only the rate keys we care about."""
-    return {k: parsed.get(k, "?") for k in constants.RATE_KEYS}
+    return {k: parsed.get(k, "?") for k in config.RATE_KEYS}
 
 
 def _fetch_with_retry(url: str) -> requests.Response | None:

@@ -4,7 +4,8 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from utils import config, constants, functions
+import config
+import functions
 
 
 class Rates(commands.Cog):
@@ -28,7 +29,7 @@ class Rates(commands.Cog):
             colour=discord.Colour.pink()
         )
         emb.set_thumbnail(url=config.THUMBNAIL_URL)
-        for emoji, label, key in constants.RATE_DISPLAY:
+        for emoji, label, key in config.RATE_DISPLAY:
             value = rate_data.get(key, "?")
             emb.add_field(name=f"**{emoji} `{value}x` {label}**", value='', inline=False)
 

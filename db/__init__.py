@@ -1,12 +1,11 @@
-"""Storage backend: Supabase when SUPABASE_URL + SUPABASE_SERVICE_KEY are set,
-otherwise JSON files under data/ (see storage_files.py).
-"""
+"""Database package — all persistence goes through here."""
 from __future__ import annotations
 
-from utils import config
+from db._base import EXPECTED_SCHEMA, check_schema, use_supabase
 
-if config.USE_SUPABASE:
-    from utils.storage_supabase import (  # noqa: F401
+if use_supabase():
+    from db.supabase import (  # noqa: F401
+        check_connection,
         clear_rate_notification,
         get_karma_settings,
         get_previous_rate_values,
@@ -22,7 +21,7 @@ if config.USE_SUPABASE:
         set_rate_notification,
     )
 else:
-    from utils.storage_files import (  # noqa: F401
+    from db.files import (  # noqa: F401
         clear_rate_notification,
         get_karma_settings,
         get_previous_rate_values,
@@ -37,3 +36,7 @@ else:
         save_previous_rate_values,
         set_rate_notification,
     )
+
+    def check_connection() -> None:
+        """JSON file backend — no remote connection to verify."""
+        return None

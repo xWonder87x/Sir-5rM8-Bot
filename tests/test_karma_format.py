@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from utils import constants
-from commands.karma import _fit_discord_message, _format_history_line, _truncate_reason
+import config
+from commands.community.karma import _fit_discord_message, _format_history_line, _truncate_reason
 
 
 def test_truncate_reason():
     long_reason = "x" * 100
     truncated = _truncate_reason(long_reason)
-    assert len(truncated) == constants.KARMA_REASON_DISPLAY_MAX
+    assert len(truncated) == config.KARMA_REASON_DISPLAY_MAX
     assert truncated.endswith("…")
 
 
@@ -28,5 +28,5 @@ def test_fit_discord_message_drops_oldest_lines():
     header = "**Header:**"
     lines = [f"line {i} " + ("z" * 200) for i in range(20)]
     msg = _fit_discord_message(header, lines)
-    assert len(msg) <= constants.DISCORD_MESSAGE_MAX
+    assert len(msg) <= config.DISCORD_MESSAGE_MAX
     assert "omitted" in msg

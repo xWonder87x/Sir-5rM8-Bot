@@ -10,9 +10,11 @@ import time
 import discord
 from discord.ext import tasks, commands
 
-from utils import config
+import config
+import db
+from commands.core.command_sync import sync_application_commands
+from commands.core.extensions import load_all_extensions
 
-# Configure logging: both file and console
 LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 config.DATA_DIR.mkdir(parents=True, exist_ok=True)
 logging.basicConfig(
@@ -33,19 +35,12 @@ intents.members = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-
-async def load_extensions():
-    await bot.load_extension('commands.help')
-    await bot.load_extension('commands.server')
-    await bot.load_extension('commands.karma')
-    await bot.load_extension('commands.admin')
-    await bot.load_extension('commands.rates')
-    await bot.load_extension('cogs.ratecheck')
+extensions_loaded = False
+global_sync_ok = False
 
 
 @tasks.loop(minutes=5)
 async def update_presence():
-    """Periodically update the bot's rich presence with server count."""
     count = len(bot.guilds)
     activity = discord.Game(name=f"Watching over {count} server{'s' if count != 1 else ''}")
     await bot.change_presence(activity=activity)
@@ -56,94 +51,75 @@ async def before_update_presence():
     await bot.wait_until_ready()
 
 
-def _can_reload(ctx):
-    """Allow bot owner or server administrators."""
-    if ctx.bot.owner_id and ctx.author.id == ctx.bot.owner_id:
-        return True
-    if getattr(ctx.bot, "owner_ids", None) and ctx.author.id in ctx.bot.owner_ids:
-        return True
-    if ctx.guild and ctx.author.guild_permissions.administrator:
-        return True
-    return False
+def _validate_env() -> None:
+    if not config.TOKEN:
+        logger.error("Missing required environment variable: TOKEN")
+        sys.exit(1)
 
-
-def _start_background_tasks():
-    """Start periodic tasks if they are not already running."""
-    ratecheck_cog = bot.get_cog('RateCheckCog')
-    if ratecheck_cog and not ratecheck_cog.ratecheck.is_running():
-        ratecheck_cog.ratecheck.start()
-    if not update_presence.is_running():
-        update_presence.start()
-
-
-@bot.command(name="reload")
-@commands.check(_can_reload)
-async def reload_all(ctx):
-    """Reload all cogs and sync slash commands. Use after code changes to avoid full restart."""
-    extensions = list(bot.extensions.keys())
-    reload_ok = 0
-    failed = []
-    for ext in extensions:
+    if db.use_supabase():
+        logger.info("Storage backend: Supabase (%s)", os.environ.get("SUPABASE_URL"))
         try:
-            await bot.reload_extension(ext)
-            reload_ok += 1
-            logger.info("Reloaded %s", ext)
-        except Exception as e:
-            failed.append(f"{ext}: {e}")
-            logger.exception("Failed to reload %s", ext)
-    try:
-        synced = await bot.tree.sync()
-        logger.info("Synced %d slash commands.", len(synced))
-    except Exception as e:
-        failed.append(f"tree.sync: {e}")
-        logger.exception("Failed to sync commands: %s", e)
-    if failed:
-        await ctx.send(f"Reloaded {reload_ok}/{len(extensions)} cogs. **Errors:**\n" + "\n".join(failed))
-    else:
-        await ctx.send(f"Reloaded all {len(extensions)} cogs and synced slash commands.")
-    _start_background_tasks()
-
-
-def _log_storage_backend():
-    if config.USE_SUPABASE:
-        logger.info("Storage backend: Supabase (%s)", config.SUPABASE_URL)
-        try:
-            from utils.storage_supabase import check_connection
-            check_connection()
+            db.check_connection()
             logger.info("Supabase connection OK")
-        except Exception as e:
+        except Exception as exc:
             logger.error(
                 "Supabase connection failed: %s. "
-                "Check SUPABASE_URL (https://YOUR_PROJECT.supabase.co) and SUPABASE_SERVICE_KEY. "
-                "Remove both env vars to fall back to JSON files in data/.",
-                e,
+                "Check SUPABASE_URL and credentials, or remove Supabase env vars "
+                "to fall back to JSON files in %s.",
+                exc,
+                config.DATA_DIR,
             )
+            sys.exit(1)
+
+        for name, ok, err in db.check_schema():
+            if ok:
+                logger.info("Schema OK: %s", name)
+            else:
+                logger.error("Schema check failed for %s: %s", name, err)
+                sys.exit(1)
     else:
         logger.info("Storage backend: JSON files (%s)", config.DATA_DIR)
 
 
+def _start_background_tasks() -> None:
+    if not update_presence.is_running():
+        update_presence.start()
+
+
 @bot.event
 async def on_ready():
+    global extensions_loaded, global_sync_ok
+
     logger.info("Logged in as %s (ID: %s)", bot.user, bot.user.id)
-    _log_storage_backend()
-    try:
-        synced = await bot.tree.sync()
-        logger.info("Synced %d command(s)", len(synced))
+
+    if not extensions_loaded:
+        await load_all_extensions(bot)
+        extensions_loaded = True
+        try:
+            await sync_application_commands(bot)
+            global_sync_ok = True
+        except Exception:
+            logger.exception("Initial slash command sync failed")
         _start_background_tasks()
-    except Exception as e:
-        logger.exception("Error syncing commands: %s", e)
+        return
+
+    if not global_sync_ok:
+        try:
+            await sync_application_commands(bot)
+            global_sync_ok = True
+        except Exception:
+            logger.exception("Retry slash command sync failed")
+
+    _start_background_tasks()
 
 
 async def main():
-    if not config.TOKEN:
-        raise ValueError("TOKEN not set. Add TOKEN=your_bot_token to .env")
-    await load_extensions()
+    _validate_env()
     await bot.start(config.TOKEN)
 
 
-# Retry on rate limit (429): wait then restart in a fresh process
 MAX_LOGIN_RETRIES = 5
-LOGIN_RETRY_WAIT = 120  # seconds
+LOGIN_RETRY_WAIT = 120
 
 if __name__ == "__main__":
     attempt = int(os.environ.get("LOGIN_RETRY_ATTEMPT", "0"))

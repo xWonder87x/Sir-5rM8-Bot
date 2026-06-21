@@ -1,26 +1,14 @@
-"""
-Supabase (PostgreSQL) storage. Enable with SUPABASE_URL + SUPABASE_SERVICE_KEY in .env.
-Run docs/supabase_schema.sql in the Supabase SQL editor first.
-"""
+"""Supabase (PostgreSQL) storage backend."""
 from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from supabase import Client
-
-from utils import config, constants
-
-_client: Client | None = None
+import config
+from db._base import _get_client
 
 
-def _sb() -> Client:
-    global _client
-    if _client is None:
-        assert config.SUPABASE_URL and config.SUPABASE_SERVICE_KEY
-        from utils.supabase_client import create_bot_supabase_client
-
-        _client = create_bot_supabase_client()
-    return _client
+def _sb():
+    return _get_client()
 
 
 def check_connection() -> None:
@@ -43,8 +31,8 @@ def _ensure_karma_settings_row() -> None:
     if not r.data:
         sb.table("karma_global_settings").insert({
             "id": 1,
-            "cooldown_hours": constants.DEFAULT_COOLDOWN_HOURS,
-            "history_limit": constants.DEFAULT_KARMA_HISTORY_LIMIT,
+            "cooldown_hours": config.DEFAULT_COOLDOWN_HOURS,
+            "history_limit": config.DEFAULT_KARMA_HISTORY_LIMIT,
         }).execute()
 
 
@@ -103,13 +91,13 @@ def get_karma_settings() -> dict:
     r = _sb().table("karma_global_settings").select("cooldown_hours, history_limit").eq("id", 1).limit(1).execute()
     if not r.data:
         return {
-            "cooldown_hours": constants.DEFAULT_COOLDOWN_HOURS,
-            "history_limit": constants.DEFAULT_KARMA_HISTORY_LIMIT,
+            "cooldown_hours": config.DEFAULT_COOLDOWN_HOURS,
+            "history_limit": config.DEFAULT_KARMA_HISTORY_LIMIT,
         }
     row = r.data[0]
     return {
-        "cooldown_hours": row.get("cooldown_hours") or constants.DEFAULT_COOLDOWN_HOURS,
-        "history_limit": row.get("history_limit") or constants.DEFAULT_KARMA_HISTORY_LIMIT,
+        "cooldown_hours": row.get("cooldown_hours") or config.DEFAULT_COOLDOWN_HOURS,
+        "history_limit": row.get("history_limit") or config.DEFAULT_KARMA_HISTORY_LIMIT,
     }
 
 
@@ -143,7 +131,7 @@ def karma_add(giver_id: str, receiver_id: str, giver_name: str, reason: str) -> 
     new_bal = _rpc_int(sb.rpc("karma_increment_balance", {"p_user_id": receiver_id}).execute())
     if new_bal is None:
         raise RuntimeError(
-            "karma_increment_balance failed — re-run docs/supabase_schema.sql in Supabase SQL Editor"
+            "karma_increment_balance failed — re-run supabase/schema.sql in Supabase SQL Editor"
         )
 
     sb.table("karma_cooldowns").upsert(

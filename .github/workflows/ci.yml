@@ -27,7 +27,10 @@ jobs:
           pip install -r requirements.txt -r requirements-dev.txt
 
       - name: Syntax check
-        run: python -m py_compile main.py utils/*.py commands/*.py cogs/*.py
+        run: python -m compileall main.py config.py db functions commands scripts
+
+      - name: Verify extensions
+        run: python scripts/verify_extensions.py
 
       - name: Run tests
         run: pytest -q

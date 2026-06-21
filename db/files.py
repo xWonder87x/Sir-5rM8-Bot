@@ -7,7 +7,7 @@ import json
 import os
 from datetime import datetime, timezone
 
-from utils import config, constants
+import config
 
 DATA_DIR = config.DATA_DIR
 CONFIG_FILE = DATA_DIR / "config.json"
@@ -110,8 +110,8 @@ KARMA_HISTORY_TAIL_BYTES = 512 * 1024
 def _get_karma_config(data: dict) -> dict:
     karma = _get_karma(data)
     return {
-        "cooldown_hours": karma.get("cooldown_hours", constants.DEFAULT_COOLDOWN_HOURS),
-        "history_limit": karma.get("history_limit", constants.DEFAULT_KARMA_HISTORY_LIMIT),
+        "cooldown_hours": karma.get("cooldown_hours", config.DEFAULT_COOLDOWN_HOURS),
+        "history_limit": karma.get("history_limit", config.DEFAULT_KARMA_HISTORY_LIMIT),
     }
 
 

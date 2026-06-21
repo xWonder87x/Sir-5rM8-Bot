@@ -4,7 +4,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from utils import config
+import config
 
 
 def _embed(title: str, description: str) -> discord.Embed:
@@ -46,6 +46,7 @@ class Help(commands.Cog):
             _embed(
                 "Admin Tools",
                 "`/say [message]`\n"
+                "`/sync-commands` *(Admin)* — refresh slash commands\n"
                 "`/servers` *(Admin)* — list every server the bot is in\n\n"
                 "**Quick Start**\n"
                 "1. Try `/rates` and `/serverstatus server:5313`\n"

@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import logging
+import os
 
 import discord
 from discord.ext import tasks, commands
 
-from utils import config, constants, functions
+import config
+import functions
 
 logger = logging.getLogger(__name__)
 
@@ -13,6 +15,12 @@ logger = logging.getLogger(__name__)
 class RateCheckCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+
+    async def cog_load(self) -> None:
+        if os.environ.get("EXTENSION_VERIFY"):
+            return
+        if not self.ratecheck.is_running():
+            self.ratecheck.start()
 
     def cog_unload(self):
         self.ratecheck.cancel()
@@ -25,7 +33,7 @@ class RateCheckCog(commands.Cog):
         )
         emb.set_thumbnail(url=config.THUMBNAIL_URL)
 
-        for emoji, label, key in constants.RATE_DISPLAY:
+        for emoji, label, key in config.RATE_DISPLAY:
             value = current.get(key, "?")
             emb.add_field(name=f"**{emoji} `{value}x` {label}**", value='', inline=False)
         return emb
@@ -52,6 +60,10 @@ class RateCheckCog(commands.Cog):
                         ent.get('server_id', '?'),
                         e,
                     )
+
+    @ratecheck.before_loop
+    async def before_ratecheck(self):
+        await self.bot.wait_until_ready()
 
 
 async def setup(bot):

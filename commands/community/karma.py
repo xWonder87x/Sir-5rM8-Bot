@@ -6,7 +6,8 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from utils import constants, functions
+import config
+import functions
 
 
 def _format_by(entry: dict) -> str:
@@ -19,7 +20,7 @@ def _format_by(entry: dict) -> str:
 
 
 def _truncate_reason(reason: str) -> str:
-    max_len = constants.KARMA_REASON_DISPLAY_MAX
+    max_len = config.KARMA_REASON_DISPLAY_MAX
     if len(reason) <= max_len:
         return reason
     return reason[: max_len - 1] + "…"
@@ -35,7 +36,7 @@ def _format_history_line(entry: dict) -> str:
 
 
 def _fit_discord_message(header: str, lines: list[str]) -> str:
-    max_len = constants.DISCORD_MESSAGE_MAX
+    max_len = config.DISCORD_MESSAGE_MAX
     omitted = 0
     working = list(lines)
     while working:

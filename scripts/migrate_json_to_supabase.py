@@ -20,8 +20,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from utils import config, constants  # noqa: E402
-from utils.storage_supabase import _sb, check_connection  # noqa: E402
+import config  # noqa: E402
+from db.supabase import _sb, check_connection  # noqa: E402
 
 CONFIG_FILE = config.DATA_DIR / "config.json"
 KARMA_HISTORY_FILE = config.DATA_DIR / "karma_history.jsonl"
@@ -111,10 +111,10 @@ def _collect_payload() -> dict:
 
     settings = {
         "cooldown_hours": int(
-            karma.get("cooldown_hours", constants.DEFAULT_COOLDOWN_HOURS)
+            karma.get("cooldown_hours", config.DEFAULT_COOLDOWN_HOURS)
         ),
         "history_limit": int(
-            karma.get("history_limit", constants.DEFAULT_KARMA_HISTORY_LIMIT)
+            karma.get("history_limit", config.DEFAULT_KARMA_HISTORY_LIMIT)
         ),
     }
 

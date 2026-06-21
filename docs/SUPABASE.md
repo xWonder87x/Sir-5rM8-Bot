@@ -16,7 +16,7 @@ Sir-5rM8 shares the **ALICE** Supabase project with Scumtopia-Bot. Karma and rat
 
 If bootstrapping a **new** project, run ALICE `schema.sql`, then `merge_other_bots_schema.sql`, then `bot_roles.sql` in the SQL Editor.
 
-Local reference copy: [`supabase_schema.sql`](supabase_schema.sql).
+Local reference copy: [`supabase/schema.sql`](../supabase/schema.sql).
 
 ## 2. Environment variables
 

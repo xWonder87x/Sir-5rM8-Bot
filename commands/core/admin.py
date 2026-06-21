@@ -4,7 +4,8 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from utils import constants, functions
+import config
+import functions
 
 try:
     from httpx import ConnectError as HttpxConnectError
@@ -13,7 +14,7 @@ except ImportError:
 
 def _paginate_lines(header: str, lines: list[str]) -> list[str]:
     """Split lines into Discord messages under the character limit."""
-    max_len = constants.DISCORD_MESSAGE_MAX
+    max_len = config.DISCORD_MESSAGE_MAX
     if not lines:
         return [header]
 
