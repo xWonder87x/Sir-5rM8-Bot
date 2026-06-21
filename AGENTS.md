@@ -43,7 +43,7 @@ No user-facing prefix commands.
 
 | Variable | Purpose |
 |----------|---------|
-| `SUPABASE_URL` | Unified ALICE project URL |
+| `SUPABASE_URL` | Discord Bots project URL |
 | `SUPABASE_SERVICE_KEY` or `SUPABASE_KEY` | Per-bot JWT (`role=bot_sir5rm8`) or admin key |
 | `SUPABASE_BOT_JWT` + `SUPABASE_PUBLISHABLE_KEY` | Alternative JWT auth pair |
 
@@ -57,7 +57,7 @@ No user-facing prefix commands.
 
 ## Database
 
-Shared **ALICE** Supabase project (`msksvvopixdaqhvdewvw`). Postgres role **`bot_sir5rm8`**.
+Shared **Discord Bots** Supabase project (`msksvvopixdaqhvdewvw`). Postgres role **`bot_sir5rm8`**.
 
 | Table | Purpose |
 |-------|---------|

@@ -1,6 +1,6 @@
 # Data Directory
 
-When **Supabase** is not configured (`SUPABASE_URL` + `SUPABASE_SERVICE_KEY` in `.env`), the bot stores state here. See [docs/SUPABASE.md](../docs/SUPABASE.md) — unified **ALICE** project (`msksvvopixdaqhvdewvw`).
+When **Supabase** is not configured (`SUPABASE_URL` + `SUPABASE_SERVICE_KEY` in `.env`), the bot stores state here. See [docs/SUPABASE.md](../docs/SUPABASE.md) — unified **Discord Bots** project (`msksvvopixdaqhvdewvw`).
 
 This directory is created automatically when the bot runs with file storage.
 

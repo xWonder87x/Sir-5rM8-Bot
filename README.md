@@ -77,7 +77,7 @@ pip install -r requirements.txt
 python main.py
 ```
 
-Optional Supabase storage: see [docs/SUPABASE.md](docs/SUPABASE.md) (unified **ALICE** project). Copy [`.env.example`](.env.example) to `.env` and fill in your values.
+Optional Supabase storage: see [docs/SUPABASE.md](docs/SUPABASE.md) (unified **Discord Bots** project). Set `SUPABASE_URL` and `SUPABASE_SERVICE_KEY` in `.env`.
 
 **Developer:** After code changes without a full restart, bot owner or admins can run `!reload` in Discord to reload cogs and re-sync slash commands.
 

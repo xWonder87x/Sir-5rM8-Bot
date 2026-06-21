@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Copy Sir-5rM8 data from the legacy Supabase project into ALICE."""
+"""Copy Sir-5rM8 data from the legacy Supabase project into Discord Bots."""
 from __future__ import annotations
 
 import argparse
@@ -18,10 +18,10 @@ from db.migrate_supabase import (  # noqa: E402
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Migrate data from legacy Sir-5rM8 Supabase into ALICE."
+        description="Migrate data from legacy Sir-5rM8 Supabase into Discord Bots."
     )
-    parser.add_argument("--apply", action="store_true", help="Write to ALICE.")
-    parser.add_argument("--force", action="store_true", help="Overwrite existing ALICE rows.")
+    parser.add_argument("--apply", action="store_true", help="Write to Discord Bots.")
+    parser.add_argument("--force", action="store_true", help="Overwrite existing Discord Bots rows.")
     args = parser.parse_args()
 
     try:
@@ -42,8 +42,8 @@ def main() -> None:
         sys.exit(1)
 
     print("\nMigration applied successfully.")
-    print(result.source.format("Imported into ALICE"))
-    print("\nALICE row counts:", result.database_counts)
+    print(result.source.format("Imported into Discord Bots"))
+    print("\nDiscord Bots row counts:", result.database_counts)
 
 
 if __name__ == "__main__":

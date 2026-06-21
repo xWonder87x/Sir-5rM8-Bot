@@ -1,4 +1,4 @@
-"""Import bot state from the legacy Sir-5rM8 Supabase project into ALICE."""
+"""Import bot state from the legacy Sir-5rM8 Supabase project into Discord Bots."""
 from __future__ import annotations
 
 import os
@@ -157,7 +157,7 @@ def _source_has_data(payload: dict[str, Any]) -> bool:
 def _ensure_ready() -> dict[str, Any]:
     if not use_supabase():
         raise SupabaseNotConfiguredError(
-            "ALICE Supabase must be configured (SUPABASE_URL + SUPABASE_SERVICE_KEY)."
+            "Discord Bots Supabase must be configured (SUPABASE_URL + SUPABASE_SERVICE_KEY)."
         )
     payload = collect_old_supabase_payload()
     if not _source_has_data(payload):

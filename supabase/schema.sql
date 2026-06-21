@@ -1,4 +1,4 @@
--- Sir-5rM8 — unified Supabase on the ALICE project (msksvvopixdaqhvdewvw).
+-- Sir-5rM8 — unified Supabase on the Discord Bots project (msksvvopixdaqhvdewvw).
 -- Canonical apply path: ALICE/supabase/merge_other_bots_schema.sql + bot_roles.sql
 -- Runbook: ../ALICE/docs/UNIFIED_SUPABASE.md
 -- Bot credential: JWT with role=bot_sir5rm8 (mint via ALICE/scripts/mint_bot_jwt.py)
