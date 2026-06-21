@@ -27,6 +27,13 @@ class SupabaseNotConfiguredError(MigrationError):
 class NoJsonDataError(MigrationError):
     """Raised when there is nothing to import under DATA_DIR."""
 
+    def __init__(self, data_dir: Path | str) -> None:
+        super().__init__(
+            f"No JSON data found under {data_dir}. "
+            "Production data may be in the old Supabase project — use "
+            "`/migrate-old-supabase-to-db` instead (set OLD_SUPABASE_SERVICE_KEY in Railway)."
+        )
+
 
 class DatabaseHasDataError(MigrationError):
     """Raised when Supabase already has rows and force=False."""
@@ -280,13 +287,18 @@ def _apply_payload(payload: dict[str, Any], *, force: bool) -> None:
     _insert_event_batches(payload["events"])
 
 
+def apply_migration_payload(payload: dict[str, Any], *, force: bool = False) -> None:
+    """Write a collected migration payload into the configured Supabase project."""
+    _apply_payload(payload, force=force)
+
+
 def _ensure_ready() -> dict[str, Any]:
     if not use_supabase():
         raise SupabaseNotConfiguredError(
             "SUPABASE_URL and credentials must be set before importing JSON data."
         )
     if not json_data_exists():
-        raise NoJsonDataError(f"No JSON data found under {config.DATA_DIR}.")
+        raise NoJsonDataError(config.DATA_DIR)
     return collect_json_payload()
 
 
@@ -301,5 +313,5 @@ def run_migration(*, force: bool = False) -> MigrationResult:
     payload = _ensure_ready()
     source = MigrationSummary.from_payload(payload)
     check_connection()
-    _apply_payload(payload, force=force)
+    apply_migration_payload(payload, force=force)
     return MigrationResult(source=source, database_counts=database_counts())

@@ -17,6 +17,12 @@ from db.migrate_json import (
     preview_migration,
     run_migration,
 )
+from db.migrate_supabase import (
+    NoOldSupabaseDataError,
+    OldSupabaseNotConfiguredError,
+    preview_old_supabase_migration,
+    run_old_supabase_migration,
+)
 
 try:
     from httpx import ConnectError as HttpxConnectError
@@ -160,6 +166,64 @@ class Admin(commands.Cog):
                 ephemeral=True,
             )
         except (SupabaseNotConfiguredError, NoJsonDataError, MigrationError) as exc:
+            await interaction.followup.send(str(exc), ephemeral=True)
+
+    @app_commands.command(
+        name="migrate-old-supabase-to-db",
+        description="Copy data from legacy Supabase project into ALICE (admin only)",
+    )
+    @app_commands.describe(
+        apply="Write to ALICE (default: preview counts only)",
+        force="Overwrite existing ALICE rows and append karma events again",
+    )
+    @app_commands.default_permissions(administrator=True)
+    @app_commands.checks.has_permissions(administrator=True)
+    async def migrate_old_supabase_to_db(
+        self,
+        interaction: discord.Interaction,
+        apply: bool = False,
+        force: bool = False,
+    ):
+        await interaction.response.defer(ephemeral=True)
+        try:
+            if apply:
+                if not db.use_supabase():
+                    raise SupabaseNotConfiguredError(
+                        "ALICE Supabase is not configured. Set SUPABASE_URL and credentials."
+                    )
+                result = await asyncio.to_thread(run_old_supabase_migration, force=force)
+                counts = result.database_counts
+                body = (
+                    f"{result.source.format('Legacy Supabase source')}\n\n"
+                    f"**ALICE row counts**\n"
+                    f"guild_rate_notifications: {counts['guild_rate_notifications']}\n"
+                    f"karma_balances: {counts['karma_balances']}\n"
+                    f"karma_cooldowns: {counts['karma_cooldowns']}\n"
+                    f"karma_events: {counts['karma_events']}\n"
+                    f"rate_state_has_data: {counts['rate_state_has_data']}"
+                )
+                await interaction.followup.send(
+                    f"Migration applied successfully.\n\n{body}",
+                    ephemeral=True,
+                )
+            else:
+                summary = await asyncio.to_thread(preview_old_supabase_migration)
+                await interaction.followup.send(
+                    "Preview only — no changes written. Re-run with `apply: True` to import.\n\n"
+                    f"{summary.format('Legacy Supabase source')}",
+                    ephemeral=True,
+                )
+        except DatabaseHasDataError as exc:
+            await interaction.followup.send(
+                f"{exc}\n\nRe-run with `force: True` if you want to proceed anyway.",
+                ephemeral=True,
+            )
+        except (
+            SupabaseNotConfiguredError,
+            OldSupabaseNotConfiguredError,
+            NoOldSupabaseDataError,
+            MigrationError,
+        ) as exc:
             await interaction.followup.send(str(exc), ephemeral=True)
 
     @app_commands.command(name="servers", description="List every server the bot is in (admin only)")
