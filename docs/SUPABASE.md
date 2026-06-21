@@ -1,51 +1,52 @@
-# Supabase setup
+# Supabase setup (unified ALICE project)
 
-The bot can store rate notifications, karma, and rate-check state in **Supabase (PostgreSQL)** instead of local JSON files.
+Sir-5rM8 shares the **ALICE** Supabase project with Scumtopia-Bot. Karma and rate tables live in the same database; this bot uses the **`bot_sir5rm8`** Postgres role (not `service_role`).
 
-## 1. Create a project
+**Runbook:** [ALICE/docs/UNIFIED_SUPABASE.md](../ALICE/docs/UNIFIED_SUPABASE.md)
 
-Create a project at [supabase.com](https://supabase.com) and open **SQL Editor**.
+| Item | Value |
+|------|-------|
+| Project | ALICE (`msksvvopixdaqhvdewvw`) |
+| URL | `https://msksvvopixdaqhvdewvw.supabase.co` |
+| Tables | `guild_rate_notifications`, `rate_state`, `karma_*` |
+| Schema SQL | [ALICE/supabase/merge_other_bots_schema.sql](../ALICE/supabase/merge_other_bots_schema.sql) |
+| Roles SQL | [ALICE/supabase/bot_roles.sql](../ALICE/supabase/bot_roles.sql) |
 
-## 2. Apply the schema
+## 1. Schema (already on ALICE project)
 
-Run the contents of [`supabase_schema.sql`](supabase_schema.sql) in a new query, then **Run**.
+If bootstrapping a **new** project, run ALICE `schema.sql`, then `merge_other_bots_schema.sql`, then `bot_roles.sql` in the SQL Editor.
 
-If you already applied an older version of the schema, run the file again — the `CREATE OR REPLACE FUNCTION` blocks at the bottom are safe to re-apply and are required for atomic karma updates.
+Local reference copy: [`supabase_schema.sql`](supabase_schema.sql).
 
-## 3. Environment variables
+## 2. Environment variables
 
 In `.env` on the machine that runs the bot:
 
 ```env
-SUPABASE_URL=https://xxxxxxxx.supabase.co
-SUPABASE_SERVICE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+SUPABASE_URL=https://msksvvopixdaqhvdewvw.supabase.co
+SUPABASE_SERVICE_KEY=<JWT with role=bot_sir5rm8>
 ```
 
-- **SUPABASE_URL**: **Project Settings → API → Project URL**
-- **SUPABASE_SERVICE_KEY**: **Project Settings → API → service_role** (secret; never expose in client apps or public repos)
+Mint the JWT from the ALICE repo (requires project JWT secret from Dashboard → Settings → API):
 
-If either variable is missing, the bot falls back to **JSON files** under `data/`.
-
-**URL format:** must be the full project URL, for example:
-
-```env
-SUPABASE_URL=https://abcdefghijklmnop.supabase.co
+```bash
+cd ../ALICE
+export SUPABASE_JWT_SECRET='...'
+python scripts/mint_bot_jwt.py --role bot_sir5rm8
 ```
 
-Do not use only the project ref, a database hostname, or a URL without `https://`.
+Copy [`.env.example`](../.env.example) to `.env`. **Do not** use the real `service_role` key on the bot host.
 
-### Troubleshooting: `ConnectError: Name or service not known`
+If either Supabase variable is missing, the bot falls back to **JSON files** under `data/`.
 
-This means the bot could not resolve or reach the hostname in `SUPABASE_URL`.
+## 3. Migrate data from JSON files
 
-1. Copy **Project URL** again from Supabase → **Project Settings → API**.
-2. On the bot host, confirm `.env` has no extra quotes or spaces and was saved after editing.
-3. Restart the bot and check the console for `Supabase connection OK` or `Supabase connection failed`.
-4. If the server cannot reach the internet (some hosts block outbound DNS), remove both Supabase env vars to use JSON files until networking is fixed.
+If the bot ran with file storage, migrate once after `.env` points at ALICE:
 
-## 4. Migrate data from JSON files
-
-If the bot already ran with file storage, you have data under `data/` that is **not** moved automatically when you add Supabase env vars. Migrate it once with the script below.
+```bash
+python scripts/migrate_json_to_supabase.py          # dry run
+python scripts/migrate_json_to_supabase.py --apply
+```
 
 ### What maps where
 
@@ -60,42 +61,20 @@ If the bot already ran with file storage, you have data under `data/` that is **
 
 ### Steps
 
-1. **Apply the schema** (section 2) if you have not already — including the karma RPC functions at the bottom of the SQL file.
-
-2. **Stop the bot** so it is not writing to JSON while you migrate.
-
-3. **Set Supabase env vars** in `.env` (section 3). The migration script needs them; the bot does too once you switch.
-
-4. **Dry run** — shows counts without writing:
-
-   ```bash
-   python scripts/migrate_json_to_supabase.py
-   ```
-
-5. **Apply migration**:
-
-   ```bash
-   python scripts/migrate_json_to_supabase.py --apply
-   ```
-
-   If Supabase already has rows (e.g. you tested first), add `--force` to upsert settings/balances/cooldowns/guilds and append history events again.
-
-6. **Verify** in Supabase → **Table Editor** that balances, guild notifications, and event counts look right.
-
-7. **Start the bot** with both `SUPABASE_URL` and `SUPABASE_SERVICE_KEY` set. On startup you should see:
-
-   ```text
-   Storage backend: Supabase (https://....supabase.co)
-   Supabase connection OK
-   ```
-
-8. **Smoke test** — `/manage_karma action:check`, `/rate_channel_status`, and (if configured) wait for or trigger a rate check.
-
-9. **Keep JSON as backup** until you are confident. Archive `data/config.json`, `data/karma_history.jsonl`, and `data/rate_state/` somewhere safe; the bot ignores them once Supabase env vars are set.
+1. **Stop the bot** during migration.
+2. **Set Supabase env vars** (section 2) with `bot_sir5rm8` JWT.
+3. **Dry run:** `python scripts/migrate_json_to_supabase.py`
+4. **Apply:** `python scripts/migrate_json_to_supabase.py --apply`
+5. **Start the bot** — expect `Supabase connection OK` in logs.
+6. **Smoke test:** `/manage_karma action:check`, `/rate_channel_status`.
 
 ### Rollback
 
-Remove or comment out `SUPABASE_URL` and `SUPABASE_SERVICE_KEY` in `.env` and restart — the bot falls back to JSON files in `data/`. Your original files are unchanged by the migration script.
+Remove or comment out `SUPABASE_URL` and `SUPABASE_SERVICE_KEY` in `.env` and restart — the bot falls back to JSON files in `data/`.
+
+## 4. Old Sir-5rM8 Supabase project
+
+Project `pplxciubfymklbpvuill` can be **paused or deleted** after cutover. See ALICE unified docs for backup/retire steps.
 
 ## 5. Dependencies
 

@@ -1,5 +1,12 @@
+-- Sir-5rM8 — unified Supabase on the ALICE project (msksvvopixdaqhvdewvw).
+-- Canonical apply path: ALICE/supabase/merge_other_bots_schema.sql + bot_roles.sql
+-- Runbook: ../ALICE/docs/UNIFIED_SUPABASE.md
+-- Bot credential: JWT with role=bot_sir5rm8 (mint via ALICE/scripts/mint_bot_jwt.py)
+--
+-- Legacy note: this file is kept for reference. Tables may omit public. prefix; merge SQL uses public.
+
 -- Sir-5rM8 — run this in Supabase SQL Editor (Dashboard → SQL → New query)
--- Then set SUPABASE_URL and SUPABASE_SERVICE_KEY in the bot’s .env (use the service_role key; keep it secret).
+-- Then set SUPABASE_URL and SUPABASE_SERVICE_KEY in the bot’s .env (per-bot JWT, not service_role).
 
 -- Rate notification targets (one row per Discord guild)
 CREATE TABLE IF NOT EXISTS guild_rate_notifications (

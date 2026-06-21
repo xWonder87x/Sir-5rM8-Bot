@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from supabase import Client, create_client
+from supabase import Client
 
 from utils import config, constants
 
@@ -17,7 +17,9 @@ def _sb() -> Client:
     global _client
     if _client is None:
         assert config.SUPABASE_URL and config.SUPABASE_SERVICE_KEY
-        _client = create_client(config.SUPABASE_URL, config.SUPABASE_SERVICE_KEY)
+        from utils.supabase_client import create_bot_supabase_client
+
+        _client = create_bot_supabase_client()
     return _client
 
 
