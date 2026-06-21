@@ -2,7 +2,21 @@
 
 **Universal architecture and strategy for Discord bots** built with **Python 3.10+**, **discord.py** (slash/interactions only), and **Supabase/Postgres**.
 
-Copy this file into every bot repo. Pair it with a bot-specific **`AGENTS.md`** (commands, load order, feature env vars for that bot). **ALICE** is the reference implementation — see its `AGENTS.md` for a filled-in example.
+Copy this file into every bot repo unchanged. Pair it with a bot-specific **`AGENTS.md`**. This file defines **how** bots are built — not **what** each bot does.
+
+---
+
+## Three documents, three jobs
+
+| File | Scope | Contains |
+|------|--------|----------|
+| **`BOT_BLUEPRINT.md`** | All bots (same everywhere) | Layout, packages, db workflow, validation, deploy, agent briefing |
+| **`AGENTS.md`** | This bot only | Cog list, load order, slash commands, feature env vars, bot-specific tables |
+| **`README.md`** | This bot only | Human setup guide and command catalog |
+
+**Do not put bot-specific commands, cogs, or feature folders in this blueprint.** Document those in that bot's `AGENTS.md` and `README.md`.
+
+For a large, filled-in example of the pattern, see **ALICE** (`ALICE/AGENTS.md` + repo layout). ALICE is one bot — not a checklist every other bot must copy.
 
 ---
 
@@ -21,6 +35,8 @@ Copy this file into every bot repo. Pair it with a bot-specific **`AGENTS.md`** 
 
 ## Standard project layout
 
+Every bot shares the **skeleton** below. Feature folders under `commands/` are created **only for what that bot needs** — see that bot's `AGENTS.md`.
+
 ```
 .
 ├── main.py                 # Entry: bot client, extension load order, login/429 retry, global listeners
@@ -28,29 +44,22 @@ Copy this file into every bot repo. Pair it with a bot-specific **`AGENTS.md`** 
 ├── db/                     # Database package (domain-split; __init__ re-exports full API)
 │   ├── __init__.py
 │   ├── _base.py            # Client, _tbl, EXPECTED_SCHEMA, check_schema, use_supabase
-│   └── <domain>.py         # One module per table group (economy, warnings, …)
-├── functions/              # Shared bot helpers (not tied to one cog)
+│   └── <domain>.py         # One module per table group this bot uses
+├── functions/              # Shared bot helpers (optional modules as needed)
 │   ├── __init__.py         # Re-exports public API: functions.<name>
 │   ├── _base.py            # Logger, locks, tiny shared state
-│   ├── checks.py           # Guild/feature guard helpers for slash handlers
-│   └── <concern>.py        # e.g. economy.py, ledger.py
+│   ├── checks.py           # Guild/feature guard helpers (if needed)
+│   └── <concern>.py        # Logic shared by 2+ cogs — name by purpose, not by copying another bot
 ├── commands/
-│   ├── common/             # Cross-cog helpers — NO cog, NO setup()
-│   │   ├── state.py        # Persisted message-id JSON load/save (data/*.json)
-│   │   └── sticky.py       # StickyMessage manager (recover / ensure / clear / repost)
-│   ├── core/               # /help, /sync-commands, maintenance, command_sync helpers
-│   ├── mod/                # Moderation, auctions, …
-│   ├── economy/            # Coins/XP — may be a package (see below)
-│   ├── community/          # Social/utility features
-│   ├── partner/            # Partner-specific flows (if applicable)
-│   ├── integrations/       # External APIs (AI, Twitch, …)
-│   └── <feature>/          # Large features get their own area
+│   ├── common/             # Optional cross-cog helpers — NO cog, NO setup()
+│   ├── core/               # Optional: help, sync, maintenance, extensions loader
+│   └── <feature>/          # One folder per feature area THIS bot implements
 ├── supabase/
-│   ├── schema.sql          # Canonical DDL — run in Supabase SQL Editor
+│   ├── schema.sql          # Canonical DDL — tables for THIS bot only
 │   ├── README.md           # How to apply schema, migration notes
 │   └── supabase_probe.py   # Standalone read-only connection ping (no db import)
 ├── scripts/                # Offline verification scripts (no Discord token required)
-├── data/                   # Runtime JSON state (gitignored); created by main.py
+├── data/                   # Runtime JSON state (gitignored); created by main.py if used
 ├── Dockerfile              # Production: CMD ["python", "main.py"]
 ├── requirements.txt
 ├── README.md               # Human command catalog + setup
@@ -63,12 +72,24 @@ Copy this file into every bot repo. Pair it with a bot-specific **`AGENTS.md`** 
 | `main.py` | `commands.Bot`, staggered login / 429 exit+restart, `on_ready` extension load list, maintenance gate, global listeners |
 | `config.py` | `CHANNELS`, `ROLES`, guild IDs, timeouts, message templates — read env with `os.environ.get` |
 | `db/` | All Supabase/Postgres access; `EXPECTED_SCHEMA` + `check_schema()` in `db/_base.py` |
-| `functions/` | Guards, shared business logic, audit logging — anything used by 2+ cogs |
-| `commands/<area>/` | One or more cogs; each exposes `async def setup(bot)` |
-| `commands/common/` | `state.py`, `sticky.py`, `logging.py` (Supabase log handler) — never loaded as an extension |
+| `functions/` | Guards, shared business logic — add modules only when 2+ cogs need the same code |
+| `commands/<feature>/` | One or more cogs; each exposes `async def setup(bot)` — **only folders this bot uses** |
+| `commands/common/` | Optional helpers (`state.py`, `sticky.py`, `logging.py`) — never loaded as an extension |
 | `commands/core/extensions.py` | **`COG_EXTENSIONS`** — single source of truth for extension load order |
 | `supabase/schema.sql` | Source of truth for table DDL |
 | `scripts/` | `verify_*.py` smoke tests runnable without the bot online |
+
+### Not every bot has
+
+These appear in some bots (e.g. ALICE) but are **not required** by this blueprint:
+
+- `commands/mod/`, `economy/`, `partner/`, `integrations/` — feature areas, not standard folders
+- Sticky-channel embeds (`commands/common/sticky.py`)
+- Admin slash commands like `/sync-commands` or `/maintenance` — add only if that bot needs them
+- Remote log handler writing to Supabase
+- Background `@tasks.loop` jobs
+
+If a bot does not need something, **omit it** — do not scaffold empty cogs "because the blueprint shows them."
 
 ---
 
@@ -102,7 +123,7 @@ Copy this file into every bot repo. Pair it with a bot-specific **`AGENTS.md`** 
 - Dicts/constants for Discord IDs (`CHANNELS`, `ROLES`, `CATEGORIES`, guild allowlists).
 - Feature tunables (cooldowns, batch sizes, message templates).
 - Optional env overrides with sensible defaults.
-- **`DATA_DIR`** — path for runtime JSON (sticky message ids, etc.).
+- **`DATA_DIR`** — path for runtime JSON when the bot uses file-backed state.
 
 ### `db/` package
 
@@ -126,20 +147,20 @@ Split by **domain** (one file per table group). Keep each module focused; aim fo
 
 ### `functions/` package
 
-Split by **concern** (checks, ledger, economy, …). Same re-export pattern as `db/`.
+Split by **concern**. Same re-export pattern as `db/`. Add modules only when logic is shared across cogs.
 
 | Module | Typical contents |
 |--------|------------------|
 | `_base.py` | Shared logger, threading locks for atomic read-modify-write |
 | `checks.py` | `require_guild(interaction)`, feature-specific guards |
-| `<concern>.py` | Business logic shared across cogs |
+| `<concern>.py` | Business logic shared across cogs — name for this bot's domain |
 | `__init__.py` | Explicit `__all__` + re-exports — callers use `functions.<name>` only |
 
 Do **not** put Discord UI (views, modals) here — those belong in `commands/`.
 
-### `commands/<area>/`
+### `commands/<feature>/`
 
-Each **extension** is a Python module or package loaded via `await bot.load_extension("commands.<area>.<module>")`.
+Each **extension** is a Python module or package loaded via `await bot.load_extension("commands.<feature>.<module>")`. Folder names are **your choice** — group by feature, not by copying another bot's tree.
 
 **Single-file cog** (simple features):
 
@@ -154,11 +175,10 @@ async def setup(bot: commands.Bot) -> None:
 **Package cog** (large features — split when a file exceeds ~400–500 lines or mixes concerns):
 
 ```
-commands/<area>/<feature>/
+commands/<feature>/<name>/
 ├── __init__.py    # setup() registers cog(s), persistent views, cross-cog hooks
 ├── cog.py         # Slash commands (commands.Cog)
-├── views.py       # Buttons, modals, select menus
-├── sticky.py      # Sticky-channel cogs (background tasks) — if needed
+├── views.py       # Buttons, modals, select menus (if needed)
 ├── _store.py      # Persistence, parsing, reconcile (pure + db) — if needed
 └── _shared.py     # Constants, embed builders, matchers — no setup()
 ```
@@ -169,21 +189,15 @@ commands/<area>/<feature>/
 | Discord UI components | `views.py` |
 | DB load/save, parsing, reconcile | `_store.py` |
 | Constants, embed builders, matchers | `_shared.py` |
-| Background sticky channels | `sticky.py` |
 | Extension registration | `__init__.py` → `setup(bot)` |
 
-### `commands/common/`
+### `commands/common/` (optional)
 
-Helpers used by multiple cogs. **Never** has `setup()` and **never** loaded as an extension.
+Helpers used by multiple cogs. **Never** has `setup()` and **never** loaded as an extension. Skip this folder entirely if nothing is shared.
 
-- **`state.py`** — `load_persisted_message_id(path)` / `save_persisted_message_id(path, id)` for `data/*.json`.
-- **`sticky.py`** — `StickyMessage` class:
-  - `recover(channel)` — confirm tracked id or scan history with a matcher
-  - `ensure(channel, embed, view=None)` — edit in place or post fresh
-  - `clear()` — forget id, delete state file
-  - `delete_and_repost(channel, msg, embed, view=None)` — remove wrong sticky, post clean one
-
-Cogs keep embed/view building and sweep logic; delegate mechanics to `StickyMessage`.
+- **`state.py`** — optional JSON persistence for message ids or small runtime keys in `data/*.json`.
+- **`sticky.py`** — optional `StickyMessage` helper when a bot keeps a persistent embed in a channel (see [optional pattern](#sticky-messages--background-tasks-optional-pattern) below).
+- **`logging.py`** — optional remote log handler; wire from `main.py` after `load_dotenv()`.
 
 ---
 
@@ -212,7 +226,6 @@ async def _before_my_loop(self) -> None:
 - Start background work in **`cog_load`**, cancel in **`cog_unload`**.
 - Use **`asyncio.get_running_loop().create_task(...)`** inside async hooks — not `self.bot.loop` (fragile before connect).
 - Wrap loop bodies in **`try/except`** + `logger.exception` so one failure does not kill the task silently.
-- **`commands/common/logging.py`** — optional remote log handler (e.g. Supabase `bot_logs`); wire from `main.py` after `load_dotenv()`.
 - Register **persistent views** in `setup()` via `bot.add_view(...)` when buttons must survive restarts.
 - One-shot startup reconcile: `await bot.wait_until_ready()` inside the task, then run.
 
@@ -220,12 +233,13 @@ async def _before_my_loop(self) -> None:
 
 ## Extension load order
 
-Order matters for slash registration, persistent views, and log clarity. Define the list once in **`commands/core/extensions.py`**:
+Order matters for slash registration, persistent views, and log clarity. Define the list once in **`commands/core/extensions.py`** — **only extensions this bot actually loads**:
 
 ```python
 COG_EXTENSIONS: list[tuple[str, str]] = [
     ("commands.core.help", "Help cog loaded"),
-    ...
+    ("commands.community.daily_message", "Daily message cog loaded"),
+    # ... this bot's cogs only — not copied from another repo
 ]
 
 async def load_all_extensions(bot: commands.Bot) -> None: ...
@@ -237,7 +251,7 @@ async def load_all_extensions(bot: commands.Bot) -> None: ...
 
 1. Add `async def setup(bot)` to the module/package.
 2. Append to **`COG_EXTENSIONS`** in `commands/core/extensions.py`.
-3. Document in that bot's **`AGENTS.md`**.
+3. Document in that bot's **`AGENTS.md`** (command name, purpose, env vars).
 4. Update **`README.md`** command catalog.
 5. If load order depends on another cog (shared views, DB seed), place it **after** the dependency.
 
@@ -245,11 +259,14 @@ async def load_all_extensions(bot: commands.Bot) -> None: ...
 
 ## Slash command sync
 
-- **`commands/core/command_sync.py`** — `sync_application_commands(bot)` clears stale guild-scoped commands where configured, then global sync.
+Most bots use **`commands/core/command_sync.py`** — `sync_application_commands(bot)` clears stale guild-scoped commands where configured, then global sync.
+
 - Startup: sync once after all cogs load; retry on later `on_ready` if global sync failed (rate limit).
-- **`/sync-commands`** (admin) — force sync; works during maintenance mode.
+- Optional admin **`/sync-commands`** cog — force sync; useful during development.
 - Optional **`SLASH_SYNC_GUILD_IDS`** in env/config for extra guild-scope clears.
 - Register commands **globally** unless there is a deliberate reason for guild scope.
+
+Document which sync/admin commands **this bot** exposes in its `AGENTS.md` — they are not universal.
 
 ---
 
@@ -284,7 +301,7 @@ For a **new bot**, design tables for that bot's features only. Do **not** copy a
 | `SLASH_SYNC_GUILD_IDS` | Comma-separated guild IDs for guild-scope command clear |
 | `LOGIN_RETRY_ATTEMPT` | **Internal** — 429 retry counter; do not set manually |
 
-Bot-specific optional vars (AI keys, Twitch, Google Sheets, etc.) belong in that bot's **`README.md`** and **`AGENTS.md`**.
+Feature-specific vars (channel IDs, API keys, intervals, etc.) belong in that bot's **`README.md`** and **`AGENTS.md`** — not in this file.
 
 ---
 
@@ -340,17 +357,17 @@ pip install -r requirements-dev.txt
 pytest
 ```
 
-Offline tests live in `tests/` (extension load, sticky helper, `EXPECTED_SCHEMA` shape). Feature scripts in `scripts/verify_*.py` for integration checks without Discord.
+Offline tests live in `tests/` when present. Feature scripts in `scripts/verify_*.py` for integration checks without Discord.
 
 ### 8. Scaffold a new bot repo
 
-From ALICE (or any repo with `BOT_BLUEPRINT.md`):
+From a repo that ships `scripts/scaffold_bot.py` (e.g. **ALICE**):
 
 ```bash
 python scripts/scaffold_bot.py /path/to/NewBot --name "New Bot"
 ```
 
-Creates layout + stub files; copy `BOT_BLUEPRINT.md`, fill in `AGENTS.md`, add cogs to `COG_EXTENSIONS`.
+Creates layout + stub files. Copy **`BOT_BLUEPRINT.md`**, write a fresh **`AGENTS.md`** for that bot's features only, and register cogs in **`COG_EXTENSIONS`**.
 
 ---
 
@@ -371,8 +388,8 @@ When adding or modifying features in any bot:
 - [ ] IDs/tunables in `config.py` (not literals in cogs)
 - [ ] DB changes: `schema.sql` + `EXPECTED_SCHEMA` + domain module + `supabase/README.md`
 - [ ] Cog added to **`commands/core/extensions.py`** (`COG_EXTENSIONS`)
-- [ ] `README.md` updated if user-visible commands changed
-- [ ] Bot's `AGENTS.md` updated if load order, modules, or feature env vars changed
+- [ ] **`AGENTS.md`** updated (load order, commands, feature env vars)
+- [ ] **`README.md`** updated if user-visible commands changed
 - [ ] Validation steps above pass
 - [ ] No secrets committed
 
@@ -382,7 +399,7 @@ When adding or modifying features in any bot:
 
 ### New bot (greenfield)
 
-> I'm starting a brand-new Discord bot. Follow **`BOT_BLUEPRINT.md`**: Python 3.10+, discord.py slash-only, `main.py` + `config.py` + `db/` package + `functions/` package + `commands/<area>/` cogs + `supabase/schema.sql` + `EXPECTED_SCHEMA`. Create a bot-specific **`AGENTS.md`** for commands and load order. Do **not** copy commands from my other bots. For v1, here are the features I want: … (list). Create skeleton, requirements, `.env` docs, empty cogs with `setup()`, and README command section.
+> I'm starting a brand-new Discord bot. Follow **`BOT_BLUEPRINT.md`**: Python 3.10+, discord.py slash-only, `main.py` + `config.py` + `db/` package + `functions/` (as needed) + `commands/<feature>/` cogs + `supabase/schema.sql` + `EXPECTED_SCHEMA`. Create a bot-specific **`AGENTS.md`** listing only the cogs and slash commands for **this** bot. Do **not** copy commands, cogs, or feature folders from my other bots. For v1, here are the features I want: … (list). Create skeleton, requirements, `.env` docs, empty cogs with `setup()`, and README command section.
 
 ### Existing bot
 
@@ -390,20 +407,20 @@ When adding or modifying features in any bot:
 
 ### Starting from ALICE as template
 
-> Copy **`BOT_BLUEPRINT.md`** and use **ALICE** (`AGENTS.md` + repo structure) as the reference implementation. Strip ALICE-specific cogs/tables/commands; keep the package layout and conventions.
+> Copy **`BOT_BLUEPRINT.md`** and use **ALICE** (`AGENTS.md` + repo structure) as one reference implementation. **Strip** ALICE-specific cogs, tables, and commands; keep only the package layout and conventions that this new bot actually needs.
 
 ---
 
-## Sticky messages & background tasks (pattern)
+## Sticky messages & background tasks (optional pattern)
 
-When a bot needs a persistent embed in a channel:
+Use only when a bot needs a persistent embed in a channel:
 
-1. Store message id in `data/<feature>_message.json` via `commands/common/state.py`.
-2. Use `commands/common/sticky.StickyMessage` for recover/ensure/repost.
-3. Run verify/refresh loops with `@tasks.loop` in a dedicated cog or `sticky.py`.
+1. Store message id in `data/<feature>_message.json` via optional `commands/common/state.py`.
+2. Use optional `commands/common/sticky.py` (`StickyMessage`) for recover/ensure/repost.
+3. Run verify/refresh loops with `@tasks.loop` in the feature cog.
 4. Optional: purge unrelated messages in the same channel (cog-specific sweep logic).
 
-State can also live in the DB (e.g. leaderboard message ids) when multiple instances or durability matters.
+State can also live in the DB when multiple instances or durability matters. Many bots never need this — skip it unless required.
 
 ---
 
