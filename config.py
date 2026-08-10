@@ -48,3 +48,10 @@ DEFAULT_COOLDOWN_HOURS = 24
 
 KARMA_REASON_DISPLAY_MAX = 80
 DISCORD_MESSAGE_MAX = 2000
+
+# DM this user once when the bot process comes online (restart/redeploy). None = disabled.
+# Override with RESTART_NOTIFY_USER_ID in the environment if needed.
+_restart_notify_raw = os.environ.get("RESTART_NOTIFY_USER_ID", "464386520124620800")
+RESTART_NOTIFY_USER_ID: int | None = (
+    int(_restart_notify_raw) if _restart_notify_raw.strip().isdigit() else None
+)

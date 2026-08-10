@@ -39,6 +39,7 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 extensions_loaded = False
 global_sync_ok = False
+restart_dm_sent = False  # One DM per process startup (not every Discord reconnect)
 
 
 @tasks.loop(minutes=5)
@@ -100,9 +101,24 @@ async def on_command_error(ctx: commands.Context, error: Exception) -> None:
 
 @bot.event
 async def on_ready():
-    global extensions_loaded, global_sync_ok
+    global extensions_loaded, global_sync_ok, restart_dm_sent
 
     logger.info("Logged in as %s (ID: %s)", bot.user, bot.user.id)
+
+    # First action after login: notify owner that this process is online.
+    if not restart_dm_sent:
+        restart_dm_sent = True
+        notify_id = config.RESTART_NOTIFY_USER_ID
+        if notify_id:
+            try:
+                user = bot.get_user(int(notify_id)) or await bot.fetch_user(int(notify_id))
+                await user.send(
+                    f"Sir-5rM8 is online after restart/redeploy "
+                    f"(`{bot.user}` / `{bot.user.id}` · `{DEPLOY_MARKER}`)."
+                )
+                logger.info("Sent restart DM to user %s", notify_id)
+            except (discord.Forbidden, discord.HTTPException, discord.NotFound) as e:
+                logger.warning("Could not send restart DM to %s: %s", notify_id, e)
 
     if not extensions_loaded:
         try:

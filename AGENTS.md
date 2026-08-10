@@ -53,6 +53,7 @@ No user-facing prefix commands.
 |----------|---------|---------|
 | `DATA_DIR` | `data/` | Runtime JSON + bot.log |
 | `SLASH_SYNC_GUILD_IDS` | — | Comma-separated guild IDs for stale slash clears |
+| `RESTART_NOTIFY_USER_ID` | `464386520124620800` | Discord user ID to DM once per process startup; empty disables |
 | `LOGIN_RETRY_ATTEMPT` | — | Internal; set on 429 restart |
 
 ## Database

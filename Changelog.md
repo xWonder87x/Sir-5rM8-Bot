@@ -7,6 +7,7 @@
 - Shared **Discord Bots** Supabase storage (`bot_sir5rm8` role) with JSON fallback
 - JSON → Supabase and legacy Supabase → Discord Bots migration scripts
 - Deploy marker + slash sync listing for easier production verification
+- Restart/redeploy DM to `RESTART_NOTIFY_USER_ID` (once per process, like ALICE)
 - `asyncio.to_thread` regression tests for karma/admin storage paths
 - `pytest-asyncio` for async unit tests
 
