@@ -6,7 +6,6 @@ from typing import Any
 
 from db._base import use_supabase
 from db.migrate_json import (
-    DatabaseHasDataError,
     MigrationError,
     MigrationResult,
     MigrationSummary,

@@ -1,7 +1,7 @@
 """Database package — all persistence goes through here."""
 from __future__ import annotations
 
-from db._base import EXPECTED_SCHEMA, check_schema, use_supabase
+from db._base import EXPECTED_SCHEMA, check_schema, use_supabase  # noqa: F401
 
 if use_supabase():
     from db.supabase import (  # noqa: F401

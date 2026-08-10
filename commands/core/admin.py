@@ -123,7 +123,7 @@ class Admin(commands.Cog):
         count = len(guilds)
         lines = [f"**{g.name}** — `{g.id}`" for g in sorted(guilds, key=lambda g: g.name.lower())]
         header = f"**Servers ({count}):**"
-        pages = _paginate_lines(header, lines) if lines else [f"**Servers (0):**\nNo servers."]
+        pages = _paginate_lines(header, lines) if lines else ["**Servers (0):**\nNo servers."]
         await interaction.response.send_message(pages[0], ephemeral=True)
         for page in pages[1:]:
             await interaction.followup.send(page, ephemeral=True)
