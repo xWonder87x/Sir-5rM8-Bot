@@ -10,6 +10,8 @@
 
 # **Sir-5rM8**
 
+**Version:** 1.1.0
+
 ### *Making the community better, one command at a time.*
 
 *A feature-rich Discord bot for your ARK: Survival Ascended discord community.*

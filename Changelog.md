@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.1.0] - 2026-08-10
+
+### Added
+
+- Shared **Discord Bots** Supabase storage (`bot_sir5rm8` role) with JSON fallback
+- JSON → Supabase and legacy Supabase → Discord Bots migration scripts
+- Deploy marker + slash sync listing for easier production verification
+- `asyncio.to_thread` regression tests for karma/admin storage paths
+- `pytest-asyncio` for async unit tests
+
+### Changed
+
+- Cut over from the old Sir-5rM8 Supabase project to the unified Discord Bots database
+- Upgrade `supabase` client to `>=2.15` (supports `sb_secret_…` API keys)
+- Port ALICE reliability patterns: defer before DB, offload sync storage, fail-fast extension load, `SyncResult` slash sync
+- Lighter schema probes (`.limit(0)`); docs renamed from ALICE project label to Discord Bots
+- BOT_BLUEPRINT clarifications for optional feature folders
+
+### Removed
+
+- Temporary `/migrate-json-to-db` and `/migrate-old-supabase-to-db` slash commands (CLI scripts retained)
+- `.env.example` (configure `.env` / host vars directly)
+
 ## [1.0.0] - 2025-02
 
 ### Added
