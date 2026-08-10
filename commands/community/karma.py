@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime, timedelta, timezone
 
 import discord
@@ -74,28 +75,33 @@ class Karma(commands.Cog):
         if giver_id == receiver_id:
             await interaction.response.send_message("You can't give karma to yourself!", ephemeral=True)
             return
-        settings = functions.get_karma_settings()
+
+        await interaction.response.defer()
+        settings = await asyncio.to_thread(functions.get_karma_settings)
         cooldown_hours = settings["cooldown_hours"]
-        cooldown = functions.karma_get_cooldown(giver_id, receiver_id)
+        cooldown = await asyncio.to_thread(
+            functions.karma_get_cooldown, giver_id, receiver_id
+        )
         if cooldown:
             elapsed = datetime.now(timezone.utc) - cooldown
             remaining = timedelta(hours=cooldown_hours) - elapsed
             if remaining.total_seconds() > 0:
                 h = int(remaining.total_seconds() // 3600)
                 m = int((remaining.total_seconds() % 3600) // 60)
-                await interaction.response.send_message(
+                await interaction.followup.send(
                     f"You must wait {h}h {m}m before giving karma to {member.display_name} again.",
-                    ephemeral=True
+                    ephemeral=True,
                 )
                 return
-        new_balance = functions.karma_add(
+        new_balance = await asyncio.to_thread(
+            functions.karma_add,
             giver_id,
             receiver_id,
             interaction.user.display_name,
             reason=reason,
         )
         next_available = f" You can give karma to {member.display_name} again in {cooldown_hours}h."
-        await interaction.response.send_message(
+        await interaction.followup.send(
             f"{member.mention} received 1 karma! Total: **{new_balance}**.{next_available}"
         )
 
@@ -120,13 +126,17 @@ class Karma(commands.Cog):
             await interaction.response.send_message("This command can only be used in a server.", ephemeral=True)
             return
         act = action.value
+
         if act == "check":
             target = member or interaction.user
-            balance = functions.karma_get_balance(str(target.id))
+            await interaction.response.defer(ephemeral=(target.id == interaction.user.id))
+            balance = await asyncio.to_thread(
+                functions.karma_get_balance, str(target.id)
+            )
             if target.id == interaction.user.id:
-                await interaction.response.send_message(f"You have **{balance}** karma.", ephemeral=True)
+                await interaction.followup.send(f"You have **{balance}** karma.", ephemeral=True)
             else:
-                await interaction.response.send_message(f"{target.display_name} has **{balance}** karma.")
+                await interaction.followup.send(f"{target.display_name} has **{balance}** karma.")
 
         elif act == "history":
             target = member or interaction.user
@@ -134,19 +144,22 @@ class Karma(commands.Cog):
             if target.id != interaction.user.id and not is_admin:
                 await interaction.response.send_message(
                     "You can only view your own karma history. Admins can view anyone's.",
-                    ephemeral=True
+                    ephemeral=True,
                 )
                 return
-            history = functions.karma_get_history(str(target.id))
+            await interaction.response.defer(ephemeral=True)
+            history = await asyncio.to_thread(
+                functions.karma_get_history, str(target.id)
+            )
             if not history:
-                await interaction.response.send_message(
+                await interaction.followup.send(
                     f"No karma history for {target.display_name}.",
-                    ephemeral=True
+                    ephemeral=True,
                 )
                 return
             lines = [_format_history_line(entry) for entry in reversed(history)]
             msg = _fit_discord_message(f"**Karma history for {target.display_name}:**", lines)
-            await interaction.response.send_message(msg, ephemeral=True)
+            await interaction.followup.send(msg, ephemeral=True)
 
         elif act == "remove":
             if not interaction.user.guild_permissions.administrator:
@@ -155,15 +168,19 @@ class Karma(commands.Cog):
             if not member:
                 await interaction.response.send_message("Member is required for remove.", ephemeral=True)
                 return
-            new_balance = functions.karma_take(
+            await interaction.response.defer()
+            new_balance = await asyncio.to_thread(
+                functions.karma_take,
                 str(member.id),
                 str(interaction.user.id),
                 interaction.user.display_name,
             )
             if new_balance is None:
-                await interaction.response.send_message(f"{member.display_name} has no karma to remove.", ephemeral=True)
+                await interaction.followup.send(
+                    f"{member.display_name} has no karma to remove.", ephemeral=True
+                )
             else:
-                await interaction.response.send_message(
+                await interaction.followup.send(
                     f"Removed 1 karma from {member.mention}. Total: **{new_balance}**"
                 )
 
@@ -171,9 +188,10 @@ class Karma(commands.Cog):
             if not interaction.user.guild_permissions.administrator:
                 await interaction.response.send_message("Admin only.", ephemeral=True)
                 return
-            audit = functions.karma_get_audit(limit=10)
+            await interaction.response.defer(ephemeral=True)
+            audit = await asyncio.to_thread(functions.karma_get_audit, 10)
             if not audit:
-                await interaction.response.send_message("No remove_karma events found.", ephemeral=True)
+                await interaction.followup.send("No remove_karma events found.", ephemeral=True)
                 return
             lines = []
             for entry in reversed(audit):
@@ -182,7 +200,7 @@ class Karma(commands.Cog):
                 admin_str = _format_by(entry)
                 lines.append(f"`{ts}`: Removed 1 from <@{target_id}> by {admin_str}")
             msg = _fit_discord_message("**Recent remove_karma events:**", lines)
-            await interaction.response.send_message(msg, ephemeral=True)
+            await interaction.followup.send(msg, ephemeral=True)
 
     async def cog_app_command_error(self, interaction: discord.Interaction, error: Exception):
         msg = str(error) if str(error) else type(error).__name__

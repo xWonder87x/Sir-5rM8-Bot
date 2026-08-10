@@ -29,7 +29,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Bumps when deploy verification matters; check logs after redeploy.
-DEPLOY_MARKER = "2025-06-22-migrate-cmd-v2"
+DEPLOY_MARKER = "2026-08-10-reliability-v1"
 
 intents = discord.Intents.default()
 intents.guilds = True
@@ -105,32 +105,37 @@ async def on_ready():
     logger.info("Logged in as %s (ID: %s)", bot.user, bot.user.id)
 
     if not extensions_loaded:
-        await load_all_extensions(bot)
-        extensions_loaded = True
         try:
-            names = await sync_application_commands(bot)
+            await load_all_extensions(bot)
+        except Exception:
+            logger.exception("Extension load failed; shutting down")
+            await bot.close()
+            return
+        extensions_loaded = True
+        result = await sync_application_commands(bot)
+        if result.ok:
             logger.info(
                 "Slash commands ready (%s): %s",
-                len(names),
-                ", ".join(names),
+                result.global_count,
+                ", ".join(result.command_names),
             )
             global_sync_ok = True
-        except Exception:
-            logger.exception("Initial slash command sync failed")
+        else:
+            logger.error("Initial slash command sync failed")
         _start_background_tasks()
         return
 
     if not global_sync_ok:
-        try:
-            names = await sync_application_commands(bot)
+        result = await sync_application_commands(bot)
+        if result.ok:
             logger.info(
                 "Slash commands ready (%s): %s",
-                len(names),
-                ", ".join(names),
+                result.global_count,
+                ", ".join(result.command_names),
             )
             global_sync_ok = True
-        except Exception:
-            logger.exception("Retry slash command sync failed")
+        else:
+            logger.error("Retry slash command sync failed")
 
     _start_background_tasks()
 

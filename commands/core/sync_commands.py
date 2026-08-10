@@ -18,14 +18,23 @@ class SyncCommandsCog(commands.Cog):
     async def sync_commands(self, interaction: discord.Interaction) -> None:
         await interaction.response.defer(ephemeral=True)
         try:
-            names = await sync_application_commands(self.bot)
+            result = await sync_application_commands(self.bot)
         except Exception:
             logger.exception("Manual slash sync failed")
             await interaction.followup.send("Sync failed — check bot logs.", ephemeral=True)
             return
-        listing = ", ".join(f"`/{n}`" for n in names)
+        if not result.ok:
+            await interaction.followup.send(
+                "Global sync failed — check bot logs.",
+                ephemeral=True,
+            )
+            return
+        listing = ", ".join(f"`/{n}`" for n in result.command_names)
+        note = ""
+        if result.guild_error is not None:
+            note = "\n(Guild-scope clear had errors; global sync succeeded.)"
         await interaction.followup.send(
-            f"Synced **{len(names)}** slash command(s):\n{listing}",
+            f"Synced **{result.global_count}** slash command(s):\n{listing}{note}",
             ephemeral=True,
         )
 

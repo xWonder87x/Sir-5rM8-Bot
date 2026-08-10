@@ -69,6 +69,14 @@ Without Supabase, the same data lives under `data/` as JSON.
 
 See **`supabase/README.md`** and **`../ALICE/docs/UNIFIED_SUPABASE.md`**.
 
+## Reliability notes
+
+- Offload sync Supabase/JSON storage from async slash handlers with `asyncio.to_thread(...)`.
+- Prefer `interaction.response.defer(...)` before any storage or network work, then `followup`.
+- Extension load failure aborts startup (`bot.close()`); do not mark the bot ready with a half-loaded tree.
+- Slash sync: guild-scope clears are best-effort; global sync success is what matters. Retry global sync on later `on_ready` if the first attempt failed.
+- Universal rules live in **`BOT_BLUEPRINT.md`** — keep this file bot-specific.
+
 ## Validation
 
 ```bash

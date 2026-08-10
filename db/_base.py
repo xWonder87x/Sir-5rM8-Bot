@@ -74,11 +74,8 @@ def check_schema() -> list[tuple[str, bool, Optional[str]]]:
 
     for table, columns in EXPECTED_SCHEMA.items():
         try:
-            resp = client.table(table).select(",".join(columns)).limit(1).execute()
-            if resp.data is None:
-                results.append((table, False, "query returned no data handle"))
-            else:
-                results.append((table, True, None))
+            client.table(table).select(",".join(columns)).limit(0).execute()
+            results.append((table, True, None))
         except Exception as exc:
             results.append((table, False, str(exc)))
     return results

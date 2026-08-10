@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+
 import discord
 from discord import app_commands
 from discord.ext import commands
@@ -11,6 +13,7 @@ try:
     from httpx import ConnectError as HttpxConnectError
 except ImportError:
     HttpxConnectError = ()
+
 
 def _paginate_lines(header: str, lines: list[str]) -> list[str]:
     """Split lines into Discord messages under the character limit."""
@@ -58,8 +61,16 @@ class Admin(commands.Cog):
         if interaction.guild is None:
             await interaction.response.send_message("This command can only be used in a server.", ephemeral=True)
             return
-        functions.add_server_channel(str(interaction.guild.id), str(channel.id), str(role.id))
-        await interaction.response.send_message(f"{channel.mention} is set for automatic Official PVE rates updates.")
+        await interaction.response.defer()
+        await asyncio.to_thread(
+            functions.add_server_channel,
+            str(interaction.guild.id),
+            str(channel.id),
+            str(role.id),
+        )
+        await interaction.followup.send(
+            f"{channel.mention} is set for automatic Official PVE rates updates."
+        )
         try:
             await channel.send("This channel is set for automatic Official PVE rates updates.")
         except discord.Forbidden:
@@ -71,20 +82,21 @@ class Admin(commands.Cog):
         if interaction.guild is None:
             await interaction.response.send_message("This command can only be used in a server.", ephemeral=True)
             return
-        rn = functions.get_server_channel(str(interaction.guild.id))
+        await interaction.response.defer(ephemeral=True)
+        rn = await asyncio.to_thread(functions.get_server_channel, str(interaction.guild.id))
         if not rn:
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 "No rate channel configured. Use `/set_rate_channel` to set one.",
-                ephemeral=True
+                ephemeral=True,
             )
             return
         channel = interaction.guild.get_channel(int(rn["channel_id"]))
         role = interaction.guild.get_role(int(rn["role_id"]))
         channel_str = channel.mention if channel else f"#{rn['channel_id']} (deleted?)"
         role_str = role.mention if role else f"@{rn['role_id']} (deleted?)"
-        await interaction.response.send_message(
+        await interaction.followup.send(
             f"**Rate notifications:** {channel_str} → {role_str}",
-            ephemeral=True
+            ephemeral=True,
         )
 
     @app_commands.command(name="clear_rate_channel", description="Remove rate notification setup")
@@ -93,10 +105,16 @@ class Admin(commands.Cog):
         if interaction.guild is None:
             await interaction.response.send_message("This command can only be used in a server.", ephemeral=True)
             return
-        if functions.clear_server_channel(str(interaction.guild.id)):
-            await interaction.response.send_message("Rate notifications disabled for this server.", ephemeral=True)
+        await interaction.response.defer(ephemeral=True)
+        cleared = await asyncio.to_thread(
+            functions.clear_server_channel, str(interaction.guild.id)
+        )
+        if cleared:
+            await interaction.followup.send(
+                "Rate notifications disabled for this server.", ephemeral=True
+            )
         else:
-            await interaction.response.send_message("No rate channel was configured.", ephemeral=True)
+            await interaction.followup.send("No rate channel was configured.", ephemeral=True)
 
     @app_commands.command(name="servers", description="List every server the bot is in (admin only)")
     @app_commands.checks.has_permissions(administrator=True)
