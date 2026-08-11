@@ -18,6 +18,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
+from dotenv import load_dotenv
+
+load_dotenv(ROOT / ".env")
+
 SCHEMA_FILE = ROOT / "neon" / "schema.sql"
 
 
@@ -25,25 +29,21 @@ def _collect_from_supabase() -> dict:
     """Read current Supabase tables using the REST client (needs SUPABASE_* env)."""
     import os
 
-    # Temporarily prefer Supabase even if DATABASE_URL is set.
-    os.environ.pop("DATABASE_URL", None)
-    os.environ.pop("NEON_DATABASE_URL", None)
+    from supabase import create_client
 
-    # Clear cached imports that may have already bound to postgres.
-    for mod in list(sys.modules):
-        if mod == "db" or mod.startswith("db."):
-            del sys.modules[mod]
-
-    from db.supabase_client import create_bot_supabase_client
-    from db._base import use_supabase
-
-    if not use_supabase():
+    url = (os.environ.get("SUPABASE_URL") or "").strip()
+    key = (
+        os.environ.get("SUPABASE_SERVICE_KEY")
+        or os.environ.get("SUPABASE_KEY")
+        or ""
+    ).strip()
+    if not url or not key:
         raise SystemExit(
             "Supabase credentials required to export data "
             "(SUPABASE_URL + SUPABASE_SERVICE_KEY)."
         )
 
-    sb = create_bot_supabase_client()
+    sb = create_client(url, key)
 
     def fetch_all(table: str) -> list[dict]:
         rows: list[dict] = []
@@ -105,12 +105,7 @@ def _collect_from_supabase() -> dict:
             "history_limit": int(settings_resp.data[0]["history_limit"]),
         }
     else:
-        import config
-
-        settings = {
-            "cooldown_hours": config.DEFAULT_COOLDOWN_HOURS,
-            "history_limit": config.DEFAULT_KARMA_HISTORY_LIMIT,
-        }
+        settings = {"cooldown_hours": 24, "history_limit": 10}
 
     rate_resp = (
         sb.table("rate_state").select("previous_rates").eq("id", 1).limit(1).execute()
@@ -183,23 +178,7 @@ def main() -> None:
             return
 
     # Dry-run or --apply: export from Supabase then optionally import.
-    saved_url = os.environ.get("DATABASE_URL")
-    saved_neon = os.environ.get("NEON_DATABASE_URL")
-    try:
-        payload = _collect_from_supabase()
-    finally:
-        if saved_url is not None:
-            os.environ["DATABASE_URL"] = saved_url
-        elif "DATABASE_URL" in os.environ:
-            del os.environ["DATABASE_URL"]
-        if saved_neon is not None:
-            os.environ["NEON_DATABASE_URL"] = saved_neon
-        elif "NEON_DATABASE_URL" in os.environ:
-            del os.environ["NEON_DATABASE_URL"]
-        for mod in list(sys.modules):
-            if mod == "db" or mod.startswith("db."):
-                del sys.modules[mod]
-
+    payload = _collect_from_supabase()
     _print_payload(payload, "Supabase source")
 
     if not args.apply:
