@@ -9,15 +9,6 @@ from db._base import (  # noqa: F401
     use_supabase,
 )
 
-_BOTHUNTER_EXPORTS = (
-    "clear_bothunter_config",
-    "get_bothunter_channel_map",
-    "get_bothunter_config",
-    "get_bothunter_moderated_count",
-    "log_bothunter_event",
-    "set_bothunter_config",
-)
-
 if use_postgres():
     from db.postgres import (  # noqa: F401
         check_connection,
