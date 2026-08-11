@@ -104,3 +104,31 @@ BEGIN
   RETURN new_balance;
 END;
 $$;
+
+-- Bothunter (spam trap channel — port of RiskyMH/honeypot, renamed)
+CREATE TABLE IF NOT EXISTS bothunter_config (
+  guild_id         TEXT PRIMARY KEY,
+  channel_id       TEXT,
+  log_channel_id   TEXT,
+  action           TEXT NOT NULL DEFAULT 'softban',
+  warning_msg_id   TEXT,
+  experiments      JSONB NOT NULL DEFAULT '[]'::jsonb,
+  warning_message  TEXT,
+  dm_message       TEXT,
+  log_message      TEXT,
+  reinvite_code    TEXT
+);
+
+CREATE TABLE IF NOT EXISTS bothunter_events (
+  id         BIGSERIAL PRIMARY KEY,
+  guild_id   TEXT NOT NULL,
+  user_id    TEXT NOT NULL,
+  channel_id TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_bothunter_events_guild
+  ON bothunter_events (guild_id);
+
+CREATE INDEX IF NOT EXISTS idx_bothunter_events_guild_channel
+  ON bothunter_events (guild_id, channel_id);

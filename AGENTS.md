@@ -4,7 +4,7 @@ Follow **`BOT_BLUEPRINT.md`** for architecture and validation. This file is bot-
 
 ## Purpose
 
-Discord bot for ARK: Survival Ascended communities: live official PVE rates, server status lookup, karma system, and per-guild rate-change notifications.
+Discord bot for ARK: Survival Ascended communities: live official PVE rates, server status lookup, karma system, per-guild rate-change notifications, and bothunter (spam-trap channel).
 
 ## Extension load order
 
@@ -16,7 +16,8 @@ Defined in `commands/core/extensions.py` (`COG_EXTENSIONS`):
 4. `commands.community.rates`
 5. `commands.community.server`
 6. `commands.community.karma`
-7. `commands.integrations.ratecheck`
+7. `commands.mod.bothunter`
+8. `commands.integrations.ratecheck`
 
 ## Slash commands
 
@@ -28,6 +29,7 @@ Defined in `commands/core/extensions.py` (`COG_EXTENSIONS`):
 | `/rates` | `commands.community.rates` | Live ASA rates |
 | `/serverstatus` | `commands.community.server` | Server lookup |
 | `/karma`, `/manage_karma` | `commands.community.karma` | Karma system |
+| `/bothunter`, `/bothunter-messages` | `commands.mod.bothunter` | Spam-trap channel (honeypot port) |
 
 No user-facing prefix commands.
 
@@ -68,6 +70,8 @@ No user-facing prefix commands.
 | `guild_rate_notifications` | Per-guild rate alert channel + role |
 | `rate_state` | Previous ASA rates for change detection |
 | `karma_*` | Karma balances, cooldowns, events, settings |
+| `bothunter_config` | Per-guild trap channel, action, experiments, messages |
+| `bothunter_events` | Bothunter moderation event log |
 
 Without a remote DB, the same data lives under `data/` as JSON.
 

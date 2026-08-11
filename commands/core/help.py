@@ -44,6 +44,12 @@ class Help(commands.Cog):
                 "`/manage_karma action:audit` *(Admin)*",
             ),
             _embed(
+                "Bothunter (spam trap)",
+                "`/bothunter [channel] [log_channel] [action] …` *(Admin)*\n"
+                "`/bothunter-messages [warning] [dm] [log]` *(Admin)*\n\n"
+                "Anyone posting in the trap channel is softbanned/banned automatically.",
+            ),
+            _embed(
                 "Admin Tools",
                 "`/say [message]`\n"
                 "`/sync-commands` *(Admin)* — refresh slash commands\n"
@@ -51,7 +57,8 @@ class Help(commands.Cog):
                 "**Quick Start**\n"
                 "1. Try `/rates` and `/serverstatus server:5313`\n"
                 "2. Optional: `/set_rate_channel` for rate alerts\n"
-                "3. Use `/karma` to reward helpful members",
+                "3. Optional: `/bothunter` to catch spam bots\n"
+                "4. Use `/karma` to reward helpful members",
             ),
         ]
 

@@ -260,3 +260,118 @@ def karma_get_audit(limit: int = 20) -> list[dict]:
         except json.JSONDecodeError:
             continue
     return audit
+
+
+# --- Bothunter (spam trap channel) ---
+
+BOTHUNTER_EVENTS_FILE = DATA_DIR / "bothunter_events.jsonl"
+
+
+def _bothunter_defaults(guild_id: str) -> dict:
+    return {
+        "guild_id": str(guild_id),
+        "channel_id": None,
+        "log_channel_id": None,
+        "action": "softban",
+        "warning_msg_id": None,
+        "experiments": [],
+        "warning_message": None,
+        "dm_message": None,
+        "log_message": None,
+        "reinvite_code": None,
+    }
+
+
+def get_bothunter_config(guild_id: str) -> dict | None:
+    data = _load_config()
+    raw = data.get("guilds", {}).get(str(guild_id), {}).get("bothunter")
+    if not raw:
+        return None
+    cfg = _bothunter_defaults(guild_id)
+    cfg.update(raw)
+    cfg["guild_id"] = str(guild_id)
+    cfg["experiments"] = list(cfg.get("experiments") or [])
+    return cfg
+
+
+def set_bothunter_config(config: dict) -> None:
+    guild_id = str(config["guild_id"])
+    data = _load_config()
+    if "guilds" not in data:
+        data["guilds"] = {}
+    if guild_id not in data["guilds"]:
+        data["guilds"][guild_id] = {}
+    stored = _bothunter_defaults(guild_id)
+    stored.update({
+        "channel_id": config.get("channel_id"),
+        "log_channel_id": config.get("log_channel_id"),
+        "action": config.get("action") or "softban",
+        "warning_msg_id": config.get("warning_msg_id"),
+        "experiments": list(config.get("experiments") or []),
+        "warning_message": config.get("warning_message"),
+        "dm_message": config.get("dm_message"),
+        "log_message": config.get("log_message"),
+        "reinvite_code": config.get("reinvite_code"),
+    })
+    data["guilds"][guild_id]["bothunter"] = stored
+    _save_config(data)
+
+
+def clear_bothunter_config(guild_id: str) -> bool:
+    data = _load_config()
+    guild = data.get("guilds", {}).get(str(guild_id))
+    if not guild or "bothunter" not in guild:
+        return False
+    del guild["bothunter"]
+    if not guild:
+        del data["guilds"][str(guild_id)]
+    _save_config(data)
+    return True
+
+
+def log_bothunter_event(guild_id: str, user_id: str, channel_id: str | None = None) -> None:
+    _ensure_data_dir()
+    record = {
+        "guild_id": str(guild_id),
+        "user_id": str(user_id),
+        "channel_id": str(channel_id) if channel_id else None,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+    with open(BOTHUNTER_EVENTS_FILE, "a", encoding="utf-8") as f:
+        f.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+
+def get_bothunter_moderated_count(guild_id: str, channel_id: str | None = None) -> int:
+    if not BOTHUNTER_EVENTS_FILE.exists():
+        return 0
+    count = 0
+    try:
+        with open(BOTHUNTER_EVENTS_FILE, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    row = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if row.get("guild_id") != str(guild_id):
+                    continue
+                if channel_id and row.get("channel_id") != str(channel_id):
+                    continue
+                count += 1
+    except IOError:
+        return 0
+    return count
+
+
+def get_bothunter_channel_map() -> dict[str, str]:
+    """Map channel_id -> guild_id for configured bothunter traps."""
+    data = _load_config()
+    out: dict[str, str] = {}
+    for gid, guild_data in data.get("guilds", {}).items():
+        bh = guild_data.get("bothunter") or {}
+        channel_id = bh.get("channel_id")
+        if channel_id:
+            out[str(channel_id)] = str(gid)
+    return out

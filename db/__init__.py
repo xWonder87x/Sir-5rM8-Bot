@@ -9,10 +9,23 @@ from db._base import (  # noqa: F401
     use_supabase,
 )
 
+_BOTHUNTER_EXPORTS = (
+    "clear_bothunter_config",
+    "get_bothunter_channel_map",
+    "get_bothunter_config",
+    "get_bothunter_moderated_count",
+    "log_bothunter_event",
+    "set_bothunter_config",
+)
+
 if use_postgres():
     from db.postgres import (  # noqa: F401
         check_connection,
+        clear_bothunter_config,
         clear_rate_notification,
+        get_bothunter_channel_map,
+        get_bothunter_config,
+        get_bothunter_moderated_count,
         get_karma_settings,
         get_previous_rate_values,
         get_rate_notification,
@@ -23,13 +36,19 @@ if use_postgres():
         karma_get_cooldown,
         karma_get_history,
         karma_take,
+        log_bothunter_event,
         save_previous_rate_values,
+        set_bothunter_config,
         set_rate_notification,
     )
 elif use_supabase():
     from db.supabase import (  # noqa: F401
         check_connection,
+        clear_bothunter_config,
         clear_rate_notification,
+        get_bothunter_channel_map,
+        get_bothunter_config,
+        get_bothunter_moderated_count,
         get_karma_settings,
         get_previous_rate_values,
         get_rate_notification,
@@ -40,12 +59,18 @@ elif use_supabase():
         karma_get_cooldown,
         karma_get_history,
         karma_take,
+        log_bothunter_event,
         save_previous_rate_values,
+        set_bothunter_config,
         set_rate_notification,
     )
 else:
     from db.files import (  # noqa: F401
+        clear_bothunter_config,
         clear_rate_notification,
+        get_bothunter_channel_map,
+        get_bothunter_config,
+        get_bothunter_moderated_count,
         get_karma_settings,
         get_previous_rate_values,
         get_rate_notification,
@@ -56,7 +81,9 @@ else:
         karma_get_cooldown,
         karma_get_history,
         karma_take,
+        log_bothunter_event,
         save_previous_rate_values,
+        set_bothunter_config,
         set_rate_notification,
     )
 

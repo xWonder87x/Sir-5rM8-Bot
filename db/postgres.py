@@ -411,3 +411,126 @@ def import_payload(payload: dict[str, Any], *, force: bool = False) -> None:
                     row.get("reason"),
                 ),
             )
+
+
+# --- Bothunter ---
+
+def _bothunter_row_to_dict(row: dict | None) -> dict | None:
+    if not row:
+        return None
+    experiments = row.get("experiments") or []
+    if isinstance(experiments, str):
+        import json
+        try:
+            experiments = json.loads(experiments)
+        except (json.JSONDecodeError, TypeError):
+            experiments = []
+    return {
+        "guild_id": str(row["guild_id"]),
+        "channel_id": str(row["channel_id"]) if row.get("channel_id") else None,
+        "log_channel_id": str(row["log_channel_id"]) if row.get("log_channel_id") else None,
+        "action": row.get("action") or "softban",
+        "warning_msg_id": str(row["warning_msg_id"]) if row.get("warning_msg_id") else None,
+        "experiments": list(experiments),
+        "warning_message": row.get("warning_message"),
+        "dm_message": row.get("dm_message"),
+        "log_message": row.get("log_message"),
+        "reinvite_code": row.get("reinvite_code"),
+    }
+
+
+def get_bothunter_config(guild_id: str) -> dict | None:
+    with _conn() as conn:
+        row = conn.execute(
+            """
+            SELECT guild_id, channel_id, log_channel_id, action, warning_msg_id,
+                   experiments, warning_message, dm_message, log_message, reinvite_code
+            FROM bothunter_config
+            WHERE guild_id = %s
+            """,
+            (str(guild_id),),
+        ).fetchone()
+    return _bothunter_row_to_dict(row)
+
+
+def set_bothunter_config(config: dict) -> None:
+    with _conn() as conn:
+        conn.execute(
+            """
+            INSERT INTO bothunter_config (
+              guild_id, channel_id, log_channel_id, action, warning_msg_id,
+              experiments, warning_message, dm_message, log_message, reinvite_code
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (guild_id) DO UPDATE SET
+              channel_id = EXCLUDED.channel_id,
+              log_channel_id = EXCLUDED.log_channel_id,
+              action = EXCLUDED.action,
+              warning_msg_id = EXCLUDED.warning_msg_id,
+              experiments = EXCLUDED.experiments,
+              warning_message = EXCLUDED.warning_message,
+              dm_message = EXCLUDED.dm_message,
+              log_message = EXCLUDED.log_message,
+              reinvite_code = EXCLUDED.reinvite_code
+            """,
+            (
+                str(config["guild_id"]),
+                config.get("channel_id"),
+                config.get("log_channel_id"),
+                config.get("action") or "softban",
+                config.get("warning_msg_id"),
+                Jsonb(list(config.get("experiments") or [])),
+                config.get("warning_message"),
+                config.get("dm_message"),
+                config.get("log_message"),
+                config.get("reinvite_code"),
+            ),
+        )
+
+
+def clear_bothunter_config(guild_id: str) -> bool:
+    with _conn() as conn:
+        cur = conn.execute(
+            "DELETE FROM bothunter_config WHERE guild_id = %s",
+            (str(guild_id),),
+        )
+        return cur.rowcount > 0
+
+
+def log_bothunter_event(guild_id: str, user_id: str, channel_id: str | None = None) -> None:
+    with _conn() as conn:
+        conn.execute(
+            """
+            INSERT INTO bothunter_events (guild_id, user_id, channel_id)
+            VALUES (%s, %s, %s)
+            """,
+            (str(guild_id), str(user_id), str(channel_id) if channel_id else None),
+        )
+
+
+def get_bothunter_moderated_count(guild_id: str, channel_id: str | None = None) -> int:
+    with _conn() as conn:
+        if channel_id:
+            row = conn.execute(
+                """
+                SELECT COUNT(*)::int AS n FROM bothunter_events
+                WHERE guild_id = %s AND channel_id = %s
+                """,
+                (str(guild_id), str(channel_id)),
+            ).fetchone()
+        else:
+            row = conn.execute(
+                "SELECT COUNT(*)::int AS n FROM bothunter_events WHERE guild_id = %s",
+                (str(guild_id),),
+            ).fetchone()
+    return int(row["n"] if row else 0)
+
+
+def get_bothunter_channel_map() -> dict[str, str]:
+    with _conn() as conn:
+        rows = conn.execute(
+            """
+            SELECT guild_id, channel_id FROM bothunter_config
+            WHERE channel_id IS NOT NULL
+            """
+        ).fetchall()
+    return {str(r["channel_id"]): str(r["guild_id"]) for r in rows}

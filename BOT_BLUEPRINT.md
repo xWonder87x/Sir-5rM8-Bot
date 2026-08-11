@@ -30,6 +30,8 @@ For a large, filled-in example of the pattern, see **ALICE** (`ALICE/AGENTS.md` 
 6. **`logging` only** for runtime behaviour — no `print`.
 7. **Keep `README.md` in sync** when user-visible commands change.
 8. **Prefer `command_sync.sync_application_commands`** over ad hoc `bot.tree.sync()` so guild-scoped duplicates stay cleared where configured.
+9. **Keep the event loop free** — offload sync Supabase/JSON/HTTP helpers from async handlers with `asyncio.to_thread(...)`. Prefer `interaction.response.defer(...)` before any storage or network work, then `followup`.
+10. **Fail closed on startup** — if extension load fails, log, `await bot.close()`, and do **not** mark the bot ready with a half-loaded command tree.
 
 ---
 
@@ -88,6 +90,9 @@ These appear in some bots (e.g. ALICE) but are **not required** by this blueprin
 - Admin slash commands like `/sync-commands` or `/maintenance` — add only if that bot needs them
 - Remote log handler writing to Supabase
 - Background `@tasks.loop` jobs
+- Restart/redeploy owner DM (`RESTART_NOTIFY_USER_ID`)
+- JSON-file storage fallback when Supabase is unset
+- Shared multi-bot Postgres project with per-role JWTs
 
 If a bot does not need something, **omit it** — do not scaffold empty cogs "because the blueprint shows them."
 
@@ -113,8 +118,11 @@ If a bot does not need something, **omit it** — do not scaffold empty cogs "be
 - Load `.env`, validate required env (exit early with a clear message if missing).
 - Configure logging (console + optional remote handler).
 - Create `commands.Bot` with appropriate intents.
-- Load extensions in a **fixed, documented order** (listed in that bot's `AGENTS.md`).
-- Sync slash commands once after cogs load; retry global sync on later `on_ready` if the first attempt failed.
+- Load extensions in a **fixed, documented order** (listed in that bot's `AGENTS.md`). On failure: log + `bot.close()` — do not continue.
+- Sync slash commands **once after cogs load**; retry **global** sync on later `on_ready` only if the first attempt failed. Do **not** re-sync on every Discord reconnect.
+- Treat guild-scope clears as **best-effort**; global sync success is what gates “ready”.
+- Optional: one restart/redeploy DM per process (`RESTART_NOTIFY_USER_ID`) — not on every reconnect.
+- Optional: deploy marker / git SHA in startup logs for host verification.
 - On Discord **429** at login: wait, `sys.exit(1)` — let Docker/Railway restart policy retry (see `LOGIN_RETRY_ATTEMPT`).
 - Stagger startup (`time.sleep` jitter) to avoid hammering Discord on crash loops.
 
@@ -142,8 +150,12 @@ Split by **domain** (one file per table group). Keep each module focused; aim fo
 - Implement helpers in the appropriate domain module.
 - Use `CREATE TABLE IF NOT EXISTS` / `CREATE INDEX IF NOT EXISTS` for idempotent migrations.
 - Offload synchronous Supabase calls from async handlers with `asyncio.to_thread(...)`.
+- Schema probes should be light: `.select(...).limit(0).execute()` — existence/column check only, not row fetches.
+- One-shot data migrations belong in **`db/` helpers + `scripts/*.py` CLI** — not user-facing slash commands.
 
 **When to split:** a single `db.py` is fine for small bots. Once it exceeds ~400–500 lines or mixes unrelated tables, split into `db/` with `__init__.py` re-exports so callers keep using `import db`.
+
+**Storage backends:** some bots require Supabase; others may fall back to JSON under `data/` when `SUPABASE_*` is unset. Document the choice in that bot's `AGENTS.md`. Prefer a shared Supabase client factory (`db/supabase_client.py`) that accepts either a service/admin key **or** per-bot JWT + publishable key.
 
 ### `functions/` package
 
@@ -261,12 +273,30 @@ async def load_all_extensions(bot: commands.Bot) -> None: ...
 
 Most bots use **`commands/core/command_sync.py`** — `sync_application_commands(bot)` clears stale guild-scoped commands where configured, then global sync.
 
-- Startup: sync once after all cogs load; retry on later `on_ready` if global sync failed (rate limit).
+Preferred shape: return a small **`SyncResult`** (guild clears attempted, global count / names, per-phase errors). Callers treat **`global_error is None`** (or `result.ok`) as success.
+
+- Strategy: **global registration only**. Guild-scope `clear_commands` + sync exists only to remove stale per-guild duplicates that would double-list slash entries.
+- Startup: sync once after all cogs load; retry on later `on_ready` **only if** global sync failed (rate limit). Do not sync on every reconnect.
+- Guild clears are best-effort (log + continue); brief sleep between guild clears helps Discord rate limits.
 - Optional admin **`/sync-commands`** cog — force sync; useful during development.
 - Optional **`SLASH_SYNC_GUILD_IDS`** in env/config for extra guild-scope clears.
 - Register commands **globally** unless there is a deliberate reason for guild scope.
 
 Document which sync/admin commands **this bot** exposes in its `AGENTS.md` — they are not universal.
+
+---
+
+## Async / interaction reliability
+
+Discord must ACK interactions quickly. Established pattern across reference bots:
+
+1. **`await interaction.response.defer(...)`** (ephemeral when the reply is private) before any DB, file, or outbound HTTP work.
+2. Run sync `db.*` / storage helpers via **`await asyncio.to_thread(...)`**.
+3. Reply with **`interaction.followup.send(...)`** (or edit the deferred response).
+4. Wrap background `@tasks.loop` bodies in `try/except` + `logger.exception` so one failure does not kill the loop.
+5. Prefer regression tests that assert command paths call `asyncio.to_thread` for blocking storage (see Sir-5rM8 / ALICE patterns).
+
+Do **not** call blocking `requests` / Supabase `.execute()` directly inside async slash handlers or views.
 
 ---
 
@@ -282,23 +312,40 @@ Never skip step 2 — `check_schema()` is the guardrail against drift.
 
 For a **new bot**, design tables for that bot's features only. Do **not** copy another bot's tables unless you explicitly share a database.
 
+### Shared Supabase project (optional multi-bot pattern)
+
+Several bots may share one Postgres project with **per-bot roles** (e.g. `bot_alice`, `bot_sir5rm8`) and table-level GRANTs / RLS. In that setup:
+
+- Prefer a scoped JWT (`role=bot_…`) on the bot host — not the project `service_role` / admin secret.
+- Keep admin/service keys for backups and migrations only.
+- Document project URL, role name, and owned tables in that bot's **`AGENTS.md`** / `supabase/README.md`.
+- Data migrations: CLI scripts under `scripts/` (or `db/migrate_*.py` called by scripts) — remove temporary slash migrate commands once cutover is done.
+
 ---
 
 ## Environment variables
 
-### Required (all bots using this stack)
+### Required (typical bots on this stack)
 
 | Variable | Purpose |
 |----------|---------|
 | `TOKEN` | Discord bot token |
-| `SUPABASE_URL` | Supabase project URL |
-| `SUPABASE_SERVICE_KEY` or `SUPABASE_KEY` | Service role key (backend only) |
+| `SUPABASE_URL` | Supabase project URL (omit only if that bot documents a JSON-file fallback) |
+| `SUPABASE_SERVICE_KEY` or `SUPABASE_KEY` | Backend key — prefer **per-bot JWT**, not shared `service_role` |
+
+### Auth alternatives (when using scoped bot roles)
+
+| Variable | Purpose |
+|----------|---------|
+| `SUPABASE_BOT_JWT` + `SUPABASE_PUBLISHABLE_KEY` (or `SUPABASE_ANON_KEY`) | JWT auth pair instead of a single service key |
 
 ### Common optional
 
 | Variable | Purpose |
 |----------|---------|
 | `SLASH_SYNC_GUILD_IDS` | Comma-separated guild IDs for guild-scope command clear |
+| `RESTART_NOTIFY_USER_ID` | Discord user to DM once when the process comes online; empty disables |
+| `DATA_DIR` | Runtime JSON / log directory when used |
 | `LOGIN_RETRY_ATTEMPT` | **Internal** — 429 retry counter; do not set manually |
 
 Feature-specific vars (channel IDs, API keys, intervals, etc.) belong in that bot's **`README.md`** and **`AGENTS.md`** — not in this file.
@@ -387,11 +434,13 @@ When adding or modifying features in any bot:
 
 - [ ] IDs/tunables in `config.py` (not literals in cogs)
 - [ ] DB changes: `schema.sql` + `EXPECTED_SCHEMA` + domain module + `supabase/README.md`
-- [ ] Cog added to **`commands/core/extensions.py`** (`COG_EXTENSIONS`)
+- [ ] Async paths: `defer` + `asyncio.to_thread` for blocking storage/HTTP
+- [ ] Cog added to **`commands/core/extensions.py`** (`COG_EXTENSIONS`); load failure remains fail-closed
 - [ ] **`AGENTS.md`** updated (load order, commands, feature env vars)
 - [ ] **`README.md`** updated if user-visible commands changed
 - [ ] Validation steps above pass
 - [ ] No secrets committed
+- [ ] One-shot migrations are CLI scripts — not permanent slash commands
 
 ---
 
@@ -403,7 +452,7 @@ When adding or modifying features in any bot:
 
 ### Existing bot
 
-> Follow **`BOT_BLUEPRINT.md`** for architecture and validation. Follow this repo's **`AGENTS.md`** for bot-specific commands, load order, and env vars. Preserve public import paths (`import db`, `import functions`, extension names). Split large files into packages with `__init__.py` re-exports rather than changing callers.
+> Follow **`BOT_BLUEPRINT.md`** for architecture and validation. Follow this repo's **`AGENTS.md`** for bot-specific commands, load order, and env vars. Preserve public import paths (`import db`, `import functions`, extension names). Split large files into packages with `__init__.py` re-exports rather than changing callers. Keep slash handlers non-blocking (`defer` + `asyncio.to_thread`); fail closed if extension load fails.
 
 ### Starting from ALICE as template
 

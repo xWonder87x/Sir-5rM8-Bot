@@ -63,7 +63,23 @@ Karma rewards helpful community members. It's **global** (shared across all serv
 
 ---
 
-## 5. Admin Tools
+## 5. Bothunter (spam trap)
+
+Catch mass-spam bots with a dedicated trap channel. Anyone who posts there is softbanned (default) or banned. Softban bans then unbans so Discord deletes their recent messages.
+
+### Setup
+
+1. Create a channel near the **top** of your channel list (e.g. `#pls-dont-chat-here`) — spam bots often hit the first few channels
+2. Ensure Sir-5rM8 has **Ban Members** and its role sits **above** normal member roles
+3. Run: `/bothunter channel:#pls-dont-chat-here log_channel:#mod-log action:Softban`
+4. Optional experiments: `reinvite`, `timeout_first`, `no_dm`, `no_warning_msg`, `only_recent_delete`
+5. Customize copy with `/bothunter-messages` if desired
+
+Run `/bothunter` with no options to see current status. Use `clear:True` to remove the config.
+
+---
+
+## 6. Admin Tools
 
 | Command | Description |
 |---------|-------------|
@@ -76,6 +92,7 @@ Karma rewards helpful community members. It's **global** (shared across all serv
 - [ ] Invite the bot
 - [ ] Try `/rates` and `/serverstatus server:5313`
 - [ ] *(Optional)* Set up rate notifications with `/set_rate_channel`
+- [ ] *(Optional)* Set up bothunter with `/bothunter`
 - [ ] Explain karma to your community — `/karma` for helpful members
 
 ---

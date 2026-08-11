@@ -10,7 +10,7 @@
 
 # **Sir-5rM8**
 
-**Version:** 1.1.0
+**Version:** 1.2.0
 
 ### *Making the community better, one command at a time.*
 
@@ -54,6 +54,17 @@
 | `/manage_karma action:history [member]` | View karma history |
 | `/manage_karma action:remove [member]` | Remove 1 karma *(Admin only)* |
 | `/manage_karma action:audit` | Recent removals *(Admin only)* |
+
+### Bothunter (spam trap)
+
+Catch mass-spam bots by monitoring a dedicated trap channel. Anyone who posts there is softbanned (default) or banned. Commands renamed from the upstream [honeypot](https://github.com/RiskyMH/honeypot) bot.
+
+| Command | Description |
+|---------|-------------|
+| `/bothunter` | Configure trap channel, log channel, action, and options *(Admin)* |
+| `/bothunter-messages` | Customize warning / DM / log messages *(Admin)* |
+
+**Setup tips:** place the trap near the top of your channel list, keep the bot’s role above member roles, and ensure it has **Ban Members**. Softban bans then unbans so Discord deletes recent messages.
 
 ### Admin Tools
 

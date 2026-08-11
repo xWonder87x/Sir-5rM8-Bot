@@ -23,6 +23,19 @@ EXPECTED_SCHEMA: dict[str, list[str]] = {
         "admin_id",
         "reason",
     ],
+    "bothunter_config": [
+        "guild_id",
+        "channel_id",
+        "log_channel_id",
+        "action",
+        "warning_msg_id",
+        "experiments",
+        "warning_message",
+        "dm_message",
+        "log_message",
+        "reinvite_code",
+    ],
+    "bothunter_events": ["id", "guild_id", "user_id", "channel_id", "created_at"],
 }
 
 _client: Any = None

@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.2.0] - 2026-08-12
+
+### Added
+
+- **Bothunter** spam-trap channel (ported from [RiskyMH/honeypot](https://github.com/RiskyMH/honeypot), commands renamed)
+  - `/bothunter` — configure trap channel, log channel, softban/ban/disabled, experiments
+  - `/bothunter-messages` — custom warning / DM / log messages
+  - Softban (ban+unban) deletes recent messages; skips owners/admins; optional DM + reinvite + timeout-first
+  - Storage: JSON / Neon `bothunter_config` + `bothunter_events` / Supabase same tables
+
+### Changed
+
+- Primary storage is **Neon/Postgres** (`DATABASE_URL`); all Sir-5rM8 tables (rates, karma, bothunter) live there
+- Deploy marker `v1.2.0`
+
 ## [1.1.0] - 2026-08-10
 
 ### Added

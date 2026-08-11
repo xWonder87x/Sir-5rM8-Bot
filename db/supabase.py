@@ -215,3 +215,81 @@ def karma_get_audit(limit: int = 20) -> list[dict]:
             "admin_id": row.get("admin_id"),
         })
     return out
+
+
+# --- Bothunter ---
+
+def _bothunter_row_to_dict(row: dict | None) -> dict | None:
+    if not row:
+        return None
+    experiments = row.get("experiments") or []
+    if isinstance(experiments, str):
+        import json
+        try:
+            experiments = json.loads(experiments)
+        except (json.JSONDecodeError, TypeError):
+            experiments = []
+    return {
+        "guild_id": str(row["guild_id"]),
+        "channel_id": str(row["channel_id"]) if row.get("channel_id") else None,
+        "log_channel_id": str(row["log_channel_id"]) if row.get("log_channel_id") else None,
+        "action": row.get("action") or "softban",
+        "warning_msg_id": str(row["warning_msg_id"]) if row.get("warning_msg_id") else None,
+        "experiments": list(experiments),
+        "warning_message": row.get("warning_message"),
+        "dm_message": row.get("dm_message"),
+        "log_message": row.get("log_message"),
+        "reinvite_code": row.get("reinvite_code"),
+    }
+
+
+def get_bothunter_config(guild_id: str) -> dict | None:
+    r = _sb().table("bothunter_config").select("*").eq("guild_id", str(guild_id)).limit(1).execute()
+    rows = r.data or []
+    return _bothunter_row_to_dict(rows[0] if rows else None)
+
+
+def set_bothunter_config(config: dict) -> None:
+    payload = {
+        "guild_id": str(config["guild_id"]),
+        "channel_id": config.get("channel_id"),
+        "log_channel_id": config.get("log_channel_id"),
+        "action": config.get("action") or "softban",
+        "warning_msg_id": config.get("warning_msg_id"),
+        "experiments": list(config.get("experiments") or []),
+        "warning_message": config.get("warning_message"),
+        "dm_message": config.get("dm_message"),
+        "log_message": config.get("log_message"),
+        "reinvite_code": config.get("reinvite_code"),
+    }
+    _sb().table("bothunter_config").upsert(payload, on_conflict="guild_id").execute()
+
+
+def clear_bothunter_config(guild_id: str) -> bool:
+    r = _sb().table("bothunter_config").delete().eq("guild_id", str(guild_id)).execute()
+    return bool(r.data)
+
+
+def log_bothunter_event(guild_id: str, user_id: str, channel_id: str | None = None) -> None:
+    _sb().table("bothunter_events").insert({
+        "guild_id": str(guild_id),
+        "user_id": str(user_id),
+        "channel_id": str(channel_id) if channel_id else None,
+    }).execute()
+
+
+def get_bothunter_moderated_count(guild_id: str, channel_id: str | None = None) -> int:
+    q = _sb().table("bothunter_events").select("id", count="exact").eq("guild_id", str(guild_id))
+    if channel_id:
+        q = q.eq("channel_id", str(channel_id))
+    r = q.execute()
+    return int(r.count or 0)
+
+
+def get_bothunter_channel_map() -> dict[str, str]:
+    r = _sb().table("bothunter_config").select("guild_id, channel_id").not_.is_("channel_id", "null").execute()
+    out: dict[str, str] = {}
+    for row in r.data or []:
+        if row.get("channel_id"):
+            out[str(row["channel_id"])] = str(row["guild_id"])
+    return out
