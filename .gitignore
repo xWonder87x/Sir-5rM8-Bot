@@ -13,3 +13,5 @@ data/bot.log
 previous-rates.text
 current-rates.text
 rate-notification-channels.json
+
+.railway-database-url.txt
