@@ -39,11 +39,12 @@ No user-facing prefix commands.
 |----------|---------|
 | `TOKEN` | Discord bot token |
 
-### Supabase (optional — JSON fallback when unset)
+### Supabase / Neon (optional — JSON fallback when unset)
 
 | Variable | Purpose |
 |----------|---------|
-| `SUPABASE_URL` | Discord Bots project URL |
+| `DATABASE_URL` or `NEON_DATABASE_URL` | Neon/Postgres connection string (**preferred** when set) |
+| `SUPABASE_URL` | Discord Bots project URL (used only if no `DATABASE_URL`) |
 | `SUPABASE_SERVICE_KEY` or `SUPABASE_KEY` | Per-bot JWT (`role=bot_sir5rm8`) or admin key |
 | `SUPABASE_BOT_JWT` + `SUPABASE_PUBLISHABLE_KEY` | Alternative JWT auth pair |
 
@@ -58,7 +59,9 @@ No user-facing prefix commands.
 
 ## Database
 
-Shared **Discord Bots** Supabase project (`msksvvopixdaqhvdewvw`). Postgres role **`bot_sir5rm8`**.
+**Preferred:** Neon/Postgres via `DATABASE_URL` — see **`neon/README.md`**.
+
+**Legacy:** Shared **Discord Bots** Supabase project (`msksvvopixdaqhvdewvw`), role **`bot_sir5rm8`**.
 
 | Table | Purpose |
 |-------|---------|
@@ -66,13 +69,14 @@ Shared **Discord Bots** Supabase project (`msksvvopixdaqhvdewvw`). Postgres role
 | `rate_state` | Previous ASA rates for change detection |
 | `karma_*` | Karma balances, cooldowns, events, settings |
 
-Without Supabase, the same data lives under `data/` as JSON.
+Without a remote DB, the same data lives under `data/` as JSON.
 
-See **`supabase/README.md`** and **`../ALICE/docs/UNIFIED_SUPABASE.md`**.
+See **`neon/README.md`**, **`supabase/README.md`**, and **`../ALICE/docs/UNIFIED_SUPABASE.md`**.
 
 ## Reliability notes
 
-- Offload sync Supabase/JSON storage from async slash handlers with `asyncio.to_thread(...)`.
+- Prefer `DATABASE_URL` (Neon/Postgres) when set; else Supabase; else JSON files under `data/`.
+- Offload sync Supabase/JSON/Postgres storage from async slash handlers with `asyncio.to_thread(...)`.
 - Prefer `interaction.response.defer(...)` before any storage or network work, then `followup`.
 - Extension load failure aborts startup (`bot.close()`); do not mark the bot ready with a half-loaded tree.
 - Slash sync: guild-scope clears are best-effort; global sync success is what matters. Retry global sync on later `on_ready` if the first attempt failed.

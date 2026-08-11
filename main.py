@@ -62,7 +62,26 @@ def _validate_env() -> None:
     git_sha = os.environ.get("RAILWAY_GIT_COMMIT_SHA", "unknown")
     logger.info("Deploy marker: %s (git %s)", DEPLOY_MARKER, git_sha[:12] if git_sha != "unknown" else git_sha)
 
-    if db.use_supabase():
+    if db.use_postgres():
+        logger.info("Storage backend: Postgres/Neon")
+        try:
+            db.check_connection()
+            logger.info("Postgres connection OK")
+        except Exception as exc:
+            logger.error(
+                "Postgres connection failed: %s. "
+                "Check DATABASE_URL (Neon pooled or direct connection string).",
+                exc,
+            )
+            sys.exit(1)
+
+        for name, ok, err in db.check_schema():
+            if ok:
+                logger.info("Schema OK: %s", name)
+            else:
+                logger.error("Schema check failed for %s: %s", name, err)
+                sys.exit(1)
+    elif db.use_supabase():
         logger.info("Storage backend: Supabase (%s)", os.environ.get("SUPABASE_URL"))
         try:
             db.check_connection()
@@ -70,8 +89,8 @@ def _validate_env() -> None:
         except Exception as exc:
             logger.error(
                 "Supabase connection failed: %s. "
-                "Check SUPABASE_URL and credentials, or remove Supabase env vars "
-                "to fall back to JSON files in %s.",
+                "Check SUPABASE_URL and credentials, set DATABASE_URL for Neon, "
+                "or remove remote DB env vars to fall back to JSON files in %s.",
                 exc,
                 config.DATA_DIR,
             )
