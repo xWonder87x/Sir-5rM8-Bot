@@ -157,7 +157,7 @@ async def on_ready():
                 user = bot.get_user(int(notify_id)) or await bot.fetch_user(int(notify_id))
                 await user.send(
                     f"Sir-5rM8 is online after restart/redeploy "
-                    f"(`{bot.user}` / `{bot.user.id}` · `{COMMIT_TITLE}`)."
+                    f"(`{bot.user}` / `{DEPLOY_MARKER}` · `{COMMIT_TITLE}`)."
                 )
                 logger.info("Sent restart DM to user %s", notify_id)
             except (discord.Forbidden, discord.HTTPException, discord.NotFound) as e:
