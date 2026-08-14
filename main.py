@@ -31,6 +31,30 @@ logger = logging.getLogger(__name__)
 # Bumps when deploy verification matters; check logs after redeploy.
 DEPLOY_MARKER = "v1.2.0"
 
+
+def _last_commit_title(*, fallback: str | None = None) -> str:
+    """Prefer Railway deploy commit message; fall back to local git, then DEPLOY_MARKER."""
+    raw = (os.environ.get("RAILWAY_GIT_COMMIT_MESSAGE") or "").strip()
+    if raw:
+        return raw.splitlines()[0].strip()[:150]
+    try:
+        import subprocess
+        from pathlib import Path
+
+        out = subprocess.check_output(
+            ["git", "log", "-1", "--format=%s"],
+            cwd=Path(__file__).resolve().parent,
+            stderr=subprocess.DEVNULL,
+            text=True,
+            timeout=2,
+        ).strip()
+        if out:
+            return out[:150]
+    except Exception:
+        pass
+    return fallback or DEPLOY_MARKER
+
+
 intents = discord.Intents.default()
 intents.guilds = True
 intents.members = True
@@ -40,6 +64,7 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 extensions_loaded = False
 global_sync_ok = False
 restart_dm_sent = False  # One DM per process startup (not every Discord reconnect)
+COMMIT_TITLE = _last_commit_title()
 
 
 @tasks.loop(minutes=5)
@@ -59,8 +84,7 @@ def _validate_env() -> None:
         logger.error("Missing required environment variable: TOKEN")
         sys.exit(1)
 
-    git_sha = os.environ.get("RAILWAY_GIT_COMMIT_SHA", "unknown")
-    logger.info("Deploy marker: %s (git %s)", DEPLOY_MARKER, git_sha[:12] if git_sha != "unknown" else git_sha)
+    logger.info("Deploy marker: %s · commit: %s", DEPLOY_MARKER, COMMIT_TITLE)
 
     if db.use_postgres():
         logger.info("Storage backend: Postgres/Neon")
@@ -133,7 +157,7 @@ async def on_ready():
                 user = bot.get_user(int(notify_id)) or await bot.fetch_user(int(notify_id))
                 await user.send(
                     f"Sir-5rM8 is online after restart/redeploy "
-                    f"(`{bot.user}` / `{bot.user.id}` · `{DEPLOY_MARKER}`)."
+                    f"(`{bot.user}` / `{bot.user.id}` · `{COMMIT_TITLE}`)."
                 )
                 logger.info("Sent restart DM to user %s", notify_id)
             except (discord.Forbidden, discord.HTTPException, discord.NotFound) as e:
