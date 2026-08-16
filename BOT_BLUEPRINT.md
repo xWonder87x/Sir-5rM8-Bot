@@ -1,6 +1,6 @@
 # BOT_BLUEPRINT.md
 
-**Universal architecture and strategy for Discord bots** built with **Python 3.10+**, **discord.py** (slash/interactions only), and **Supabase/Postgres**.
+**Universal architecture and strategy for Discord bots** built with **Python 3.10+**, **discord.py** (slash/interactions only), and **Neon / Lakebase Postgres**.
 
 Copy this file into every bot repo unchanged. Pair it with a bot-specific **`AGENTS.md`**. This file defines **how** bots are built — not **what** each bot does.
 
@@ -25,12 +25,12 @@ For a large, filled-in example of the pattern, see **ALICE** (`ALICE/AGENTS.md` 
 1. **Slash commands only** for users. Prefix `!` exists only because discord.py requires it internally — do not add user-facing prefix commands.
 2. **Centralize IDs and tunables** in `config.py`. Never scatter guild/channel/role literals in cogs.
 3. **Secrets in environment variables** (`.env` locally, host dashboard in production). Never commit tokens or keys.
-4. **All persistence through the `db` package** — no raw SQL or ad hoc Supabase calls in command files.
+4. **All persistence through the `db` package** — no raw SQL or ad hoc `psycopg` in command files.
 5. **Shared non-cog logic in `functions/` or `commands/common/`** — not copy-pasted across cogs.
 6. **`logging` only** for runtime behaviour — no `print`.
 7. **Keep `README.md` in sync** when user-visible commands change.
 8. **Prefer `command_sync.sync_application_commands`** over ad hoc `bot.tree.sync()` so guild-scoped duplicates stay cleared where configured.
-9. **Keep the event loop free** — offload sync Supabase/JSON/HTTP helpers from async handlers with `asyncio.to_thread(...)`. Prefer `interaction.response.defer(...)` before any storage or network work, then `followup`.
+9. **Keep the event loop free** — offload sync Postgres/JSON/HTTP helpers from async handlers with `asyncio.to_thread(...)`. Prefer `interaction.response.defer(...)` before any storage or network work, then `followup`.
 10. **Fail closed on startup** — if extension load fails, log, `await bot.close()`, and do **not** mark the bot ready with a half-loaded command tree.
 
 ---
@@ -45,8 +45,13 @@ Every bot shares the **skeleton** below. Feature folders under `commands/` are c
 ├── config.py               # IDs, feature flags, env reads — no secrets hard-coded
 ├── db/                     # Database package (domain-split; __init__ re-exports full API)
 │   ├── __init__.py
-│   ├── _base.py            # Client, _tbl, EXPECTED_SCHEMA, check_schema, use_supabase
-│   └── <domain>.py         # One module per table group this bot uses
+│   ├── _base.py            # Client, _tbl, EXPECTED_SCHEMA, check_schema, use_postgres
+│   ├── pg_client.py        # psycopg client (PostgREST-shaped table/rpc API)
+│   ├── <domain>.py         # One module per table group this bot uses
+│   └── sql/                # Canonical DDL + patches (Neon SQL Editor)
+│       ├── schema.sql
+│       ├── README.md
+│       └── probe.py        # Optional connection ping (no db package import)
 ├── functions/              # Shared bot helpers (optional modules as needed)
 │   ├── __init__.py         # Re-exports public API: functions.<name>
 │   ├── _base.py            # Logger, locks, tiny shared state
@@ -56,10 +61,6 @@ Every bot shares the **skeleton** below. Feature folders under `commands/` are c
 │   ├── common/             # Optional cross-cog helpers — NO cog, NO setup()
 │   ├── core/               # Optional: help, sync, maintenance, extensions loader
 │   └── <feature>/          # One folder per feature area THIS bot implements
-├── supabase/
-│   ├── schema.sql          # Canonical DDL — tables for THIS bot only
-│   ├── README.md           # How to apply schema, migration notes
-│   └── supabase_probe.py   # Standalone read-only connection ping (no db import)
 ├── scripts/                # Offline verification scripts (no Discord token required)
 ├── data/                   # Runtime JSON state (gitignored); created by main.py if used
 ├── Dockerfile              # Production: CMD ["python", "main.py"]
@@ -73,12 +74,12 @@ Every bot shares the **skeleton** below. Feature folders under `commands/` are c
 |------|------|
 | `main.py` | `commands.Bot`, staggered login / 429 exit+restart, `on_ready` extension load list, maintenance gate, global listeners |
 | `config.py` | `CHANNELS`, `ROLES`, guild IDs, timeouts, message templates — read env with `os.environ.get` |
-| `db/` | All Supabase/Postgres access; `EXPECTED_SCHEMA` + `check_schema()` in `db/_base.py` |
+| `db/` | All Neon/Postgres access; `EXPECTED_SCHEMA` + `check_schema()` in `db/_base.py` |
 | `functions/` | Guards, shared business logic — add modules only when 2+ cogs need the same code |
 | `commands/<feature>/` | One or more cogs; each exposes `async def setup(bot)` — **only folders this bot uses** |
 | `commands/common/` | Optional helpers (`state.py`, `sticky.py`, `logging.py`) — never loaded as an extension |
 | `commands/core/extensions.py` | **`COG_EXTENSIONS`** — single source of truth for extension load order |
-| `supabase/schema.sql` | Source of truth for table DDL |
+| `db/sql/schema.sql` | Source of truth for table DDL |
 | `scripts/` | `verify_*.py` smoke tests runnable without the bot online |
 
 ### Not every bot has
@@ -88,11 +89,11 @@ These appear in some bots (e.g. ALICE) but are **not required** by this blueprin
 - `commands/mod/`, `economy/`, `partner/`, `integrations/` — feature areas, not standard folders
 - Sticky-channel embeds (`commands/common/sticky.py`)
 - Admin slash commands like `/sync-commands` or `/maintenance` — add only if that bot needs them
-- Remote log handler writing to Supabase
+- Remote log handler writing to Postgres (`bot_logs`)
 - Background `@tasks.loop` jobs
 - Restart/redeploy owner DM (`RESTART_NOTIFY_USER_ID`)
-- JSON-file storage fallback when Supabase is unset
-- Shared multi-bot Postgres project with per-role JWTs
+- JSON-file storage fallback when `DATABASE_URL` is unset
+- Shared multi-bot Neon project (separate databases or schemas per bot)
 
 If a bot does not need something, **omit it** — do not scaffold empty cogs "because the blueprint shows them."
 
@@ -104,10 +105,11 @@ If a bot does not need something, **omit it** — do not scaffold empty cogs "be
 |-------|--------|
 | Language | Python 3.10+ (`.python-version` for pyenv) |
 | Discord | `discord.py` — interactions / app commands only |
-| Database | Postgres via Supabase (or self-hosted with same schema discipline) |
+| Database | **Lakebase Postgres via Neon** (`DATABASE_URL` + `psycopg[binary]`) |
 | Config | `config.py` for IDs/tunables; `.env` / host vars for secrets |
 | Deploy | Docker (`python:3.12-slim`) on Railway or similar worker host |
-| Logging | Python `logging`; optional remote handler (e.g. Supabase `bot_logs`) |
+| Logging | Python `logging`; optional remote handler (e.g. Postgres `bot_logs`) |
+| Files | Railway S3 (or Neon Object Storage) — not a hosted REST storage API |
 
 ---
 
@@ -139,23 +141,24 @@ Split by **domain** (one file per table group). Keep each module focused; aim fo
 
 | Module | Typical contents |
 |--------|------------------|
-| `_base.py` | `_get_client()`, `_tbl()`, `_parse_dt()`, `use_supabase()`, `EXPECTED_SCHEMA`, `check_schema()`, package logger |
+| `_base.py` | `get_database_url()`, `_get_client()`, `_tbl()`, `_parse_dt()`, `use_postgres()`, `EXPECTED_SCHEMA`, `check_schema()`, package logger |
+| `pg_client.py` | `psycopg` client with `table(...).select/eq/insert/update/upsert/delete/execute()` (and optional `rpc`) |
 | `<domain>.py` | CRUD/query helpers for related tables |
 | `__init__.py` | Re-export **everything** callers use so `import db` / `db.foo()` never breaks |
 
 **Rules:**
 
-- Add DDL to `supabase/schema.sql` first.
+- Add DDL to `db/sql/schema.sql` first.
 - Update `db/_base.py::EXPECTED_SCHEMA` to match.
 - Implement helpers in the appropriate domain module.
 - Use `CREATE TABLE IF NOT EXISTS` / `CREATE INDEX IF NOT EXISTS` for idempotent migrations.
-- Offload synchronous Supabase calls from async handlers with `asyncio.to_thread(...)`.
+- Offload synchronous `psycopg` calls from async handlers with `asyncio.to_thread(...)`.
 - Schema probes should be light: `.select(...).limit(0).execute()` — existence/column check only, not row fetches.
 - One-shot data migrations belong in **`db/` helpers + `scripts/*.py` CLI** — not user-facing slash commands.
 
 **When to split:** a single `db.py` is fine for small bots. Once it exceeds ~400–500 lines or mixes unrelated tables, split into `db/` with `__init__.py` re-exports so callers keep using `import db`.
 
-**Storage backends:** some bots require Supabase; others may fall back to JSON under `data/` when `SUPABASE_*` is unset. Document the choice in that bot's `AGENTS.md`. Prefer a shared Supabase client factory (`db/supabase_client.py`) that accepts either a service/admin key **or** per-bot JWT + publishable key.
+**Storage backends:** new bots use Neon via `DATABASE_URL` (alias `NEON_DATABASE_URL`). Prefer the **pooled** `-pooler` connection string for the long-running bot process; use the **direct** (non-pooler) URL only for schema dumps / one-shot migrations. Some bots may fall back to JSON under `data/` when `DATABASE_URL` is unset — document that in `AGENTS.md`. Do **not** scaffold a Supabase REST client for new bots.
 
 ### `functions/` package
 
@@ -296,29 +299,31 @@ Discord must ACK interactions quickly. Established pattern across reference bots
 4. Wrap background `@tasks.loop` bodies in `try/except` + `logger.exception` so one failure does not kill the loop.
 5. Prefer regression tests that assert command paths call `asyncio.to_thread` for blocking storage (see Sir-5rM8 / ALICE patterns).
 
-Do **not** call blocking `requests` / Supabase `.execute()` directly inside async slash handlers or views.
+Do **not** call blocking `requests` / `psycopg` `.execute()` directly inside async slash handlers or views.
 
 ---
 
 ## Database workflow
 
-1. Design table → add **`CREATE TABLE IF NOT EXISTS`** to `supabase/schema.sql`.
-2. Add table + columns to **`db/_base.py::EXPECTED_SCHEMA`**.
-3. Implement helpers in **`db/<domain>.py`**.
-4. Note the change in **`supabase/README.md`**.
-5. Validate: `db.check_schema()` (requires live `SUPABASE_*` in env).
+1. Create a Neon project; copy the **pooled** (`-pooler`) connection string into `DATABASE_URL` (`sslmode=require`).
+2. Design table → add **`CREATE TABLE IF NOT EXISTS`** to `db/sql/schema.sql`.
+3. Apply `schema.sql` in the **Neon SQL Editor** (or `psql "$DATABASE_URL_UNPOOLED" -f db/sql/schema.sql` with the **direct** URL).
+4. Add table + columns to **`db/_base.py::EXPECTED_SCHEMA`**.
+5. Implement helpers in **`db/<domain>.py`**.
+6. Note the change in **`db/sql/README.md`**.
+7. Validate: `db.check_schema()` (requires live `DATABASE_URL` in env).
 
-Never skip step 2 — `check_schema()` is the guardrail against drift.
+Never skip the `EXPECTED_SCHEMA` step — `check_schema()` is the guardrail against drift.
 
 For a **new bot**, design tables for that bot's features only. Do **not** copy another bot's tables unless you explicitly share a database.
 
-### Shared Supabase project (optional multi-bot pattern)
+### Shared Neon project (optional multi-bot pattern)
 
-Several bots may share one Postgres project with **per-bot roles** (e.g. `bot_alice`, `bot_sir5rm8`) and table-level GRANTs / RLS. In that setup:
+Several bots may share one Neon project with **separate databases** (or schemas) per bot. In that setup:
 
-- Prefer a scoped JWT (`role=bot_…`) on the bot host — not the project `service_role` / admin secret.
-- Keep admin/service keys for backups and migrations only.
-- Document project URL, role name, and owned tables in that bot's **`AGENTS.md`** / `supabase/README.md`.
+- Give each bot its own `DATABASE_URL` (its own database on the project, or its own Neon project).
+- Keep a privileged / owner role for backups and migrations only.
+- Document project, database name, and owned tables in that bot's **`AGENTS.md`** / `db/sql/README.md`.
 - Data migrations: CLI scripts under `scripts/` (or `db/migrate_*.py` called by scripts) — remove temporary slash migrate commands once cutover is done.
 
 ---
@@ -330,14 +335,13 @@ Several bots may share one Postgres project with **per-bot roles** (e.g. `bot_al
 | Variable | Purpose |
 |----------|---------|
 | `TOKEN` | Discord bot token |
-| `SUPABASE_URL` | Supabase project URL (omit only if that bot documents a JSON-file fallback) |
-| `SUPABASE_SERVICE_KEY` or `SUPABASE_KEY` | Backend key — prefer **per-bot JWT**, not shared `service_role` |
+| `DATABASE_URL` | Neon pooled connection string (`postgresql://…@…-pooler.…/…?sslmode=require`) |
 
-### Auth alternatives (when using scoped bot roles)
+### Auth alternatives
 
 | Variable | Purpose |
 |----------|---------|
-| `SUPABASE_BOT_JWT` + `SUPABASE_PUBLISHABLE_KEY` (or `SUPABASE_ANON_KEY`) | JWT auth pair instead of a single service key |
+| `NEON_DATABASE_URL` | Alias for `DATABASE_URL` if the host injects that name |
 
 ### Common optional
 
@@ -357,7 +361,7 @@ Feature-specific vars (channel IDs, API keys, intervals, etc.) belong in that bo
 ```bash
 python3.10 --version          # 3.10+ required (.python-version in repo for pyenv)
 pip install -r requirements.txt
-# create .env with TOKEN, SUPABASE_URL, SUPABASE_SERVICE_KEY
+# create .env with TOKEN and DATABASE_URL (Neon pooled string)
 python main.py
 ```
 
@@ -374,7 +378,7 @@ python -m compileall main.py commands db config.py functions
 ### 2. Lint (project source only — exclude `.venv`)
 
 ```bash
-python -m pyflakes main.py config.py db functions commands scripts supabase
+python -m pyflakes main.py config.py db functions commands scripts
 ```
 
 ### 3. Extension smoke test
@@ -421,7 +425,7 @@ Creates layout + stub files. Copy **`BOT_BLUEPRINT.md`**, write a fresh **`AGENT
 ## Deployment (Docker / Railway)
 
 - **`Dockerfile`**: `FROM python:3.12-slim`, `CMD ["python", "main.py"]`, `PYTHONUNBUFFERED=1`.
-- **Railway**: connect repo, set env vars in dashboard, deploy on push to `main`.
+- **Railway**: connect repo, set env vars in dashboard (`TOKEN`, `DATABASE_URL`), deploy on push to `main`.
 - **"Stopping Container"** during deploy is normal — Railway stops the old instance before starting the new one. If the bot is online in Discord after ~1–2 minutes, the deploy succeeded.
 - **Crash loop?** Check deploy logs for: missing env vars, import errors, Discord 429 (bot exits and Railway restarts — usually clears).
 - **No HTTP port required** — Discord bots are outbound-only; Railway works fine with a worker-style service.
@@ -433,7 +437,7 @@ Creates layout + stub files. Copy **`BOT_BLUEPRINT.md`**, write a fresh **`AGENT
 When adding or modifying features in any bot:
 
 - [ ] IDs/tunables in `config.py` (not literals in cogs)
-- [ ] DB changes: `schema.sql` + `EXPECTED_SCHEMA` + domain module + `supabase/README.md`
+- [ ] DB changes: `schema.sql` + `EXPECTED_SCHEMA` + domain module + `db/sql/README.md`
 - [ ] Async paths: `defer` + `asyncio.to_thread` for blocking storage/HTTP
 - [ ] Cog added to **`commands/core/extensions.py`** (`COG_EXTENSIONS`); load failure remains fail-closed
 - [ ] **`AGENTS.md`** updated (load order, commands, feature env vars)
@@ -448,7 +452,7 @@ When adding or modifying features in any bot:
 
 ### New bot (greenfield)
 
-> I'm starting a brand-new Discord bot. Follow **`BOT_BLUEPRINT.md`**: Python 3.10+, discord.py slash-only, `main.py` + `config.py` + `db/` package + `functions/` (as needed) + `commands/<feature>/` cogs + `supabase/schema.sql` + `EXPECTED_SCHEMA`. Create a bot-specific **`AGENTS.md`** listing only the cogs and slash commands for **this** bot. Do **not** copy commands, cogs, or feature folders from my other bots. For v1, here are the features I want: … (list). Create skeleton, requirements, `.env` docs, empty cogs with `setup()`, and README command section.
+> I'm starting a brand-new Discord bot. Follow **`BOT_BLUEPRINT.md`**: Python 3.10+, discord.py slash-only, `main.py` + `config.py` + `db/` package + `functions/` (as needed) + `commands/<feature>/` cogs + `db/sql/schema.sql` + `EXPECTED_SCHEMA`. Persist with **Neon** via `DATABASE_URL` and `psycopg` (`db/pg_client.py`). Create a bot-specific **`AGENTS.md`** listing only the cogs and slash commands for **this** bot. Do **not** copy commands, cogs, or feature folders from my other bots. For v1, here are the features I want: … (list). Create skeleton, requirements, `.env` docs, empty cogs with `setup()`, and README command section.
 
 ### Existing bot
 
@@ -456,7 +460,7 @@ When adding or modifying features in any bot:
 
 ### Starting from ALICE as template
 
-> Copy **`BOT_BLUEPRINT.md`** and use **ALICE** (`AGENTS.md` + repo structure) as one reference implementation. **Strip** ALICE-specific cogs, tables, and commands; keep only the package layout and conventions that this new bot actually needs.
+> Copy **`BOT_BLUEPRINT.md`** and use **ALICE** (`AGENTS.md` + repo structure) as one reference implementation. **Strip** ALICE-specific cogs, tables, and commands; keep only the package layout and conventions that this new bot actually needs. Use Neon (`DATABASE_URL` + `psycopg`); do not add a Supabase client unless this bot still documents a cutover fallback in `AGENTS.md`.
 
 ---
 
