@@ -293,3 +293,124 @@ def get_bothunter_channel_map() -> dict[str, str]:
         if row.get("channel_id"):
             out[str(row["channel_id"])] = str(row["guild_id"])
     return out
+
+
+# --- Server player sampling ---
+
+def watch_server(server_key: str, session_name: str | None = None) -> None:
+    key = str(server_key).strip()
+    if not key:
+        return
+    from datetime import datetime, timezone
+
+    import config
+
+    now = datetime.now(timezone.utc).isoformat()
+    payload = {
+        "server_key": key,
+        "session_name": session_name,
+        "last_queried": now,
+    }
+    _sb().table("server_watchlist").upsert(payload, on_conflict="server_key").execute()
+    r = _sb().table("server_watchlist").select("server_key", count="exact").execute()
+    overflow = int(r.count or 0) - config.SERVER_WATCHLIST_MAX
+    if overflow > 0:
+        old = (
+            _sb()
+            .table("server_watchlist")
+            .select("server_key")
+            .order("last_queried", desc=False)
+            .limit(overflow)
+            .execute()
+            .data
+            or []
+        )
+        for row in old:
+            _sb().table("server_watchlist").delete().eq("server_key", row["server_key"]).execute()
+
+
+def record_server_sample(
+    server_key: str,
+    num_players: int,
+    max_players: int,
+    *,
+    sampled_at=None,
+) -> None:
+    key = str(server_key).strip()
+    if not key:
+        return
+    from datetime import datetime, timezone
+
+    ts = sampled_at or datetime.now(timezone.utc)
+    if hasattr(ts, "isoformat"):
+        ts = ts.isoformat()
+    _sb().table("server_watchlist").upsert(
+        {"server_key": key, "last_queried": ts},
+        on_conflict="server_key",
+    ).execute()
+    _sb().table("server_player_samples").insert({
+        "server_key": key,
+        "num_players": int(num_players),
+        "max_players": int(max_players),
+        "sampled_at": ts,
+    }).execute()
+
+
+def get_server_player_history(server_key: str, *, hours: int | None = None) -> list[dict]:
+    key = str(server_key).strip()
+    if not key:
+        return []
+    from datetime import datetime, timedelta, timezone
+
+    import config
+
+    window = hours if hours is not None else config.SERVER_HISTORY_HOURS
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=int(window))
+    r = (
+        _sb()
+        .table("server_player_samples")
+        .select("num_players, max_players, sampled_at")
+        .eq("server_key", key)
+        .gte("sampled_at", cutoff.isoformat())
+        .order("sampled_at", desc=False)
+        .execute()
+    )
+    out: list[dict] = []
+    for row in r.data or []:
+        ts = row.get("sampled_at")
+        if hasattr(ts, "isoformat"):
+            ts = ts.isoformat()
+        out.append({
+            "num_players": int(row["num_players"]),
+            "max_players": int(row["max_players"]),
+            "sampled_at": ts,
+        })
+    return out
+
+
+def list_watched_server_keys() -> list[str]:
+    r = (
+        _sb()
+        .table("server_watchlist")
+        .select("server_key")
+        .order("last_queried", desc=True)
+        .execute()
+    )
+    return [str(row["server_key"]) for row in (r.data or [])]
+
+
+def prune_server_samples(*, retention_days: int | None = None) -> int:
+    from datetime import datetime, timedelta, timezone
+
+    import config
+
+    days = retention_days if retention_days is not None else config.SERVER_SAMPLE_RETENTION_DAYS
+    cutoff = datetime.now(timezone.utc) - timedelta(days=int(days))
+    r = (
+        _sb()
+        .table("server_player_samples")
+        .delete()
+        .lt("sampled_at", cutoff.isoformat())
+        .execute()
+    )
+    return len(r.data or [])

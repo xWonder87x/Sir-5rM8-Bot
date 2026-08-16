@@ -43,7 +43,7 @@
 
 | Command | Description |
 |---------|-------------|
-| `/serverstatus [server]` | Check ASA official server by name or number (e.g. 5313, TheIsland) |
+| `/serverstatus [server]` | Check ASA official server by name or number; includes occupancy + player history graphs |
 
 ### Karma System
 

@@ -13,6 +13,7 @@ COG_EXTENSIONS: list[tuple[str, str]] = [
     ("commands.community.karma", "Karma cog loaded"),
     ("commands.mod.bothunter", "Bothunter cog loaded"),
     ("commands.integrations.ratecheck", "Rate check integration loaded"),
+    ("commands.integrations.serversample", "Server sample integration loaded"),
 ]
 
 

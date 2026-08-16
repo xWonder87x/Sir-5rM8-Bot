@@ -375,3 +375,159 @@ def get_bothunter_channel_map() -> dict[str, str]:
         if channel_id:
             out[str(channel_id)] = str(gid)
     return out
+
+
+# --- Server player sampling ---
+
+SERVER_WATCHLIST_FILE = DATA_DIR / "server_watchlist.json"
+SERVER_SAMPLES_FILE = DATA_DIR / "server_player_samples.jsonl"
+
+
+def _load_watchlist() -> dict:
+    _ensure_data_dir()
+    if not SERVER_WATCHLIST_FILE.exists():
+        return {}
+    try:
+        with open(SERVER_WATCHLIST_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except (IOError, json.JSONDecodeError):
+        return {}
+
+
+def _save_watchlist(data: dict) -> None:
+    _ensure_data_dir()
+    with open(SERVER_WATCHLIST_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2)
+
+
+def watch_server(server_key: str, session_name: str | None = None) -> None:
+    key = str(server_key).strip()
+    if not key:
+        return
+    now = datetime.now(timezone.utc).isoformat()
+    data = _load_watchlist()
+    entry = data.get(key) or {"server_key": key, "created_at": now}
+    entry["server_key"] = key
+    entry["last_queried"] = now
+    if session_name:
+        entry["session_name"] = session_name
+    data[key] = entry
+    if len(data) > config.SERVER_WATCHLIST_MAX:
+        ordered = sorted(
+            data.items(),
+            key=lambda kv: kv[1].get("last_queried") or "",
+        )
+        for drop_key, _ in ordered[: len(data) - config.SERVER_WATCHLIST_MAX]:
+            del data[drop_key]
+    _save_watchlist(data)
+
+
+def record_server_sample(
+    server_key: str,
+    num_players: int,
+    max_players: int,
+    *,
+    sampled_at: datetime | None = None,
+) -> None:
+    key = str(server_key).strip()
+    if not key:
+        return
+    ts = sampled_at or datetime.now(timezone.utc)
+    if hasattr(ts, "isoformat"):
+        ts = ts.isoformat()
+    watch_server(key)
+    _ensure_data_dir()
+    record = {
+        "server_key": key,
+        "num_players": int(num_players),
+        "max_players": int(max_players),
+        "sampled_at": ts,
+    }
+    with open(SERVER_SAMPLES_FILE, "a", encoding="utf-8") as f:
+        f.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+
+def get_server_player_history(server_key: str, *, hours: int | None = None) -> list[dict]:
+    key = str(server_key).strip()
+    if not key or not SERVER_SAMPLES_FILE.exists():
+        return []
+    from datetime import timedelta
+
+    window = hours if hours is not None else config.SERVER_HISTORY_HOURS
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=int(window))
+    out: list[dict] = []
+    try:
+        with open(SERVER_SAMPLES_FILE, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    row = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if row.get("server_key") != key:
+                    continue
+                ts_raw = row.get("sampled_at")
+                try:
+                    ts = datetime.fromisoformat(str(ts_raw).replace("Z", "+00:00"))
+                except (TypeError, ValueError):
+                    continue
+                if ts.tzinfo is None:
+                    ts = ts.replace(tzinfo=timezone.utc)
+                if ts < cutoff:
+                    continue
+                out.append({
+                    "num_players": int(row.get("num_players", 0)),
+                    "max_players": int(row.get("max_players", 0)),
+                    "sampled_at": ts.isoformat(),
+                })
+    except IOError:
+        return []
+    out.sort(key=lambda r: r["sampled_at"])
+    return out
+
+
+def list_watched_server_keys() -> list[str]:
+    data = _load_watchlist()
+    ordered = sorted(
+        data.items(),
+        key=lambda kv: kv[1].get("last_queried") or "",
+        reverse=True,
+    )
+    return [str(k) for k, _ in ordered]
+
+
+def prune_server_samples(*, retention_days: int | None = None) -> int:
+    if not SERVER_SAMPLES_FILE.exists():
+        return 0
+    from datetime import timedelta
+
+    days = retention_days if retention_days is not None else config.SERVER_SAMPLE_RETENTION_DAYS
+    cutoff = datetime.now(timezone.utc) - timedelta(days=int(days))
+    kept: list[str] = []
+    removed = 0
+    try:
+        with open(SERVER_SAMPLES_FILE, "r", encoding="utf-8") as f:
+            for line in f:
+                raw = line.strip()
+                if not raw:
+                    continue
+                try:
+                    row = json.loads(raw)
+                    ts = datetime.fromisoformat(str(row.get("sampled_at")).replace("Z", "+00:00"))
+                    if ts.tzinfo is None:
+                        ts = ts.replace(tzinfo=timezone.utc)
+                    if ts < cutoff:
+                        removed += 1
+                        continue
+                except (json.JSONDecodeError, TypeError, ValueError):
+                    pass
+                kept.append(raw)
+        with open(SERVER_SAMPLES_FILE, "w", encoding="utf-8") as f:
+            for line in kept:
+                f.write(line + "\n")
+    except IOError:
+        return 0
+    return removed

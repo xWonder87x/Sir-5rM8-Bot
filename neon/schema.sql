@@ -116,3 +116,22 @@ CREATE INDEX IF NOT EXISTS idx_bothunter_events_guild
 
 CREATE INDEX IF NOT EXISTS idx_bothunter_events_guild_channel
   ON bothunter_events (guild_id, channel_id);
+
+-- Server player sampling (for /serverstatus history graph)
+CREATE TABLE IF NOT EXISTS server_watchlist (
+  server_key    TEXT PRIMARY KEY,
+  session_name  TEXT,
+  last_queried  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS server_player_samples (
+  id           BIGSERIAL PRIMARY KEY,
+  server_key   TEXT NOT NULL REFERENCES server_watchlist (server_key) ON DELETE CASCADE,
+  num_players  INT NOT NULL,
+  max_players  INT NOT NULL,
+  sampled_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_server_player_samples_key_time
+  ON server_player_samples (server_key, sampled_at DESC);

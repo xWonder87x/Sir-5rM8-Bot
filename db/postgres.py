@@ -534,3 +534,123 @@ def get_bothunter_channel_map() -> dict[str, str]:
             """
         ).fetchall()
     return {str(r["channel_id"]): str(r["guild_id"]) for r in rows}
+
+
+# --- Server player sampling ---
+
+def watch_server(server_key: str, session_name: str | None = None) -> None:
+    """Upsert a watched server and bump last_queried. Evicts oldest if over max."""
+    key = str(server_key).strip()
+    if not key:
+        return
+    with _conn() as conn:
+        conn.execute(
+            """
+            INSERT INTO server_watchlist (server_key, session_name, last_queried)
+            VALUES (%s, %s, NOW())
+            ON CONFLICT (server_key) DO UPDATE SET
+              session_name = COALESCE(EXCLUDED.session_name, server_watchlist.session_name),
+              last_queried = NOW()
+            """,
+            (key, session_name),
+        )
+        count = conn.execute(
+            "SELECT COUNT(*)::int AS n FROM server_watchlist"
+        ).fetchone()["n"]
+        overflow = int(count) - config.SERVER_WATCHLIST_MAX
+        if overflow > 0:
+            conn.execute(
+                """
+                DELETE FROM server_watchlist
+                WHERE server_key IN (
+                  SELECT server_key FROM server_watchlist
+                  ORDER BY last_queried ASC
+                  LIMIT %s
+                )
+                """,
+                (overflow,),
+            )
+
+
+def record_server_sample(
+    server_key: str,
+    num_players: int,
+    max_players: int,
+    *,
+    sampled_at: datetime | None = None,
+) -> None:
+    key = str(server_key).strip()
+    if not key:
+        return
+    ts = sampled_at or datetime.now(timezone.utc)
+    with _conn() as conn:
+        conn.execute(
+            """
+            INSERT INTO server_watchlist (server_key, last_queried)
+            VALUES (%s, %s)
+            ON CONFLICT (server_key) DO NOTHING
+            """,
+            (key, ts),
+        )
+        conn.execute(
+            """
+            INSERT INTO server_player_samples
+              (server_key, num_players, max_players, sampled_at)
+            VALUES (%s, %s, %s, %s)
+            """,
+            (key, int(num_players), int(max_players), ts),
+        )
+
+
+def get_server_player_history(
+    server_key: str,
+    *,
+    hours: int | None = None,
+) -> list[dict]:
+    key = str(server_key).strip()
+    if not key:
+        return []
+    window = hours if hours is not None else config.SERVER_HISTORY_HOURS
+    with _conn() as conn:
+        rows = conn.execute(
+            """
+            SELECT num_players, max_players, sampled_at
+            FROM server_player_samples
+            WHERE server_key = %s
+              AND sampled_at >= NOW() - (%s || ' hours')::interval
+            ORDER BY sampled_at ASC
+            """,
+            (key, str(int(window))),
+        ).fetchall()
+    out: list[dict] = []
+    for row in rows:
+        ts = row["sampled_at"]
+        if hasattr(ts, "isoformat"):
+            ts = ts.isoformat()
+        out.append({
+            "num_players": int(row["num_players"]),
+            "max_players": int(row["max_players"]),
+            "sampled_at": ts,
+        })
+    return out
+
+
+def list_watched_server_keys() -> list[str]:
+    with _conn() as conn:
+        rows = conn.execute(
+            "SELECT server_key FROM server_watchlist ORDER BY last_queried DESC"
+        ).fetchall()
+    return [str(r["server_key"]) for r in rows]
+
+
+def prune_server_samples(*, retention_days: int | None = None) -> int:
+    days = retention_days if retention_days is not None else config.SERVER_SAMPLE_RETENTION_DAYS
+    with _conn() as conn:
+        cur = conn.execute(
+            """
+            DELETE FROM server_player_samples
+            WHERE sampled_at < NOW() - (%s || ' days')::interval
+            """,
+            (str(int(days)),),
+        )
+        return int(cur.rowcount or 0)

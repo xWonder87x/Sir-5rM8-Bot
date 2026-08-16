@@ -43,6 +43,8 @@ Add Sir-5rM8 to your server using the [invite link](https://discord.com/oauth2/a
 
 Example: `/serverstatus server:5313` or `/serverstatus server:TheIsland`
 
+Includes an occupancy bar and a player-count history graph (history builds after the first lookup as the bot samples every few minutes).
+
 Returns IP, player count, day, ping, map, and platform.
 
 ---

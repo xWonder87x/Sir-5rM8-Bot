@@ -36,6 +36,14 @@ EXPECTED_SCHEMA: dict[str, list[str]] = {
         "reinvite_code",
     ],
     "bothunter_events": ["id", "guild_id", "user_id", "channel_id", "created_at"],
+    "server_watchlist": ["server_key", "session_name", "last_queried", "created_at"],
+    "server_player_samples": [
+        "id",
+        "server_key",
+        "num_players",
+        "max_players",
+        "sampled_at",
+    ],
 }
 
 _client: Any = None

@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.2.1] - 2026-08-16
+
+### Added
+
+- `/serverstatus` graphs: occupancy bar + 24h player-count history (PNG embed image)
+- Background sampler for watched ASA servers (`server_watchlist` / `server_player_samples` on Neon)
+- `Pillow` for chart rendering
+
+### Changed
+
+- Deploy marker `v1.2.1`
+
 ## [1.2.0] - 2026-08-12
 
 ### Added

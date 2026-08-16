@@ -68,6 +68,18 @@ def _server_number(session_name: str) -> str | None:
     return match.group(1) if match else None
 
 
+def server_key_from_server(server: dict) -> str:
+    """Stable key for watchlist / samples: prefer numeric id, else session name."""
+    session_name = str(server.get("SessionName") or "").strip()
+    number = _server_number(session_name) if session_name else None
+    if number:
+        return number
+    if session_name:
+        return session_name
+    ip = str(server.get("IP") or "").strip()
+    return ip or "unknown"
+
+
 def _score_server(server: dict, query: str) -> int:
     query_stripped = query.strip()
     query_lower = query_stripped.lower()
