@@ -1,7 +1,7 @@
 """PNG charts for /serverstatus (occupancy bar + BattleMetrics uptime)."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from io import BytesIO
 from typing import Sequence
 
@@ -117,7 +117,7 @@ def render_server_status_chart(
         draw.rounded_rectangle((cx, uy, cx + chip_w, uy + 44), radius=8, fill=panel)
         draw.text((cx + 12, uy + 6), f"Uptime {label}", fill=muted, font=small_font)
         if val is None:
-            shown = "—"
+            shown = "n/a"
             color = muted
         else:
             shown = f"{val:.2f}%"
@@ -129,7 +129,7 @@ def render_server_status_chart(
     draw.rounded_rectangle((hx, hy, hx + hw, hy + hh), radius=10, fill=panel)
     draw.text(
         (hx + 16, hy + 12),
-        f"BattleMetrics uptime — last {history_days}d",
+        f"BattleMetrics uptime - last {history_days}d",
         fill=muted,
         font=label_font,
     )
@@ -175,6 +175,10 @@ def render_server_status_chart(
         )
     else:
         t0, t1 = points[0][0], points[-1][0]
+        # Prefer the requested window so sparse downtime does not zoom the x-axis.
+        requested_span = timedelta(days=max(1, int(history_days)))
+        if (t1 - t0) < requested_span * 0.9:
+            t0 = t1 - requested_span
         span = max((t1 - t0).total_seconds(), 1.0)
 
         def xy(ts: datetime, pct: float) -> tuple[int, int]:

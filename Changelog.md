@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.3] - 2026-08-17
+
+### Changed
+
+- `/serverstatus` uptime graph now fills the full BattleMetrics window (default 90 days); missing hourly buckets count as online
+- 7d / 30d / 90d percents fall back to averages from that series when BM include data is missing
+- Deploy marker `v1.2.3`
+
 ## [1.2.2] - 2026-08-16
 
 ### Changed

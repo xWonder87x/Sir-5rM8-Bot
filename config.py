@@ -45,7 +45,7 @@ HTTP_RETRY_DELAY = 2
 
 # /serverstatus charts (BattleMetrics uptime)
 BATTLEMETRICS_TOKEN = os.environ.get("BATTLEMETRICS_TOKEN", "").strip()
-BM_UPTIME_HISTORY_DAYS = int(os.environ.get("BM_UPTIME_HISTORY_DAYS", "7"))
+BM_UPTIME_HISTORY_DAYS = int(os.environ.get("BM_UPTIME_HISTORY_DAYS", "90"))
 BM_UPTIME_RESOLUTION_MINUTES = int(os.environ.get("BM_UPTIME_RESOLUTION_MINUTES", "60"))
 
 # Legacy local player-sample helpers (unused by /serverstatus; kept for db API compat)

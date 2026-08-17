@@ -61,17 +61,27 @@ def _get(path: str, *, params: dict | None = None) -> dict | None:
         return None
 
 
+def _to_uptime_percent(value: Any) -> float | None:
+    try:
+        raw = float(value)
+    except (TypeError, ValueError):
+        return None
+    if 0.0 <= raw <= 1.0:
+        raw *= 100.0
+    return max(0.0, min(100.0, raw))
+
+
 def _parse_uptime_includes(payload: dict) -> dict[int, float]:
     """Map window days -> uptime percent from included serverUptime resources."""
     out: dict[int, float] = {}
     for item in payload.get("included") or []:
         if not isinstance(item, dict):
             continue
-        if item.get("type") != "serverUptime":
+        item_type = str(item.get("type") or "")
+        if item_type and item_type not in ("serverUptime", "uptime"):
             continue
         attrs = item.get("attributes") or {}
         value = attrs.get("value")
-        # id often looks like "<serverId>-7" / "-30" / "-90"
         raw_id = str(item.get("id") or "")
         days = None
         if "-" in raw_id:
@@ -79,20 +89,77 @@ def _parse_uptime_includes(payload: dict) -> dict[int, float]:
             if tail.isdigit():
                 days = int(tail)
         if days is None:
-            # fallback: name/detail fields if present
             for key in ("days", "period", "window"):
                 if attrs.get(key) is not None:
                     try:
                         days = int(attrs[key])
                     except (TypeError, ValueError):
                         pass
-        if days is None or value is None:
+        if days not in (7, 30, 90):
             continue
-        try:
-            out[days] = float(value) * (100.0 if float(value) <= 1.0 else 1.0)
-        except (TypeError, ValueError):
+        pct = _to_uptime_percent(value)
+        if pct is None:
             continue
+        out[days] = pct
     return out
+
+
+def _align_utc(ts: datetime, minutes: int) -> datetime:
+    if ts.tzinfo is None:
+        ts = ts.replace(tzinfo=timezone.utc)
+    step = max(int(minutes), 1) * 60
+    epoch = int(ts.timestamp())
+    return datetime.fromtimestamp(epoch - (epoch % step), tz=timezone.utc)
+
+
+def fill_uptime_series(
+    raw_points: list[tuple[datetime, float]],
+    *,
+    start: datetime,
+    stop: datetime,
+    resolution_minutes: int,
+) -> list[tuple[datetime, float]]:
+    """
+    Expand sparse BM downtime buckets into a complete series.
+    Missing buckets are treated as 100% uptime (no reported downtime).
+    """
+    step_min = max(int(resolution_minutes), 1)
+    t0 = _align_utc(start, step_min)
+    t1 = _align_utc(stop, step_min)
+    if t1 < t0:
+        t0, t1 = t1, t0
+    span_min = max((t1 - t0).total_seconds() / 60.0, 1.0)
+    max_points = 4000
+    if span_min / step_min > max_points:
+        step_min = max(step_min, int(span_min // max_points) or 1)
+        t0 = _align_utc(start, step_min)
+        t1 = _align_utc(stop, step_min)
+    by_ts = {
+        _align_utc(ts, step_min): max(0.0, min(100.0, float(pct)))
+        for ts, pct in raw_points
+    }
+    out: list[tuple[datetime, float]] = []
+    cursor = t0
+    delta = timedelta(minutes=step_min)
+    while cursor <= t1:
+        out.append((cursor, by_ts.get(cursor, 100.0)))
+        cursor += delta
+    return out
+
+
+def window_uptime_average(
+    history: list[tuple[datetime, float]],
+    *,
+    days: int,
+) -> float | None:
+    if not history:
+        return None
+    end = history[-1][0]
+    cutoff = end - timedelta(days=max(1, int(days)))
+    vals = [pct for ts, pct in history if ts >= cutoff]
+    if not vals:
+        return None
+    return sum(vals) / len(vals)
 
 
 def find_battlemetrics_server(
@@ -174,21 +241,25 @@ def fetch_downtime_uptime_history(
     resolution_minutes: int = 60,
 ) -> list[tuple[datetime, float]]:
     """
-    Convert BM downtime seconds into uptime percent points.
-    value = seconds offline in the bucket; period = resolution_minutes * 60.
+    Convert BM downtime seconds into a complete uptime-percent series.
+    Missing buckets are filled as 100% online so the graph spans the full window.
     """
     stop = datetime.now(timezone.utc)
     start = stop - timedelta(days=max(1, int(days)))
-    period = max(int(resolution_minutes), 1) * 60
+    # BM only allows 60 (90-day retention) or 1440 (daily, indefinite).
+    resolution = 1440 if int(days) > 90 else int(resolution_minutes)
+    if resolution not in (60, 1440):
+        resolution = 60 if int(days) <= 90 else 1440
+    period = resolution * 60
     payload = _get(
         f"/servers/{server_id}/relationships/downtime",
         params={
             "start": start.strftime("%Y-%m-%dT%H:%M:%SZ"),
             "stop": stop.strftime("%Y-%m-%dT%H:%M:%SZ"),
-            "resolution": str(int(resolution_minutes)),
+            "resolution": str(resolution),
         },
     )
-    if not payload:
+    if payload is None:
         return []
 
     points: list[tuple[datetime, float]] = []
@@ -207,7 +278,39 @@ def fetch_downtime_uptime_history(
         except (TypeError, ValueError):
             continue
     points.sort(key=lambda p: p[0])
-    return points
+    return fill_uptime_series(
+        points,
+        start=start,
+        stop=stop,
+        resolution_minutes=resolution,
+    )
+
+
+def _fetch_uptime_windows(server_id: str) -> dict[int, float]:
+    windows: dict[int, float] = {}
+    detail = _get(
+        f"/servers/{server_id}",
+        params={"include": "uptime:7,uptime:30,uptime:90"},
+    )
+    if detail:
+        windows.update(_parse_uptime_includes(detail))
+    if len(windows) < 3:
+        stop = datetime.now(timezone.utc)
+        start = stop - timedelta(days=90)
+        outages = _get(
+            f"/servers/{server_id}/relationships/outages",
+            params={
+                "include": "uptime:7,uptime:30,uptime:90",
+                "filter[range]": (
+                    f"{start.strftime('%Y-%m-%dT%H:%M:%SZ')}:"
+                    f"{stop.strftime('%Y-%m-%dT%H:%M:%SZ')}"
+                ),
+                "page[size]": 1,
+            },
+        )
+        if outages:
+            windows.update(_parse_uptime_includes(outages))
+    return windows
 
 
 def fetch_server_uptime(
@@ -250,17 +353,13 @@ def fetch_server_uptime(
 
     server_id = str(match.get("id"))
     name = (match.get("attributes") or {}).get("name")
-    detail = _get(
-        f"/servers/{server_id}",
-        params={"include": "uptime:7,uptime:30,uptime:90"},
-    )
-    windows = _parse_uptime_includes(detail) if detail else {}
+    windows = _fetch_uptime_windows(server_id)
     history = fetch_downtime_uptime_history(
         server_id,
         days=config.BM_UPTIME_HISTORY_DAYS,
         resolution_minutes=config.BM_UPTIME_RESOLUTION_MINUTES,
     )
-    if detail is None and not history:
+    if not windows and not history:
         return BattleMetricsUptime(
             server_id=server_id,
             name=name,
@@ -272,13 +371,17 @@ def fetch_server_uptime(
             error="fetch_failed",
         )
 
+    uptime_7 = windows[7] if 7 in windows else window_uptime_average(history, days=7)
+    uptime_30 = windows[30] if 30 in windows else window_uptime_average(history, days=30)
+    uptime_90 = windows[90] if 90 in windows else window_uptime_average(history, days=90)
+
     return BattleMetricsUptime(
         server_id=server_id,
         name=str(name) if name else None,
         url=f"https://www.battlemetrics.com/servers/arksa/{server_id}",
-        uptime_7=windows.get(7),
-        uptime_30=windows.get(30),
-        uptime_90=windows.get(90),
+        uptime_7=uptime_7,
+        uptime_30=uptime_30,
+        uptime_90=uptime_90,
         history=history,
         error=None,
     )

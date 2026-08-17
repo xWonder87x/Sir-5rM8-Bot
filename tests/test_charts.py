@@ -3,7 +3,11 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 
 from functions.asa import server_key_from_server
-from functions.battlemetrics import _parse_uptime_includes
+from functions.battlemetrics import (
+    _parse_uptime_includes,
+    fill_uptime_series,
+    window_uptime_average,
+)
 from functions.charts import render_server_status_chart
 
 
@@ -15,6 +19,34 @@ def test_server_key_prefers_number():
 def test_server_key_falls_back_to_name():
     server = {"SessionName": "CustomPrivateBox"}
     assert server_key_from_server(server) == "CustomPrivateBox"
+
+
+def test_fill_uptime_series_spans_full_window():
+    stop = datetime(2026, 8, 17, 5, 0, tzinfo=timezone.utc)
+    start = stop - timedelta(days=7)
+    dip = datetime(2026, 8, 17, 4, 0, tzinfo=timezone.utc)
+    filled = fill_uptime_series(
+        [(dip, 0.0)],
+        start=start,
+        stop=stop,
+        resolution_minutes=60,
+    )
+    assert len(filled) >= 7 * 24
+    assert filled[0][0] <= start + timedelta(hours=1)
+    assert filled[-1][0] >= stop - timedelta(hours=1)
+    by_hour = {ts: pct for ts, pct in filled}
+    assert by_hour[dip] == 0.0
+    online = [pct for ts, pct in filled if ts != dip]
+    assert all(pct == 100.0 for pct in online)
+
+
+def test_window_uptime_average():
+    now = datetime(2026, 8, 17, tzinfo=timezone.utc)
+    history = [(now - timedelta(hours=i), 100.0 if i else 50.0) for i in range(48)]
+    history.sort(key=lambda p: p[0])
+    avg = window_uptime_average(history, days=2)
+    assert avg is not None
+    assert 90.0 < avg <= 100.0
 
 
 def test_parse_uptime_includes_scales_fraction():
