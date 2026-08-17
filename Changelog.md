@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.5] - 2026-08-18
+
+### Added
+
+- DM `RESTART_NOTIFY_USER_ID` when the bot is added to a Discord server (name, ID, owner, members, who added it when audit logs allow)
+- Deploy marker `v1.2.5`
+
 ## [1.2.4] - 2026-08-17
 
 ### Added

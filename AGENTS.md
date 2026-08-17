@@ -56,7 +56,7 @@ No user-facing prefix commands.
 |----------|---------|---------|
 | `DATA_DIR` | `data/` | Runtime JSON + bot.log |
 | `SLASH_SYNC_GUILD_IDS` | — | Comma-separated guild IDs for stale slash clears |
-| `RESTART_NOTIFY_USER_ID` | `464386520124620800` | Discord user ID to DM once per process startup; empty disables |
+| `RESTART_NOTIFY_USER_ID` | `464386520124620800` | Discord user ID to DM on restart and when the bot joins a guild; empty disables |
 | `BATTLEMETRICS_TOKEN` | — | Personal access token for `/serverstatus` uptime graphs |
 | `BM_UPTIME_HISTORY_DAYS` | `90` | Downtime→uptime history window on the chart |
 | `BM_UPTIME_RESOLUTION_MINUTES` | `60` | BattleMetrics downtime bucket size (`60` or `1440`) |

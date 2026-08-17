@@ -14,6 +14,7 @@ import config
 import db
 from commands.core.command_sync import sync_application_commands
 from commands.core.extensions import load_all_extensions
+from functions.owner_notify import send_guild_join_dm
 
 LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 config.DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -29,7 +30,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Bumps when deploy verification matters; check logs after redeploy.
-DEPLOY_MARKER = "v1.2.4"
+DEPLOY_MARKER = "v1.2.5"
 
 
 def _last_commit_title(*, fallback: str | None = None) -> str:
@@ -197,6 +198,11 @@ async def on_ready():
             logger.error("Retry slash command sync failed")
 
     _start_background_tasks()
+
+
+@bot.event
+async def on_guild_join(guild: discord.Guild) -> None:
+    await send_guild_join_dm(bot, guild)
 
 
 async def main():
