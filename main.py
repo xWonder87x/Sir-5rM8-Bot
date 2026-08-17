@@ -29,7 +29,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Bumps when deploy verification matters; check logs after redeploy.
-DEPLOY_MARKER = "v1.2.3"
+DEPLOY_MARKER = "v1.2.4"
 
 
 def _last_commit_title(*, fallback: str | None = None) -> str:

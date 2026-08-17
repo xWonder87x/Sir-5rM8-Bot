@@ -37,7 +37,7 @@ python scripts/migrate_supabase_to_neon.py --apply
 Schema source: [`neon/schema.sql`](schema.sql) (same tables as the old Supabase schema).
 
 If you already applied an older schema, re-run `--apply-schema` after upgrades that add tables
-(e.g. bothunter). `CREATE TABLE IF NOT EXISTS` is safe to re-run.
+(e.g. bothunter, `server_up_notify`). `CREATE TABLE IF NOT EXISTS` is safe to re-run.
 
 ## 4. Restart the bot
 

@@ -531,3 +531,102 @@ def prune_server_samples(*, retention_days: int | None = None) -> int:
     except IOError:
         return 0
     return removed
+
+
+UP_NOTIFY_FILE = DATA_DIR / "server_up_notify.json"
+
+
+def _load_up_notify() -> list[dict]:
+    _ensure_data_dir()
+    if not UP_NOTIFY_FILE.exists():
+        return []
+    try:
+        with open(UP_NOTIFY_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, list) else []
+    except (IOError, json.JSONDecodeError):
+        return []
+
+
+def _save_up_notify(rows: list[dict]) -> None:
+    _ensure_data_dir()
+    with open(UP_NOTIFY_FILE, "w", encoding="utf-8") as f:
+        json.dump(rows, f, indent=2)
+
+
+def add_up_notify(
+    server_key: str,
+    user_id: str,
+    channel_id: str,
+    guild_id: str | None = None,
+    query: str | None = None,
+    session_name: str | None = None,
+) -> bool:
+    key = str(server_key).strip()
+    uid = str(user_id).strip()
+    cid = str(channel_id).strip()
+    if not key or not uid or not cid:
+        return False
+    rows = _load_up_notify()
+    for row in rows:
+        if (
+            str(row.get("server_key")) == key
+            and str(row.get("user_id")) == uid
+            and str(row.get("channel_id")) == cid
+        ):
+            return False
+    rows.append({
+        "server_key": key,
+        "user_id": uid,
+        "channel_id": cid,
+        "guild_id": str(guild_id) if guild_id else None,
+        "query": query,
+        "session_name": session_name,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    })
+    _save_up_notify(rows)
+    return True
+
+
+def list_up_notify_keys() -> list[str]:
+    keys = sorted({str(row.get("server_key") or "") for row in _load_up_notify() if row.get("server_key")})
+    return keys
+
+
+def list_up_notify_watchers(server_key: str) -> list[dict]:
+    key = str(server_key).strip()
+    if not key:
+        return []
+    out: list[dict] = []
+    for row in _load_up_notify():
+        if str(row.get("server_key")) == key:
+            out.append({
+                "server_key": key,
+                "user_id": str(row.get("user_id") or ""),
+                "channel_id": str(row.get("channel_id") or ""),
+                "guild_id": row.get("guild_id"),
+                "query": row.get("query"),
+                "session_name": row.get("session_name"),
+            })
+    return out
+
+
+def clear_up_notify(server_key: str, channel_id: str | None = None) -> int:
+    key = str(server_key).strip()
+    if not key:
+        return 0
+    rows = _load_up_notify()
+    kept: list[dict] = []
+    removed = 0
+    cid = str(channel_id) if channel_id else None
+    for row in rows:
+        if str(row.get("server_key")) != key:
+            kept.append(row)
+            continue
+        if cid is not None and str(row.get("channel_id")) != cid:
+            kept.append(row)
+            continue
+        removed += 1
+    if removed:
+        _save_up_notify(kept)
+    return removed

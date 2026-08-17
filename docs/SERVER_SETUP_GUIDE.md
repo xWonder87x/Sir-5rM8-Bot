@@ -45,7 +45,7 @@ Example: `/serverstatus server:5313` or `/serverstatus server:TheIsland`
 
 Includes an occupancy bar and a BattleMetrics uptime graph for the last 90 days (needs `BATTLEMETRICS_TOKEN` on the host).
 
-Returns IP, player count, day, ping, map, and platform.
+Returns IP, player count, day, ping, map, and platform whether the server is online or offline. If it is offline, use **Notify me when it's up** — the bot checks about once a minute and pings everyone who pressed the button in that channel when it returns.
 
 ---
 

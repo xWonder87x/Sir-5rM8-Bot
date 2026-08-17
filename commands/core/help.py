@@ -33,7 +33,8 @@ class Help(commands.Cog):
             ),
             _embed(
                 "Server Status",
-                "`/serverstatus [server]`",
+                "`/serverstatus [server]`\n"
+                "If a server is offline, tap **Notify me when it's up**.",
             ),
             _embed(
                 "Karma System",

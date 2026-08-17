@@ -47,6 +47,7 @@ HTTP_RETRY_DELAY = 2
 BATTLEMETRICS_TOKEN = os.environ.get("BATTLEMETRICS_TOKEN", "").strip()
 BM_UPTIME_HISTORY_DAYS = int(os.environ.get("BM_UPTIME_HISTORY_DAYS", "90"))
 BM_UPTIME_RESOLUTION_MINUTES = int(os.environ.get("BM_UPTIME_RESOLUTION_MINUTES", "60"))
+SERVER_UP_CHECK_MINUTES = int(os.environ.get("SERVER_UP_CHECK_MINUTES", "1"))
 
 # Legacy local player-sample helpers (unused by /serverstatus; kept for db API compat)
 SERVER_WATCHLIST_MAX = int(os.environ.get("SERVER_WATCHLIST_MAX", "200"))

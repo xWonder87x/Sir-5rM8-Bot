@@ -654,3 +654,75 @@ def prune_server_samples(*, retention_days: int | None = None) -> int:
             (str(int(days)),),
         )
         return int(cur.rowcount or 0)
+
+
+def add_up_notify(
+    server_key: str,
+    user_id: str,
+    channel_id: str,
+    guild_id: str | None = None,
+    query: str | None = None,
+    session_name: str | None = None,
+) -> bool:
+    key = str(server_key).strip()
+    uid = str(user_id).strip()
+    cid = str(channel_id).strip()
+    if not key or not uid or not cid:
+        return False
+    with _conn() as conn:
+        row = conn.execute(
+            """
+            INSERT INTO server_up_notify
+              (server_key, user_id, channel_id, guild_id, query, session_name)
+            VALUES (%s, %s, %s, %s, %s, %s)
+            ON CONFLICT (server_key, user_id, channel_id) DO NOTHING
+            RETURNING user_id
+            """,
+            (key, uid, cid, guild_id, query, session_name),
+        ).fetchone()
+    return row is not None
+
+
+def list_up_notify_keys() -> list[str]:
+    with _conn() as conn:
+        rows = conn.execute(
+            "SELECT DISTINCT server_key FROM server_up_notify ORDER BY server_key"
+        ).fetchall()
+    return [str(r["server_key"]) for r in rows]
+
+
+def list_up_notify_watchers(server_key: str) -> list[dict]:
+    key = str(server_key).strip()
+    if not key:
+        return []
+    with _conn() as conn:
+        rows = conn.execute(
+            """
+            SELECT server_key, user_id, channel_id, guild_id, query, session_name
+            FROM server_up_notify
+            WHERE server_key = %s
+            """,
+            (key,),
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def clear_up_notify(server_key: str, channel_id: str | None = None) -> int:
+    key = str(server_key).strip()
+    if not key:
+        return 0
+    with _conn() as conn:
+        if channel_id:
+            cur = conn.execute(
+                """
+                DELETE FROM server_up_notify
+                WHERE server_key = %s AND channel_id = %s
+                """,
+                (key, str(channel_id)),
+            )
+        else:
+            cur = conn.execute(
+                "DELETE FROM server_up_notify WHERE server_key = %s",
+                (key,),
+            )
+        return int(cur.rowcount or 0)

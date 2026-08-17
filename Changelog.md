@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.2.4] - 2026-08-17
+
+### Added
+
+- `/serverstatus` still shows occupancy + BattleMetrics uptime when the official list misses a known server (offline)
+- Offline replies include **Notify me when it's up**; the bot checks every minute and pings subscribers in that channel when it returns
+- Storage: `server_up_notify` (Neon / Supabase / JSON fallback)
+- Deploy marker `v1.2.4`
+
 ## [1.2.3] - 2026-08-17
 
 ### Changed

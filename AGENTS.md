@@ -27,7 +27,7 @@ Defined in `commands/core/extensions.py` (`COG_EXTENSIONS`):
 | `/sync-commands` | `commands.core.sync_commands` | Admin only |
 | `/say`, `/set_rate_channel`, `/rate_channel_status`, `/clear_rate_channel`, `/servers` | `commands.core.admin` | Admin tools |
 | `/rates` | `commands.community.rates` | Live ASA rates |
-| `/serverstatus` | `commands.community.server` | Server lookup + occupancy/uptime graphs |
+| `/serverstatus` | `commands.community.server` | Server lookup + occupancy/uptime graphs; offline notify button |
 | `/karma`, `/manage_karma` | `commands.community.karma` | Karma system |
 | `/bothunter`, `/bothunter-messages` | `commands.mod.bothunter` | Spam-trap channel (honeypot port) |
 
@@ -60,6 +60,7 @@ No user-facing prefix commands.
 | `BATTLEMETRICS_TOKEN` | — | Personal access token for `/serverstatus` uptime graphs |
 | `BM_UPTIME_HISTORY_DAYS` | `90` | Downtime→uptime history window on the chart |
 | `BM_UPTIME_RESOLUTION_MINUTES` | `60` | BattleMetrics downtime bucket size (`60` or `1440`) |
+| `SERVER_UP_CHECK_MINUTES` | `1` | How often to poll watched offline servers for notify-when-up |
 | `LOGIN_RETRY_ATTEMPT` | — | Internal; set on 429 restart |
 
 ## Database
@@ -77,6 +78,7 @@ No user-facing prefix commands.
 | `bothunter_events` | Bothunter moderation event log |
 | `server_watchlist` | Legacy local sample watchlist (unused by live chart) |
 | `server_player_samples` | Legacy local player samples (unused by live chart) |
+| `server_up_notify` | Users waiting for an offline server to come back |
 
 Without a remote DB, the same data lives under `data/` as JSON.
 

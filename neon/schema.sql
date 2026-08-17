@@ -135,3 +135,18 @@ CREATE TABLE IF NOT EXISTS server_player_samples (
 
 CREATE INDEX IF NOT EXISTS idx_server_player_samples_key_time
   ON server_player_samples (server_key, sampled_at DESC);
+
+-- /serverstatus "Notify me when it's up" subscribers
+CREATE TABLE IF NOT EXISTS server_up_notify (
+  server_key    TEXT NOT NULL,
+  user_id       TEXT NOT NULL,
+  channel_id    TEXT NOT NULL,
+  guild_id      TEXT,
+  query         TEXT,
+  session_name  TEXT,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (server_key, user_id, channel_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_server_up_notify_key
+  ON server_up_notify (server_key);

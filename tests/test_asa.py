@@ -5,6 +5,8 @@ from functions.asa import (
     _parse_rate_config,
     _score_server,
     _server_number,
+    query_server_key,
+    query_server_number,
 )
 
 
@@ -49,3 +51,16 @@ def test_score_server_substring_match():
 def test_server_lookup_result_ok():
     assert ServerLookupResult(server={"SessionName": "x"}).ok is True
     assert ServerLookupResult(error="not_found").ok is False
+
+
+def test_query_server_number_from_digits_and_trailing():
+    assert query_server_number("5313") == "5313"
+    assert query_server_number("TheIsland5313") == "5313"
+    assert query_server_number("EU-PVE-TheIsland5313 - (v88.23)") == "5313"
+    assert query_server_number("zzzz") is None
+
+
+def test_query_server_key_prefers_number():
+    assert query_server_key("5313") == "5313"
+    assert query_server_key("TheIsland 5313") == "5313"
+    assert query_server_key("Custom Box") == "Custom_Box"

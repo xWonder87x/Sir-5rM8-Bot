@@ -27,6 +27,10 @@ class BattleMetricsUptime:
     # points: (timestamp, uptime_percent 0-100)
     history: list[tuple[datetime, float]]
     error: str | None = None  # "no_token" | "not_found" | "fetch_failed"
+    ip: str | None = None
+    max_players: int | None = None
+    map_name: str | None = None
+    status: str | None = None
 
     @property
     def ok(self) -> bool:
@@ -352,7 +356,8 @@ def fetch_server_uptime(
         )
 
     server_id = str(match.get("id"))
-    name = (match.get("attributes") or {}).get("name")
+    attrs = match.get("attributes") or {}
+    name = attrs.get("name")
     windows = _fetch_uptime_windows(server_id)
     history = fetch_downtime_uptime_history(
         server_id,
@@ -369,6 +374,10 @@ def fetch_server_uptime(
             uptime_90=None,
             history=[],
             error="fetch_failed",
+            ip=str(attrs.get("ip") or "") or None,
+            max_players=_safe_int(attrs.get("maxPlayers")),
+            map_name=_map_from_details(attrs),
+            status=str(attrs.get("status") or "") or None,
         )
 
     uptime_7 = windows[7] if 7 in windows else window_uptime_average(history, days=7)
@@ -384,6 +393,40 @@ def fetch_server_uptime(
         uptime_90=uptime_90,
         history=history,
         error=None,
+        ip=str(attrs.get("ip") or "") or None,
+        max_players=_safe_int(attrs.get("maxPlayers")),
+        map_name=_map_from_details(attrs),
+        status=str(attrs.get("status") or "") or None,
+    )
+
+
+def _safe_int(value: Any) -> int | None:
+    try:
+        return int(value) if value is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _map_from_details(attrs: dict) -> str | None:
+    details = attrs.get("details") or {}
+    if isinstance(details, dict):
+        for key in ("map", "mapName", "map_name"):
+            if details.get(key):
+                return str(details[key]).replace("_WP", "")
+    return None
+
+
+def fetch_server_uptime_from_query(query: str) -> BattleMetricsUptime:
+    from functions.asa import query_server_number
+
+    q = (query or "").strip()
+    number = query_server_number(q)
+    session = None if q.isdigit() else (q or None)
+    return fetch_server_uptime(
+        ip=None,
+        port=None,
+        session_name=session,
+        server_number=number,
     )
 
 

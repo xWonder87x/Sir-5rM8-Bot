@@ -8,6 +8,7 @@ data/karma_history.jsonl
 data/bothunter_events.jsonl
 data/server_watchlist.json
 data/server_player_samples.jsonl
+data/server_up_notify.json
 data/rate_state/
 data/bot.log
 

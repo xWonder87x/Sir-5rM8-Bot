@@ -80,6 +80,40 @@ def server_key_from_server(server: dict) -> str:
     return ip or "unknown"
 
 
+_NOTIFY_KEY_RE = re.compile(r"[^A-Za-z0-9._-]+")
+_TRAILING_NUMBER_RE = re.compile(r"(\d{3,5})\s*$")
+
+
+def notify_key(value: str) -> str:
+    """Discord custom_id-safe key (max 80 chars)."""
+    cleaned = _NOTIFY_KEY_RE.sub("_", str(value).strip()).strip("._-")[:80]
+    return cleaned or "unknown"
+
+
+def notify_key_from_server(server: dict) -> str:
+    return notify_key(server_key_from_server(server))
+
+
+def query_server_number(query: str) -> str | None:
+    q = (query or "").strip()
+    if not q:
+        return None
+    if q.isdigit():
+        return q
+    named = _server_number(q)
+    if named:
+        return named
+    match = _TRAILING_NUMBER_RE.search(q)
+    return match.group(1) if match else None
+
+
+def query_server_key(query: str) -> str:
+    number = query_server_number(query)
+    if number:
+        return number
+    return notify_key(query)
+
+
 def _score_server(server: dict, query: str) -> int:
     query_stripped = query.strip()
     query_lower = query_stripped.lower()
@@ -109,24 +143,51 @@ def _score_server(server: dict, query: str) -> int:
     return 0
 
 
-def find_server(query: str) -> ServerLookupResult:
-    """Search for an ASA server by name or number."""
+def fetch_official_servers() -> list[dict] | None:
+    """Fetch the official ASA server list. None if the CDN request failed."""
     resp = _fetch_with_retry(config.SERVER_LIST_URL)
     if not resp:
-        return ServerLookupResult(error="fetch_failed")
+        return None
+    try:
+        data = resp.json()
+    except ValueError:
+        return None
+    return data if isinstance(data, list) else None
 
+
+def match_server_in_list(servers: list[dict], query: str) -> dict | None:
     query = query.strip()
     if not query:
-        return ServerLookupResult(error="not_found")
-
+        return None
     best: dict | None = None
     best_score = 0
-    for server in resp.json():
+    for server in servers:
         score = _score_server(server, query)
         if score > best_score:
             best_score = score
             best = server
+    return best
 
+
+def match_server_key_in_list(servers: list[dict], server_key: str) -> dict | None:
+    key = notify_key(server_key)
+    if key == "unknown" and not str(server_key).strip():
+        return None
+    for server in servers:
+        if notify_key_from_server(server) == key:
+            return server
+    return match_server_in_list(servers, str(server_key).strip())
+
+
+def find_server(query: str) -> ServerLookupResult:
+    """Search for an ASA server by name or number."""
+    servers = fetch_official_servers()
+    if servers is None:
+        return ServerLookupResult(error="fetch_failed")
+    query = query.strip()
+    if not query:
+        return ServerLookupResult(error="not_found")
+    best = match_server_in_list(servers, query)
     if best is None:
         return ServerLookupResult(error="not_found")
     return ServerLookupResult(server=best)

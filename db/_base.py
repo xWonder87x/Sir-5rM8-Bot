@@ -44,6 +44,15 @@ EXPECTED_SCHEMA: dict[str, list[str]] = {
         "max_players",
         "sampled_at",
     ],
+    "server_up_notify": [
+        "server_key",
+        "user_id",
+        "channel_id",
+        "guild_id",
+        "query",
+        "session_name",
+        "created_at",
+    ],
 }
 
 _client: Any = None

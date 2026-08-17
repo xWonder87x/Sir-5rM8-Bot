@@ -11,9 +11,11 @@ from db._base import (  # noqa: F401
 
 if use_postgres():
     from db.postgres import (  # noqa: F401
+        add_up_notify,
         check_connection,
         clear_bothunter_config,
         clear_rate_notification,
+        clear_up_notify,
         get_bothunter_channel_map,
         get_bothunter_config,
         get_bothunter_moderated_count,
@@ -28,6 +30,8 @@ if use_postgres():
         karma_get_cooldown,
         karma_get_history,
         karma_take,
+        list_up_notify_keys,
+        list_up_notify_watchers,
         list_watched_server_keys,
         log_bothunter_event,
         prune_server_samples,
@@ -39,9 +43,11 @@ if use_postgres():
     )
 elif use_supabase():
     from db.supabase import (  # noqa: F401
+        add_up_notify,
         check_connection,
         clear_bothunter_config,
         clear_rate_notification,
+        clear_up_notify,
         get_bothunter_channel_map,
         get_bothunter_config,
         get_bothunter_moderated_count,
@@ -56,6 +62,8 @@ elif use_supabase():
         karma_get_cooldown,
         karma_get_history,
         karma_take,
+        list_up_notify_keys,
+        list_up_notify_watchers,
         list_watched_server_keys,
         log_bothunter_event,
         prune_server_samples,
@@ -67,8 +75,10 @@ elif use_supabase():
     )
 else:
     from db.files import (  # noqa: F401
+        add_up_notify,
         clear_bothunter_config,
         clear_rate_notification,
+        clear_up_notify,
         get_bothunter_channel_map,
         get_bothunter_config,
         get_bothunter_moderated_count,
@@ -83,6 +93,8 @@ else:
         karma_get_cooldown,
         karma_get_history,
         karma_take,
+        list_up_notify_keys,
+        list_up_notify_watchers,
         list_watched_server_keys,
         log_bothunter_event,
         prune_server_samples,

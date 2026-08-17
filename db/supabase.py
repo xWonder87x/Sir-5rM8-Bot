@@ -414,3 +414,80 @@ def prune_server_samples(*, retention_days: int | None = None) -> int:
         .execute()
     )
     return len(r.data or [])
+
+
+def add_up_notify(
+    server_key: str,
+    user_id: str,
+    channel_id: str,
+    guild_id: str | None = None,
+    query: str | None = None,
+    session_name: str | None = None,
+) -> bool:
+    key = str(server_key).strip()
+    uid = str(user_id).strip()
+    cid = str(channel_id).strip()
+    if not key or not uid or not cid:
+        return False
+    existing = (
+        _sb()
+        .table("server_up_notify")
+        .select("user_id")
+        .eq("server_key", key)
+        .eq("user_id", uid)
+        .eq("channel_id", cid)
+        .limit(1)
+        .execute()
+    )
+    if existing.data:
+        return False
+    _sb().table("server_up_notify").insert({
+        "server_key": key,
+        "user_id": uid,
+        "channel_id": cid,
+        "guild_id": str(guild_id) if guild_id else None,
+        "query": query,
+        "session_name": session_name,
+    }).execute()
+    return True
+
+
+def list_up_notify_keys() -> list[str]:
+    r = _sb().table("server_up_notify").select("server_key").execute()
+    keys = sorted({str(row["server_key"]) for row in (r.data or []) if row.get("server_key")})
+    return keys
+
+
+def list_up_notify_watchers(server_key: str) -> list[dict]:
+    key = str(server_key).strip()
+    if not key:
+        return []
+    r = (
+        _sb()
+        .table("server_up_notify")
+        .select("server_key, user_id, channel_id, guild_id, query, session_name")
+        .eq("server_key", key)
+        .execute()
+    )
+    out: list[dict] = []
+    for row in r.data or []:
+        out.append({
+            "server_key": str(row.get("server_key") or key),
+            "user_id": str(row.get("user_id") or ""),
+            "channel_id": str(row.get("channel_id") or ""),
+            "guild_id": row.get("guild_id"),
+            "query": row.get("query"),
+            "session_name": row.get("session_name"),
+        })
+    return out
+
+
+def clear_up_notify(server_key: str, channel_id: str | None = None) -> int:
+    key = str(server_key).strip()
+    if not key:
+        return 0
+    q = _sb().table("server_up_notify").delete().eq("server_key", key)
+    if channel_id:
+        q = q.eq("channel_id", str(channel_id))
+    r = q.execute()
+    return len(r.data or [])
