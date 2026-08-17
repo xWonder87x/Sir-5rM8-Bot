@@ -43,7 +43,7 @@
 
 | Command | Description |
 |---------|-------------|
-| `/serverstatus [server]` | Check ASA official server by name or number; includes occupancy + player history graphs |
+| `/serverstatus [server]` | Check ASA official server; occupancy bar + BattleMetrics uptime graph |
 
 ### Karma System
 

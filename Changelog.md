@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.2.2] - 2026-08-16
+
+### Changed
+
+- `/serverstatus` history graph now uses **BattleMetrics uptime** (downtime → % online) instead of locally sampled player counts
+- Occupancy bar kept; embed shows 7d / 30d / 90d uptime when BM responds
+- Requires `BATTLEMETRICS_TOKEN` (personal access token from BattleMetrics developers area)
+- Removed background player sampler integration
+- Deploy marker `v1.2.2`
+
 ## [1.2.1] - 2026-08-16
 
 ### Added

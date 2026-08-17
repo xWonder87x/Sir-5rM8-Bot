@@ -43,11 +43,15 @@ RATE_KEYS = [key for _, _, key in RATE_DISPLAY]
 HTTP_RETRIES = 3
 HTTP_RETRY_DELAY = 2
 
-# /serverstatus player graphs
-SERVER_SAMPLE_INTERVAL_MINUTES = int(os.environ.get("SERVER_SAMPLE_INTERVAL_MINUTES", "5"))
+# /serverstatus charts (BattleMetrics uptime)
+BATTLEMETRICS_TOKEN = os.environ.get("BATTLEMETRICS_TOKEN", "").strip()
+BM_UPTIME_HISTORY_DAYS = int(os.environ.get("BM_UPTIME_HISTORY_DAYS", "7"))
+BM_UPTIME_RESOLUTION_MINUTES = int(os.environ.get("BM_UPTIME_RESOLUTION_MINUTES", "60"))
+
+# Legacy local player-sample helpers (unused by /serverstatus; kept for db API compat)
+SERVER_WATCHLIST_MAX = int(os.environ.get("SERVER_WATCHLIST_MAX", "200"))
 SERVER_HISTORY_HOURS = int(os.environ.get("SERVER_HISTORY_HOURS", "24"))
 SERVER_SAMPLE_RETENTION_DAYS = int(os.environ.get("SERVER_SAMPLE_RETENTION_DAYS", "7"))
-SERVER_WATCHLIST_MAX = int(os.environ.get("SERVER_WATCHLIST_MAX", "200"))
 
 DEFAULT_KARMA_HISTORY_LIMIT = 10
 DEFAULT_COOLDOWN_HOURS = 24

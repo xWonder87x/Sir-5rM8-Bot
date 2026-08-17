@@ -18,7 +18,6 @@ Defined in `commands/core/extensions.py` (`COG_EXTENSIONS`):
 6. `commands.community.karma`
 7. `commands.mod.bothunter`
 8. `commands.integrations.ratecheck`
-9. `commands.integrations.serversample`
 
 ## Slash commands
 
@@ -28,7 +27,7 @@ Defined in `commands/core/extensions.py` (`COG_EXTENSIONS`):
 | `/sync-commands` | `commands.core.sync_commands` | Admin only |
 | `/say`, `/set_rate_channel`, `/rate_channel_status`, `/clear_rate_channel`, `/servers` | `commands.core.admin` | Admin tools |
 | `/rates` | `commands.community.rates` | Live ASA rates |
-| `/serverstatus` | `commands.community.server` | Server lookup |
+| `/serverstatus` | `commands.community.server` | Server lookup + occupancy/uptime graphs |
 | `/karma`, `/manage_karma` | `commands.community.karma` | Karma system |
 | `/bothunter`, `/bothunter-messages` | `commands.mod.bothunter` | Spam-trap channel (honeypot port) |
 
@@ -58,9 +57,9 @@ No user-facing prefix commands.
 | `DATA_DIR` | `data/` | Runtime JSON + bot.log |
 | `SLASH_SYNC_GUILD_IDS` | — | Comma-separated guild IDs for stale slash clears |
 | `RESTART_NOTIFY_USER_ID` | `464386520124620800` | Discord user ID to DM once per process startup; empty disables |
-| `SERVER_SAMPLE_INTERVAL_MINUTES` | `5` | How often to sample watched ASA servers for player graphs |
-| `SERVER_HISTORY_HOURS` | `24` | Window shown on `/serverstatus` history chart |
-| `SERVER_SAMPLE_RETENTION_DAYS` | `7` | Prune older player samples |
+| `BATTLEMETRICS_TOKEN` | — | Personal access token for `/serverstatus` uptime graphs |
+| `BM_UPTIME_HISTORY_DAYS` | `7` | Downtime→uptime history window on the chart |
+| `BM_UPTIME_RESOLUTION_MINUTES` | `60` | BattleMetrics downtime bucket size (`60` or `1440`) |
 | `LOGIN_RETRY_ATTEMPT` | — | Internal; set on 429 restart |
 
 ## Database
@@ -76,8 +75,8 @@ No user-facing prefix commands.
 | `karma_*` | Karma balances, cooldowns, events, settings |
 | `bothunter_config` | Per-guild trap channel, action, experiments, messages |
 | `bothunter_events` | Bothunter moderation event log |
-| `server_watchlist` | ASA servers sampled for `/serverstatus` graphs |
-| `server_player_samples` | Player-count time series for history charts |
+| `server_watchlist` | Legacy local sample watchlist (unused by live chart) |
+| `server_player_samples` | Legacy local player samples (unused by live chart) |
 
 Without a remote DB, the same data lives under `data/` as JSON.
 

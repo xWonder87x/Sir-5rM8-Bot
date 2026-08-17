@@ -8,10 +8,16 @@ from discord import app_commands
 from discord.ext import commands
 
 import config
-import db
 import functions
 from functions.asa import server_key_from_server
+from functions.battlemetrics import fetch_server_uptime_from_asa
 from functions.charts import render_server_status_chart
+
+
+def _fmt_uptime(value: float | None) -> str:
+    if value is None:
+        return "—"
+    return f"{value:.2f}%"
 
 
 class Server(commands.Cog):
@@ -46,14 +52,7 @@ class Server(commands.Cog):
         max_players = int(data.get("MaxPlayers") or 70)
         server_key = server_key_from_server(data)
 
-        def _persist_and_history() -> list[dict]:
-            db.watch_server(server_key, session_name)
-            db.record_server_sample(server_key, num_players, max_players)
-            return db.get_server_player_history(
-                server_key, hours=config.SERVER_HISTORY_HOURS
-            )
-
-        history = await asyncio.to_thread(_persist_and_history)
+        bm = await asyncio.to_thread(fetch_server_uptime_from_asa, data)
 
         embed = discord.Embed(
             title="Server Online",
@@ -71,20 +70,44 @@ class Server(commands.Cog):
         embed.add_field(name="Ping", value=f"{data.get('ServerPing', '—')} ms", inline=True)
         embed.add_field(name="Map", value=data.get("MapName", "—").replace("_WP", ""), inline=True)
         embed.add_field(name="Platform", value=data.get("PlatformType", "—"), inline=True)
-        if len(history) < 2:
-            embed.set_footer(
-                text=f"Player history builds every {config.SERVER_SAMPLE_INTERVAL_MINUTES}m after first lookup"
+        embed.add_field(name="Uptime 7d", value=_fmt_uptime(bm.uptime_7), inline=True)
+        embed.add_field(name="Uptime 30d", value=_fmt_uptime(bm.uptime_30), inline=True)
+        embed.add_field(name="Uptime 90d", value=_fmt_uptime(bm.uptime_90), inline=True)
+
+        if bm.ok and bm.url:
+            embed.add_field(
+                name="BattleMetrics",
+                value=f"[Open server]({bm.url})",
+                inline=False,
             )
+
+        status_message = None
+        if bm.error == "no_token":
+            status_message = "Set BATTLEMETRICS_TOKEN to load uptime history."
+            embed.set_footer(text="BattleMetrics token not configured")
+        elif bm.error == "not_found":
+            status_message = "No BattleMetrics match for this server."
+            embed.set_footer(text="BattleMetrics server not found")
+        elif bm.error == "fetch_failed":
+            status_message = "BattleMetrics uptime request failed."
+            embed.set_footer(text="BattleMetrics uptime unavailable")
+        elif len(bm.history) < 2:
+            status_message = "BattleMetrics returned too little uptime history."
+            embed.set_footer(text=f"BattleMetrics uptime · last {config.BM_UPTIME_HISTORY_DAYS}d")
         else:
-            embed.set_footer(text=f"Player history · last {config.SERVER_HISTORY_HOURS}h")
+            embed.set_footer(text=f"BattleMetrics uptime · last {config.BM_UPTIME_HISTORY_DAYS}d")
 
         chart_bytes = await asyncio.to_thread(
             render_server_status_chart,
             session_name=session_name,
             num_players=num_players,
             max_players=max_players,
-            history=history,
-            history_hours=config.SERVER_HISTORY_HOURS,
+            uptime_history=bm.history,
+            history_days=config.BM_UPTIME_HISTORY_DAYS,
+            uptime_7=bm.uptime_7,
+            uptime_30=bm.uptime_30,
+            uptime_90=bm.uptime_90,
+            status_message=status_message,
         )
         filename = f"serverstatus-{server_key}.png"
         file = discord.File(BytesIO(chart_bytes), filename=filename)
