@@ -26,7 +26,7 @@ Defined in `commands/core/extensions.py` (`COG_EXTENSIONS`):
 | `/help` | `commands.core.help` | Setup guide |
 | `/sync-commands` | `commands.core.sync_commands` | Admin only |
 | `/say`, `/set_rate_channel`, `/rate_channel_status`, `/clear_rate_channel`, `/servers` | `commands.core.admin` | Admin tools |
-| `/rates` | `commands.community.rates` | Live ASA rates |
+| `/rates` | `commands.community.rates` | Live ASA rates; Subscribe / Unsubscribe rate-alert role |
 | `/serverstatus` | `commands.community.server` | Server lookup + occupancy/uptime graphs; offline notify button |
 | `/karma`, `/manage_karma` | `commands.community.karma` | Karma system |
 | `/bothunter`, `/bothunter-messages` | `commands.mod.bothunter` | Spam-trap channel (honeypot port) |

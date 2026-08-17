@@ -34,7 +34,7 @@
 
 | Command | Description |
 |---------|-------------|
-| `/rates` | Live server rates: EXP, Harvesting, Taming, Mating, Egg Hatch, Baby Mature, Imprint & Cuddle |
+| `/rates` | Live server rates: EXP, Harvesting, Taming, Mating, Egg Hatch, Baby Mature, Imprint & Cuddle. **Subscribe** / **Unsubscribe** for the alert role |
 | `/set_rate_channel [channel] [role]` | Set channel for automatic rate updates *(Admin only)*|
 | `/rate_channel_status` | Show current rate notification setup *(Admin only)*|
 | `/clear_rate_channel` | Remove rate notifications for this server *(Admin only)*|

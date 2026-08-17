@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.6] - 2026-08-18
+
+### Added
+
+- Rates embed **Subscribe** (green) / **Unsubscribe** (red) buttons assign or remove the guild's rate-alert role
+- Buttons persist on `/rates` and automatic rate-change posts
+- Deploy marker `v1.2.6`
+
 ## [1.2.5] - 2026-08-18
 
 ### Added

@@ -6,8 +6,8 @@ import os
 import discord
 from discord.ext import tasks, commands
 
-import config
 import functions
+from commands.community.rate_roles import RateRoleView, build_rates_embed
 
 logger = logging.getLogger(__name__)
 
@@ -25,24 +25,12 @@ class RateCheckCog(commands.Cog):
     def cog_unload(self):
         self.ratecheck.cancel()
 
-    def _build_embed(self, current: dict) -> discord.Embed:
-        emb = discord.Embed(
-            title='ASA Official Server Rates',
-            description="",
-            colour=discord.Colour.pink()
-        )
-        emb.set_thumbnail(url=config.THUMBNAIL_URL)
-
-        for emoji, label, key in config.RATE_DISPLAY:
-            value = current.get(key, "?")
-            emb.add_field(name=f"**{emoji} `{value}x` {label}**", value='', inline=False)
-        return emb
-
     @tasks.loop(minutes=1)
     async def ratecheck(self):
         serverlist, current, _, flag = await functions.check_rate_changes_async()
         if flag == 0:
-            embed = self._build_embed(current)
+            embed = build_rates_embed(current)
+            view = RateRoleView()
             for ent in serverlist:
                 try:
                     guild = self.bot.get_guild(int(ent['server_id']))
@@ -52,7 +40,8 @@ class RateCheckCog(commands.Cog):
                         continue
                     await channel.send(
                         f"{role.mention} — ASA rates have changed!",
-                        embed=embed
+                        embed=embed,
+                        view=view,
                     )
                 except (KeyError, AttributeError, discord.Forbidden) as e:
                     logger.warning(

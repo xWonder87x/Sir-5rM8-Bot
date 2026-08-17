@@ -26,7 +26,7 @@ class Help(commands.Cog):
             ),
             _embed(
                 "ASA Official PVE Rate Fetch & Dynamic Rate Monitoring",
-                "`/rates`\n"
+                "`/rates` — **Subscribe** / **Unsubscribe** for the alert role\n"
                 "`/set_rate_channel [channel] [role]`\n"
                 "`/rate_channel_status`\n"
                 "`/clear_rate_channel`",

@@ -4,8 +4,8 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-import config
 import functions
+from commands.community.rate_roles import RateRoleView, build_rates_embed
 
 
 class Rates(commands.Cog):
@@ -23,18 +23,10 @@ class Rates(commands.Cog):
             )
             return
 
-        emb = discord.Embed(
-            title='ASA Official Server Rates',
-            description="",
-            colour=discord.Colour.pink()
-        )
-        emb.set_thumbnail(url=config.THUMBNAIL_URL)
-        for emoji, label, key in config.RATE_DISPLAY:
-            value = rate_data.get(key, "?")
-            emb.add_field(name=f"**{emoji} `{value}x` {label}**", value='', inline=False)
-
-        await interaction.followup.send(embed=emb)
+        view = RateRoleView() if interaction.guild else None
+        await interaction.followup.send(embed=build_rates_embed(rate_data), view=view)
 
 
 async def setup(bot):
+    bot.add_view(RateRoleView())
     await bot.add_cog(Rates(bot))

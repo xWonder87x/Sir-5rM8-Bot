@@ -11,13 +11,13 @@ Add Sir-5rM8 to your server using the [invite link](https://discord.com/oauth2/a
 - **Send Messages** — Post in channels
 - **Embed Links** — Rich embeds for rates and server status
 - **Read Message History** — For slash commands
-- **Use Application Commands** — Required for slash commands
+- **Manage Roles** — For Subscribe / Unsubscribe on the rates embed
 
 ---
 
 ## 2. ASA Official PVE Rate Fetch & Dynamic Rate Monitoring
 
-**`/rates`** — View live official PVE rates (EXP, Harvesting, Taming, etc.). No setup required.
+**`/rates`** — View live official PVE rates (EXP, Harvesting, Taming, etc.). No setup required. If this server has a rate-alert role, use **Subscribe** / **Unsubscribe** on that embed.
 
 **Rate notifications** — Get notified automatically when rates change (checked every minute).
 
@@ -25,8 +25,9 @@ Add Sir-5rM8 to your server using the [invite link](https://discord.com/oauth2/a
 
 1. Create a **channel** for rate updates (e.g. `#asa-rates` or `#announcements`)
 2. Create a **role** for people who want notifications (e.g. `ASA Rates` or `Rate Watchers`)
-3. Run: `/set_rate_channel [channel] [role]` (e.g. `/set_rate_channel #asa-rates @ASA Rates`)
-4. Members who want notifications: assign themselves the role
+3. Put Sir-5rM8's role **above** that alert role, and grant the bot **Manage Roles**
+4. Run: `/set_rate_channel [channel] [role]` (e.g. `/set_rate_channel #asa-rates @ASA Rates`)
+5. Members tap **Subscribe** on `/rates` or on a rate-change post (or **Unsubscribe** to leave)
 
 ### Management
 
