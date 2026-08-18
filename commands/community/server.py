@@ -66,26 +66,14 @@ def _status_embed_and_chart(resolved: ResolvedServer) -> tuple[discord.Embed, by
         )
 
     status_message = None
-    footer_bits = ["Official ASA list"]
-    if resolved.network_label == "OFFLINE":
-        footer_bits.append("official network offline")
-    if resolved.from_last_known:
-        footer_bits.append("last known state")
     if bm is None or bm.error == "no_token":
         status_message = "Set BATTLEMETRICS_TOKEN to load uptime history."
-        footer_bits.append("BattleMetrics token not configured")
     elif bm.error == "not_found":
         status_message = "No BattleMetrics match for this server."
-        footer_bits.append("BattleMetrics server not found")
     elif bm.error == "fetch_failed":
         status_message = "BattleMetrics uptime request failed."
-        footer_bits.append("BattleMetrics uptime unavailable")
     elif len(bm.history) < 2:
         status_message = "BattleMetrics returned too little uptime history."
-        footer_bits.append(f"BattleMetrics uptime · last {config.BM_UPTIME_HISTORY_DAYS}d")
-    else:
-        footer_bits.append(f"BattleMetrics uptime · last {config.BM_UPTIME_HISTORY_DAYS}d")
-    embed.set_footer(text=" · ".join(footer_bits))
 
     chart_bytes = render_server_status_chart(
         session_name=resolved.session_name,
@@ -230,10 +218,14 @@ class Server(commands.Cog):
             embed, chart_bytes, filename = await asyncio.to_thread(_status_embed_and_chart, resolved)
             file = discord.File(BytesIO(chart_bytes), filename=filename)
             embed.set_image(url=f"attachment://{filename}")
-            view = None
             if resolved.presence != STATUS_ONLINE:
-                view = _offline_actions_view(resolved.server_key or None)
-            await interaction.followup.send(embed=embed, file=file, view=view)
+                await interaction.followup.send(
+                    embed=embed,
+                    file=file,
+                    view=_offline_actions_view(resolved.server_key or None),
+                )
+            else:
+                await interaction.followup.send(embed=embed, file=file)
         except Exception:
             logger.exception("serverstatus failed for %r", server)
             try:
