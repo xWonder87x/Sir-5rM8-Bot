@@ -137,17 +137,24 @@ def test_status_embed_builds_when_not_online():
 
 @pytest.mark.asyncio
 async def test_offline_actions_view_has_notify_and_report_outage():
-    import config
     from commands.community.server import NotifyWhenUpButton, _offline_actions_view
 
-    view = _offline_actions_view("5313")
+    resolved = ResolvedServer(
+        session_name="EU-PVE-TheIsland5313 - (v92.43)",
+        server_key="5313",
+        query="5313",
+        map_name="TheIsland",
+        ip="5.62.112.69",
+    )
+    view = _offline_actions_view(resolved, discord_username="wonder")
     notify, report = view.children
     assert isinstance(notify, NotifyWhenUpButton)
     assert notify.item.label == "Notify me when it's up"
     assert report.style == discord.ButtonStyle.link
     assert report.label == "Report Outage"
-    assert report.url == config.OUTAGE_REPORT_URL
+    assert "entry.1668883225=5313" in report.url
+    assert "entry.472752241=EU" in report.url
 
-    report_only = _offline_actions_view(None)
+    report_only = _offline_actions_view(ResolvedServer())
     assert len(report_only.children) == 1
     assert report_only.children[0].label == "Report Outage"

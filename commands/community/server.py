@@ -17,6 +17,7 @@ from functions.asa import match_server_key_in_list
 from functions.asa_cache import get_snapshot, refresh_asa_cache
 from functions.asa_status import STATUS_OFFLINE, STATUS_ONLINE
 from functions.charts import render_server_status_chart
+from functions.outage_form import build_outage_report_url
 from functions.server_status import ResolvedServer, resolve_from_asa_server, resolve_server_status
 
 logger = logging.getLogger(__name__)
@@ -161,15 +162,19 @@ class NotifyWhenUpButton(discord.ui.DynamicItem[discord.ui.Button], template=r"s
             )
 
 
-def _offline_actions_view(server_key: str | None) -> discord.ui.View:
+def _offline_actions_view(
+    resolved: ResolvedServer,
+    *,
+    discord_username: str | None = None,
+) -> discord.ui.View:
     view = discord.ui.View(timeout=None)
-    if server_key:
-        view.add_item(NotifyWhenUpButton(server_key))
+    if resolved.server_key:
+        view.add_item(NotifyWhenUpButton(resolved.server_key))
     view.add_item(
         discord.ui.Button(
             style=discord.ButtonStyle.link,
             label="Report Outage",
-            url=config.OUTAGE_REPORT_URL,
+            url=build_outage_report_url(resolved, discord_username=discord_username),
         )
     )
     return view
@@ -222,7 +227,10 @@ class Server(commands.Cog):
                 await interaction.followup.send(
                     embed=embed,
                     file=file,
-                    view=_offline_actions_view(resolved.server_key or None),
+                    view=_offline_actions_view(
+                        resolved,
+                        discord_username=interaction.user.name,
+                    ),
                 )
             else:
                 await interaction.followup.send(embed=embed, file=file)
