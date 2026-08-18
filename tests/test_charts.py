@@ -81,6 +81,49 @@ def test_render_server_status_chart_png_bytes():
     assert png[:8] == b"\x89PNG\r\n\x1a\n"
 
 
+def test_daily_averages_and_week_grid():
+    from functions.charts import _daily_averages, _week_hour_grid
+
+    end = datetime(2026, 8, 18, 12, 0, tzinfo=timezone.utc)
+    history = []
+    for i in range(24 * 8):
+        ts = end - timedelta(hours=i)
+        pct = 0.0 if ts.hour == 5 and ts.isoweekday() == 4 else 100.0
+        history.append((ts, pct))
+    history.sort(key=lambda p: p[0])
+    daily = _daily_averages(history, end=end, days=12)
+    assert len(daily) == 12
+    assert daily[-1][1] is not None
+    grid = _week_hour_grid(history, end=end)
+    assert len(grid) == 7
+    assert len(grid[0]) == 24
+    thu = 4  # Sunday=0 … Thursday=4
+    assert grid[thu][5] is not None
+    assert grid[thu][5] < 50
+
+
+def test_heat_shades_differ_for_15_and_45_min():
+    from functions.charts import _day_block_color, _heat_color
+
+    hour_15 = _heat_color(75.0)  # 15 min down in a 60 min bucket
+    hour_45 = _heat_color(25.0)  # 45 min down
+    hour_60 = _heat_color(0.0)
+    hour_up = _heat_color(100.0)
+    assert hour_15 != hour_45
+    assert hour_45 != hour_60
+    assert hour_15 != hour_up
+    # More downtime → less green / more red (G - R)
+    def _greenness(c: tuple[int, int, int]) -> int:
+        return c[1] - c[0]
+
+    assert _greenness(hour_up) > _greenness(hour_15) > _greenness(hour_45) > _greenness(hour_60)
+
+    day_15 = _day_block_color(100.0 - (15 / (24 * 60) * 100))
+    day_45 = _day_block_color(100.0 - (45 / (24 * 60) * 100))
+    assert day_15 != day_45
+    assert _greenness(day_15) > _greenness(day_45)
+
+
 def test_render_server_status_chart_with_sparse_history():
     png = render_server_status_chart(
         session_name="EU-PVE-TheIsland5313",

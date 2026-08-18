@@ -118,24 +118,36 @@ def _score_server(server: dict, query: str) -> int:
     query_stripped = query.strip()
     query_lower = query_stripped.lower()
     session_name = server.get("SessionName", "")
+    short_name = str(server.get("Name") or "").strip()
     name_lower = session_name.lower()
     name_upper = server.get("SessionNameUpper", session_name.upper())
+    session_id = str(server.get("SessionID") or "").strip()
+    ip = str(server.get("IP") or "").strip()
+    port = str(server.get("Port") or "").strip()
 
-    if not session_name:
+    if not session_name and not short_name and not session_id and not ip:
         return 0
 
+    if session_id and query_stripped.lower() == session_id.lower():
+        return 500
+    if short_name and query_lower == short_name.lower():
+        return 400
+    if ip and (query_stripped == ip or (port and query_stripped == f"{ip}:{port}")):
+        return 350
+
     if query_stripped.isdigit():
-        server_num = _server_number(session_name)
+        server_num = _server_number(session_name) or query_server_number(short_name or session_name)
         if server_num == query_stripped:
             return 300
-        if query_stripped in name_lower:
+        if query_stripped in name_lower or query_stripped in short_name.lower():
             return 100
 
     if query_lower == name_lower:
         return 250
     if query_stripped.upper() == name_upper:
         return 240
-    if query_lower in name_lower:
+    # Substring is last-resort only (many ASA names overlap).
+    if query_lower in name_lower or (short_name and query_lower in short_name.lower()):
         return 50
     if query_stripped.upper() in name_upper:
         return 40
@@ -144,15 +156,13 @@ def _score_server(server: dict, query: str) -> int:
 
 
 def fetch_official_servers() -> list[dict] | None:
-    """Fetch the official ASA server list. None if the CDN request failed."""
-    resp = _fetch_with_retry(config.SERVER_LIST_URL)
-    if not resp:
-        return None
-    try:
-        data = resp.json()
-    except ValueError:
-        return None
-    return data if isinstance(data, list) else None
+    """Official ASA list from the shared cache. None if the CDN request failed and no live snapshot exists."""
+    from functions.asa_cache import get_snapshot
+
+    snap = get_snapshot()
+    if snap.fetch_ok:
+        return snap.as_raw_list()
+    return None
 
 
 def match_server_in_list(servers: list[dict], query: str) -> dict | None:
@@ -162,11 +172,16 @@ def match_server_in_list(servers: list[dict], query: str) -> dict | None:
     best: dict | None = None
     best_score = 0
     for server in servers:
-        score = _score_server(server, query)
+        try:
+            score = _score_server(server, query)
+        except Exception:
+            continue
         if score > best_score:
             best_score = score
             best = server
-    return best
+    # Require a real identifier match; weak substring-only hits need score >= 50
+    # but digit-in-name (100) and exact matches rank higher.
+    return best if best_score > 0 else None
 
 
 def match_server_key_in_list(servers: list[dict], server_key: str) -> dict | None:

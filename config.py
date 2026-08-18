@@ -18,9 +18,23 @@ SLASH_SYNC_GUILD_IDS: list[int] = [
     int(x.strip()) for x in _slash_sync_raw.split(",") if x.strip().isdigit()
 ]
 
-# ASA API
+# ASA API (Studio Wildcard CDN)
 RATE_URL = "https://cdn2.arkdedicated.com/asa/dynamicconfig.ini"
 SERVER_LIST_URL = "https://cdn2.arkdedicated.com/servers/asa/officialserverlist.json"
+NETWORK_STATUS_URL = os.environ.get(
+    "NETWORK_STATUS_URL",
+    "https://cdn2.arkdedicated.com/asa/officialserverstatus.ini",
+).strip()
+NOTIFICATION_URL = os.environ.get(
+    "NOTIFICATION_URL",
+    "https://cdn2.arkdedicated.com/asa/notification.html",
+).strip()
+ASA_POLL_SECONDS = int(os.environ.get("ASA_POLL_SECONDS", "60"))
+ASA_CACHE_TTL_SECONDS = int(os.environ.get("ASA_CACHE_TTL_SECONDS", "60"))
+ASA_OFFLINE_MISS_THRESHOLD = int(os.environ.get("ASA_OFFLINE_MISS_THRESHOLD", "2"))
+ASA_STALE_SECONDS = int(os.environ.get("ASA_STALE_SECONDS", "300"))
+ASA_BM_FALLBACK = os.environ.get("ASA_BM_FALLBACK", "1").strip().lower() not in ("0", "false", "no")
+ASA_BM_COMPARE = os.environ.get("ASA_BM_COMPARE", "1").strip().lower() not in ("0", "false", "no")
 
 THUMBNAIL_URL = (
     "https://ark.wiki.gg/images/thumb/0/0a/ASA_Logo_transparent.png/198px-ASA_Logo_transparent.png"

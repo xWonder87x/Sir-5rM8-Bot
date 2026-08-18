@@ -13,7 +13,9 @@ from discord.ext import commands, tasks
 
 import config
 import db
-from functions.asa import fetch_official_servers, match_server_key_in_list
+from functions.asa import match_server_key_in_list
+from functions.asa_cache import get_snapshot, refresh_asa_cache
+from functions.asa_status import STATUS_ONLINE
 from functions.charts import render_server_status_chart
 from functions.server_status import ResolvedServer, resolve_from_asa_server, resolve_server_status
 
@@ -30,8 +32,12 @@ def _fmt_uptime(value: float | None) -> str:
 
 def _status_embed_and_chart(resolved: ResolvedServer) -> tuple[discord.Embed, bytes, str]:
     bm = resolved.bm
-    title = "Server Online" if resolved.online else "Server Offline"
-    colour = discord.Colour.green() if resolved.online else discord.Colour.red()
+    if resolved.presence == STATUS_ONLINE:
+        title, colour = "Server Online", discord.Colour.green()
+    elif resolved.presence == STATUS_OFFLINE:
+        title, colour = "Server Offline", discord.Colour.red()
+    else:
+        title, colour = "Server Status Unknown", discord.Colour.orange()
     embed = discord.Embed(
         title=title,
         description=resolved.session_name,
@@ -60,20 +66,26 @@ def _status_embed_and_chart(resolved: ResolvedServer) -> tuple[discord.Embed, by
         )
 
     status_message = None
+    footer_bits = ["Official ASA list"]
+    if resolved.network_label == "OFFLINE":
+        footer_bits.append("official network offline")
+    if resolved.from_last_known:
+        footer_bits.append("last known state")
     if bm is None or bm.error == "no_token":
         status_message = "Set BATTLEMETRICS_TOKEN to load uptime history."
-        embed.set_footer(text="BattleMetrics token not configured")
+        footer_bits.append("BattleMetrics token not configured")
     elif bm.error == "not_found":
         status_message = "No BattleMetrics match for this server."
-        embed.set_footer(text="BattleMetrics server not found")
+        footer_bits.append("BattleMetrics server not found")
     elif bm.error == "fetch_failed":
         status_message = "BattleMetrics uptime request failed."
-        embed.set_footer(text="BattleMetrics uptime unavailable")
+        footer_bits.append("BattleMetrics uptime unavailable")
     elif len(bm.history) < 2:
         status_message = "BattleMetrics returned too little uptime history."
-        embed.set_footer(text=f"BattleMetrics uptime · last {config.BM_UPTIME_HISTORY_DAYS}d")
+        footer_bits.append(f"BattleMetrics uptime · last {config.BM_UPTIME_HISTORY_DAYS}d")
     else:
-        embed.set_footer(text=f"BattleMetrics uptime · last {config.BM_UPTIME_HISTORY_DAYS}d")
+        footer_bits.append(f"BattleMetrics uptime · last {config.BM_UPTIME_HISTORY_DAYS}d")
+    embed.set_footer(text=" · ".join(footer_bits))
 
     chart_bytes = render_server_status_chart(
         session_name=resolved.session_name,
@@ -121,7 +133,10 @@ class NotifyWhenUpButton(discord.ui.DynamicItem[discord.ui.Button], template=r"s
             )
             return
 
-        servers = await asyncio.to_thread(fetch_official_servers)
+        servers = None
+        snap = await asyncio.to_thread(get_snapshot)
+        if snap.fetch_ok:
+            servers = snap.as_raw_list()
         if servers is not None:
             found = match_server_key_in_list(servers, self.server_key)
             if found:
@@ -130,7 +145,7 @@ class NotifyWhenUpButton(discord.ui.DynamicItem[discord.ui.Button], template=r"s
                     ephemeral=True,
                 )
                 return
-        elif servers is None:
+        else:
             await interaction.followup.send(
                 "I couldn't reach the official server list just now. Try the button again in a minute.",
                 ephemeral=True,
@@ -167,9 +182,12 @@ class Server(commands.Cog):
             return
         if not self.check_up_notifies.is_running():
             self.check_up_notifies.start()
+        if not self.poll_asa.is_running():
+            self.poll_asa.start()
 
     def cog_unload(self) -> None:
         self.check_up_notifies.cancel()
+        self.poll_asa.cancel()
         self.bot.remove_dynamic_items(NotifyWhenUpButton)
 
     @app_commands.command(name="serverstatus", description="Check ASA official server status")
@@ -198,20 +216,34 @@ class Server(commands.Cog):
         file = discord.File(BytesIO(chart_bytes), filename=filename)
         embed.set_image(url=f"attachment://{filename}")
         view = None
-        if not resolved.online and resolved.server_key:
+        if resolved.presence != STATUS_ONLINE and resolved.server_key:
             view = discord.ui.View(timeout=None)
             view.add_item(NotifyWhenUpButton(resolved.server_key))
         await interaction.followup.send(embed=embed, file=file, view=view)
+
+    @tasks.loop(seconds=config.ASA_POLL_SECONDS)
+    async def poll_asa(self):
+        await asyncio.to_thread(refresh_asa_cache)
+
+    @poll_asa.before_loop
+    async def before_poll_asa(self):
+        await self.bot.wait_until_ready()
 
     @tasks.loop(minutes=config.SERVER_UP_CHECK_MINUTES)
     async def check_up_notifies(self):
         keys = await asyncio.to_thread(db.list_up_notify_keys)
         if not keys:
             return
-        servers = await asyncio.to_thread(fetch_official_servers)
-        if servers is None:
+        snap = await asyncio.to_thread(refresh_asa_cache)
+        if not snap.fetch_ok:
             logger.warning("Up-notify check skipped: official ASA list unavailable")
             return
+        from functions.asa_cache import current_network
+        network = current_network()
+        if network is not None and network.fetch_ok and network.online is False:
+            logger.info("Up-notify check skipped: official ARK network is offline")
+            return
+        servers = snap.as_raw_list()
         for key in keys:
             found = match_server_key_in_list(servers, key)
             if not found:

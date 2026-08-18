@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.2.8] - 2026-08-18
+
+### Changed
+
+- `/serverstatus` chart is a daily availability strip plus a week×hour heatmap on Discord dark, with green/red shades for partial downtime
+- Deploy marker `v1.2.8`
+
+## [1.2.7] - 2026-08-18
+
+### Changed
+
+- Official ASA CDN is the primary source for `/serverstatus` live fields (name, IP, players, ping, map, platform, version)
+- Shared in-memory cache/poller for the official list, network status, and announcements (default 60s)
+- Individual ONLINE/OFFLINE is a presence heuristic (list membership + freshness), not an authoritative Wildcard heartbeat
+- BattleMetrics is fallback-only: uptime 7/30/90 graph, optional identity when a server is missing, optional discrepancy logs
+- Deploy marker `v1.2.7`
+
 ## [1.2.6] - 2026-08-18
 
 ### Added

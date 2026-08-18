@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from functions.asa_client import parse_server_list
+from functions.asa_status import STATUS_ONLINE, reset_status_tracker
 from functions.battlemetrics import BattleMetricsUptime
 from functions.server_status import resolve_server_status
 
@@ -23,9 +25,12 @@ def _bm(**overrides) -> BattleMetricsUptime:
     return BattleMetricsUptime(**data)
 
 
-def test_resolve_online_from_official_list(monkeypatch):
-    server = {
+def _row():
+    from datetime import datetime, timezone
+
+    return {
         "SessionName": "EU-PVE-TheIsland5313 - (v88.23)",
+        "Name": "EU-PVE-TheIsland5313",
         "NumPlayers": 10,
         "MaxPlayers": 70,
         "IP": "1.1.1.1",
@@ -33,20 +38,44 @@ def test_resolve_online_from_official_list(monkeypatch):
         "ServerPing": 20,
         "MapName": "TheIsland_WP",
         "PlatformType": "PC",
+        "LastUpdated": int(datetime.now(timezone.utc).timestamp() * 1000),
+        "BuildId": 88,
+        "MinorBuildId": 23,
+        "SessionID": "abc123",
+        "IsOfficial": "1",
+        "Port": 7777,
     }
-    monkeypatch.setattr("functions.server_status.fetch_official_servers", lambda: [server])
+
+
+def test_resolve_online_from_official_list(monkeypatch):
+    snap = parse_server_list([_row()])
+    reset_status_tracker()
+    monkeypatch.setattr("functions.server_status.get_snapshot", lambda **_k: snap)
+    monkeypatch.setattr("functions.server_status.last_good_snapshot", lambda: snap)
+    monkeypatch.setattr("functions.server_status.last_known_server", lambda _k: None)
+    monkeypatch.setattr("functions.server_status.current_network", lambda: None)
+    monkeypatch.setattr("functions.server_status.current_announcement", lambda: None)
     monkeypatch.setattr("functions.server_status.fetch_server_uptime_from_asa", lambda _s: _bm())
+    monkeypatch.setattr("functions.server_status.config.BATTLEMETRICS_TOKEN", "test")
     resolved = resolve_server_status("5313")
     assert resolved.ok
     assert resolved.online is True
+    assert resolved.presence == STATUS_ONLINE
     assert resolved.server_key == "5313"
     assert resolved.num_players == 10
     assert resolved.map_name == "TheIsland"
 
 
 def test_resolve_offline_numeric_still_shows_status(monkeypatch):
-    monkeypatch.setattr("functions.server_status.fetch_official_servers", lambda: [])
+    snap = parse_server_list([])
+    reset_status_tracker()
+    monkeypatch.setattr("functions.server_status.get_snapshot", lambda **_k: snap)
+    monkeypatch.setattr("functions.server_status.last_good_snapshot", lambda: snap)
+    monkeypatch.setattr("functions.server_status.last_known_server", lambda _k: None)
+    monkeypatch.setattr("functions.server_status.current_network", lambda: None)
+    monkeypatch.setattr("functions.server_status.current_announcement", lambda: None)
     monkeypatch.setattr("functions.server_status.fetch_server_uptime_from_query", lambda _q: _bm())
+    monkeypatch.setattr("functions.server_status.config.BATTLEMETRICS_TOKEN", "test")
     resolved = resolve_server_status("5313")
     assert resolved.ok
     assert resolved.online is False
@@ -56,7 +85,13 @@ def test_resolve_offline_numeric_still_shows_status(monkeypatch):
 
 
 def test_resolve_unknown_name_is_not_found(monkeypatch):
-    monkeypatch.setattr("functions.server_status.fetch_official_servers", lambda: [])
+    snap = parse_server_list([])
+    reset_status_tracker()
+    monkeypatch.setattr("functions.server_status.get_snapshot", lambda **_k: snap)
+    monkeypatch.setattr("functions.server_status.last_good_snapshot", lambda: snap)
+    monkeypatch.setattr("functions.server_status.last_known_server", lambda _k: None)
+    monkeypatch.setattr("functions.server_status.current_network", lambda: None)
+    monkeypatch.setattr("functions.server_status.current_announcement", lambda: None)
     monkeypatch.setattr(
         "functions.server_status.fetch_server_uptime_from_query",
         lambda _q: _bm(server_id="", name=None, url="", error="not_found", ip=None, max_players=None, map_name=None),
@@ -66,6 +101,14 @@ def test_resolve_unknown_name_is_not_found(monkeypatch):
 
 
 def test_resolve_fetch_failed_does_not_guess(monkeypatch):
-    monkeypatch.setattr("functions.server_status.fetch_official_servers", lambda: None)
+    from datetime import datetime, timezone
+
+    from functions.asa_models import AsaSnapshot
+
+    failed = AsaSnapshot(fetch_ok=False, fetched_at=datetime.now(timezone.utc), error="fetch_failed")
+    monkeypatch.setattr("functions.server_status.get_snapshot", lambda **_k: failed)
+    monkeypatch.setattr("functions.server_status.last_good_snapshot", lambda: None)
+    monkeypatch.setattr("functions.server_status.current_network", lambda: None)
+    monkeypatch.setattr("functions.server_status.current_announcement", lambda: None)
     resolved = resolve_server_status("5313")
     assert resolved.error == "fetch_failed"
