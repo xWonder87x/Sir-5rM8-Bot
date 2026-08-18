@@ -46,7 +46,7 @@ Example: `/serverstatus server:5313` or `/serverstatus server:TheIsland`
 
 Includes an occupancy bar. Live fields come from the official ASA server list (cached, default 60s). The 90-day uptime graph still uses BattleMetrics when `BATTLEMETRICS_TOKEN` is set — the official list has no historical uptime.
 
-Returns IP, player count, day, ping, map, and platform. Online/offline is inferred from whether the server appears in the latest successful official list (not an authoritative per-server heartbeat). If the official CDN is down, the bot keeps last-known state instead of marking every server offline. If it looks down, use **Notify me when it's up** — the bot checks about once a minute and pings everyone who pressed the button in that channel when it returns.
+Returns IP, player count, day, ping, map, and platform. Online/offline is inferred from whether the server appears in the latest successful official list (not an authoritative per-server heartbeat). If the official CDN is down, the bot keeps last-known state instead of marking every server offline. If it looks down, use **Notify me when it's up** — the bot checks about once a minute and pings everyone who pressed the button in that channel when it returns — or **Report Outage** to open the outage form.
 
 ---
 

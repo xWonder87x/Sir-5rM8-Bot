@@ -61,6 +61,7 @@ No user-facing prefix commands.
 | `BM_UPTIME_HISTORY_DAYS` | `90` | Downtime→uptime history window on the chart |
 | `BM_UPTIME_RESOLUTION_MINUTES` | `60` | BattleMetrics downtime bucket size (`60` or `1440`) |
 | `SERVER_UP_CHECK_MINUTES` | `1` | How often to poll watched offline servers for notify-when-up |
+| `OUTAGE_REPORT_URL` | Google Form | Link button on offline `/serverstatus` (**Report Outage**) |
 | `ASA_POLL_SECONDS` | `60` | Official list / network-status poll interval |
 | `ASA_CACHE_TTL_SECONDS` | `60` | Serve cached official list newer than this |
 | `ASA_OFFLINE_MISS_THRESHOLD` | `2` | Consecutive successful-list misses before OFFLINE |

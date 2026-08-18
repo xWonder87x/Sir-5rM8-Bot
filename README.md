@@ -43,7 +43,7 @@
 
 | Command | Description |
 |---------|-------------|
-| `/serverstatus [server]` | Check ASA official server from Wildcard's list; occupancy bar + optional BattleMetrics uptime graph. If the server is down, tap **Notify me when it's up** |
+| `/serverstatus [server]` | Check ASA official server from Wildcard's list; occupancy bar + optional BattleMetrics uptime graph. If the server is down, tap **Notify me when it's up** or **Report Outage** |
 
 ### Karma System
 

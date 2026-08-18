@@ -173,6 +173,20 @@ class NotifyWhenUpButton(discord.ui.DynamicItem[discord.ui.Button], template=r"s
             )
 
 
+def _offline_actions_view(server_key: str | None) -> discord.ui.View:
+    view = discord.ui.View(timeout=None)
+    if server_key:
+        view.add_item(NotifyWhenUpButton(server_key))
+    view.add_item(
+        discord.ui.Button(
+            style=discord.ButtonStyle.link,
+            label="Report Outage",
+            url=config.OUTAGE_REPORT_URL,
+        )
+    )
+    return view
+
+
 class Server(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -217,9 +231,8 @@ class Server(commands.Cog):
             file = discord.File(BytesIO(chart_bytes), filename=filename)
             embed.set_image(url=f"attachment://{filename}")
             view = None
-            if resolved.presence != STATUS_ONLINE and resolved.server_key:
-                view = discord.ui.View(timeout=None)
-                view.add_item(NotifyWhenUpButton(resolved.server_key))
+            if resolved.presence != STATUS_ONLINE:
+                view = _offline_actions_view(resolved.server_key or None)
             await interaction.followup.send(embed=embed, file=file, view=view)
         except Exception:
             logger.exception("serverstatus failed for %r", server)

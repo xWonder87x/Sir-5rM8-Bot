@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import discord
+import pytest
+
 from functions.asa_client import parse_server_list
 from functions.asa_status import STATUS_ONLINE, reset_status_tracker
 from functions.battlemetrics import BattleMetricsUptime
@@ -130,3 +133,21 @@ def test_status_embed_builds_when_not_online():
         assert embed.title == title
         assert png[:8] == b"\x89PNG\r\n\x1a\n"
         assert filename.endswith(".png")
+
+
+@pytest.mark.asyncio
+async def test_offline_actions_view_has_notify_and_report_outage():
+    import config
+    from commands.community.server import NotifyWhenUpButton, _offline_actions_view
+
+    view = _offline_actions_view("5313")
+    notify, report = view.children
+    assert isinstance(notify, NotifyWhenUpButton)
+    assert notify.item.label == "Notify me when it's up"
+    assert report.style == discord.ButtonStyle.link
+    assert report.label == "Report Outage"
+    assert report.url == config.OUTAGE_REPORT_URL
+
+    report_only = _offline_actions_view(None)
+    assert len(report_only.children) == 1
+    assert report_only.children[0].label == "Report Outage"
