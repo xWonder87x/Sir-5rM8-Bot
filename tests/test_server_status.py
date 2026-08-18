@@ -3,7 +3,7 @@ from __future__ import annotations
 from functions.asa_client import parse_server_list
 from functions.asa_status import STATUS_ONLINE, reset_status_tracker
 from functions.battlemetrics import BattleMetricsUptime
-from functions.server_status import resolve_server_status
+from functions.server_status import ResolvedServer, resolve_server_status
 
 
 def _bm(**overrides) -> BattleMetricsUptime:
@@ -112,3 +112,21 @@ def test_resolve_fetch_failed_does_not_guess(monkeypatch):
     monkeypatch.setattr("functions.server_status.current_announcement", lambda: None)
     resolved = resolve_server_status("5313")
     assert resolved.error == "fetch_failed"
+
+
+def test_status_embed_builds_when_not_online():
+    from commands.community.server import _status_embed_and_chart
+    from functions.asa_status import STATUS_API_UNAVAILABLE, STATUS_OFFLINE, STATUS_UNKNOWN
+
+    cases = (
+        (STATUS_UNKNOWN, "Server Status Unknown"),
+        (STATUS_OFFLINE, "Server Offline"),
+        (STATUS_API_UNAVAILABLE, "Server Status Unknown"),
+    )
+    for status, title in cases:
+        embed, png, filename = _status_embed_and_chart(
+            ResolvedServer(presence=status, session_name="EU-PVE-TheIsland5313", server_key="5313")
+        )
+        assert embed.title == title
+        assert png[:8] == b"\x89PNG\r\n\x1a\n"
+        assert filename.endswith(".png")

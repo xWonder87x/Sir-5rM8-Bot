@@ -15,7 +15,7 @@ import config
 import db
 from functions.asa import match_server_key_in_list
 from functions.asa_cache import get_snapshot, refresh_asa_cache
-from functions.asa_status import STATUS_ONLINE
+from functions.asa_status import STATUS_OFFLINE, STATUS_ONLINE
 from functions.charts import render_server_status_chart
 from functions.server_status import ResolvedServer, resolve_from_asa_server, resolve_server_status
 
@@ -194,32 +194,41 @@ class Server(commands.Cog):
     @app_commands.describe(server="Server name or number (e.g. 5313, TheIsland)")
     async def serverstatus(self, interaction: discord.Interaction, server: str):
         await interaction.response.defer()
-        resolved = await asyncio.to_thread(resolve_server_status, server)
-        if resolved.error == "fetch_failed":
-            embed = discord.Embed(
-                title="Could Not Reach ASA Servers",
-                description="The official server list is unavailable right now. Please try again in a few minutes.",
-                colour=discord.Colour.orange(),
-            )
-            await interaction.followup.send(embed=embed)
-            return
-        if not resolved.ok:
-            embed = discord.Embed(
-                title="Server Not Found",
-                description="I couldn't find that server. It may be offline or the name/number is incorrect.",
-                colour=discord.Colour.red(),
-            )
-            await interaction.followup.send(embed=embed)
-            return
+        try:
+            resolved = await asyncio.to_thread(resolve_server_status, server)
+            if resolved.error == "fetch_failed":
+                embed = discord.Embed(
+                    title="Could Not Reach ASA Servers",
+                    description="The official server list is unavailable right now. Please try again in a few minutes.",
+                    colour=discord.Colour.orange(),
+                )
+                await interaction.followup.send(embed=embed)
+                return
+            if not resolved.ok:
+                embed = discord.Embed(
+                    title="Server Not Found",
+                    description="I couldn't find that server. It may be offline or the name/number is incorrect.",
+                    colour=discord.Colour.red(),
+                )
+                await interaction.followup.send(embed=embed)
+                return
 
-        embed, chart_bytes, filename = await asyncio.to_thread(_status_embed_and_chart, resolved)
-        file = discord.File(BytesIO(chart_bytes), filename=filename)
-        embed.set_image(url=f"attachment://{filename}")
-        view = None
-        if resolved.presence != STATUS_ONLINE and resolved.server_key:
-            view = discord.ui.View(timeout=None)
-            view.add_item(NotifyWhenUpButton(resolved.server_key))
-        await interaction.followup.send(embed=embed, file=file, view=view)
+            embed, chart_bytes, filename = await asyncio.to_thread(_status_embed_and_chart, resolved)
+            file = discord.File(BytesIO(chart_bytes), filename=filename)
+            embed.set_image(url=f"attachment://{filename}")
+            view = None
+            if resolved.presence != STATUS_ONLINE and resolved.server_key:
+                view = discord.ui.View(timeout=None)
+                view.add_item(NotifyWhenUpButton(resolved.server_key))
+            await interaction.followup.send(embed=embed, file=file, view=view)
+        except Exception:
+            logger.exception("serverstatus failed for %r", server)
+            try:
+                await interaction.followup.send(
+                    "Couldn't load that server's status right now. Try again in a minute.",
+                )
+            except discord.DiscordException:
+                pass
 
     @tasks.loop(seconds=config.ASA_POLL_SECONDS)
     async def poll_asa(self):
