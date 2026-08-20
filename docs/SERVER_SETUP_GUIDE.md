@@ -50,7 +50,21 @@ Returns IP, player count, day, ping, map, and platform. Online/offline is inferr
 
 ---
 
-## 4. Karma System
+## 4. Official in-game ARK notifications
+
+Wildcard posts the same notices inside ASA from [notification.html](https://cdn2.arkdedicated.com/asa/notification.html). Sir-5rM8 can copy those into a Discord channel when the text changes.
+
+### Setup
+
+1. Create or pick a channel (e.g. `#asa-news` or `#announcements`)
+2. Run `/arknotifications` *(Admin)* and select that channel from the menu
+3. Use **Disable** on the same command if you want to stop
+
+When a notice is already live, the bot posts it once after you pick the channel. Empty pages (`..`) are ignored until Wildcard publishes something.
+
+---
+
+## 5. Karma System
 
 Karma rewards helpful community members. It's **global** (shared across all servers using the bot).
 
@@ -66,7 +80,7 @@ Karma rewards helpful community members. It's **global** (shared across all serv
 
 ---
 
-## 5. Bothunter (spam trap)
+## 6. Bothunter (spam trap)
 
 Catch mass-spam bots with a dedicated trap channel. Anyone who posts there is softbanned (default) or banned. Softban bans then unbans so Discord deletes their recent messages.
 
@@ -82,7 +96,7 @@ Run `/bothunter` with no options to see current status. Use `clear:True` to remo
 
 ---
 
-## 6. Admin Tools
+## 7. Admin Tools
 
 | Command | Description |
 |---------|-------------|
@@ -95,6 +109,7 @@ Run `/bothunter` with no options to see current status. Use `clear:True` to remo
 - [ ] Invite the bot
 - [ ] Try `/rates` and `/serverstatus server:5313`
 - [ ] *(Optional)* Set up rate notifications with `/set_rate_channel`
+- [ ] *(Optional)* Set up in-game ARK notices with `/arknotifications`
 - [ ] *(Optional)* Set up bothunter with `/bothunter`
 - [ ] Explain karma to your community — `/karma` for helpful members
 

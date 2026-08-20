@@ -10,6 +10,7 @@ data/server_watchlist.json
 data/server_player_samples.jsonl
 data/server_up_notify.json
 data/rate_state/
+data/guild_list_message.json
 data/bot.log
 
 # Legacy (no longer used)

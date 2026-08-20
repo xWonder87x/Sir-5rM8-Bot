@@ -3,7 +3,11 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from types import SimpleNamespace
 
-from functions.owner_notify import build_guild_join_embed
+import discord
+import pytest
+
+import config
+from functions.owner_notify import build_guild_join_embed, post_owner_notice
 
 
 class _User:
@@ -56,3 +60,64 @@ def test_guild_join_embed_includes_core_fields():
     assert "Medium" in fields["Locale · verification · channels"]
     assert embed.footer.text == "Now in 5 servers"
     assert embed.thumbnail.url == "https://example.com/icon.png"
+
+
+class _Channel:
+    id = 99
+
+    def __init__(self) -> None:
+        self.kwargs: dict | None = None
+
+    async def send(self, **kwargs) -> None:
+        self.kwargs = kwargs
+
+
+@pytest.mark.asyncio
+async def test_post_owner_notice_pings_in_channel(monkeypatch):
+    channel = _Channel()
+    monkeypatch.setattr(config, "RESTART_NOTIFY_USER_ID", 464386520124620800)
+
+    async def _channel(_bot):
+        return channel
+
+    monkeypatch.setattr("functions.owner_notify.get_owner_notify_channel", _channel)
+    embed = discord.Embed(title="Added to a Discord server")
+    ok = await post_owner_notice(SimpleNamespace(), embed=embed)
+    assert ok is True
+    assert channel.kwargs is not None
+    assert channel.kwargs["content"] == "<@464386520124620800>"
+    assert channel.kwargs["embed"] is embed
+    mentions = channel.kwargs["allowed_mentions"]
+    assert mentions.everyone is False
+    assert mentions.roles is False
+
+
+@pytest.mark.asyncio
+async def test_post_owner_notice_restart_includes_message(monkeypatch):
+    channel = _Channel()
+    monkeypatch.setattr(config, "RESTART_NOTIFY_USER_ID", 42)
+
+    async def _channel(_bot):
+        return channel
+
+    monkeypatch.setattr("functions.owner_notify.get_owner_notify_channel", _channel)
+    ok = await post_owner_notice(SimpleNamespace(), content="Sir-5rM8 is online after restart/redeploy.")
+    assert ok is True
+    assert channel.kwargs is not None
+    assert channel.kwargs["content"].startswith("<@42> ")
+    assert "online after restart/redeploy" in channel.kwargs["content"]
+    assert "embed" not in channel.kwargs
+
+
+@pytest.mark.asyncio
+async def test_post_owner_notice_skips_when_user_disabled(monkeypatch):
+    channel = _Channel()
+    monkeypatch.setattr(config, "RESTART_NOTIFY_USER_ID", None)
+
+    async def _channel(_bot):
+        return channel
+
+    monkeypatch.setattr("functions.owner_notify.get_owner_notify_channel", _channel)
+    ok = await post_owner_notice(SimpleNamespace(), content="hello")
+    assert ok is False
+    assert channel.kwargs is None

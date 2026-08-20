@@ -24,7 +24,7 @@
 
 [**Add Sir-5rM8 to Discord**](https://discord.com/oauth2/authorize?client_id=1236457243222868010)
 
-**[📖 Server Setup Guide](docs/SERVER_SETUP_GUIDE.md)** — For server owners: configure rate notifications, karma, and more.
+**[📖 Server Setup Guide](docs/SERVER_SETUP_GUIDE.md)** — For server owners: configure rate notifications, in-game ARK notices, karma, and more.
 
 ---
 
@@ -44,6 +44,12 @@
 | Command | Description |
 |---------|-------------|
 | `/serverstatus [server]` | Check ASA official server from Wildcard's list; occupancy bar + optional BattleMetrics uptime graph. If the server is down, tap **Notify me when it's up** or **Report Outage** |
+
+### Official in-game notifications
+
+| Command | Description |
+|---------|-------------|
+| `/arknotifications` | Pick a channel for the same notices Wildcard posts inside ASA *(Admin only)*. Includes a **Disable** button |
 
 ### Karma System
 
@@ -71,7 +77,6 @@ Catch mass-spam bots by monitoring a dedicated trap channel. Anyone who posts th
 | Command | Description |
 |---------|-------------|
 | `/say [message]` | Repeats a message |
-| `/servers` | List every server the bot is in *(Admin only)* |
 
 ### Coming soon features
 
@@ -90,7 +95,7 @@ pip install -r requirements.txt
 python main.py
 ```
 
-Optional storage: **Neon** (`DATABASE_URL`) preferred, else **Supabase** — see [neon/README.md](neon/README.md) and [docs/SUPABASE.md](docs/SUPABASE.md).
+Optional storage: **Postgres** (`DATABASE_URL`) preferred, else Postgres REST — see [postgres/README.md](postgres/README.md) and [docs/DATABASE.md](docs/DATABASE.md).
 
 **Developer:** After code changes without a full restart, bot owner or admins can run `!reload` in Discord to reload cogs and re-sync slash commands.
 

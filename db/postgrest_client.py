@@ -1,28 +1,26 @@
-"""Shared Supabase client factory for per-bot JWT auth."""
+"""Shared Postgres REST client factory for per-bot JWT auth."""
 from __future__ import annotations
 
-import os
 from typing import Any
 
+from db._base import (
+    get_postgrest_anon_key,
+    get_postgrest_jwt,
+    get_postgrest_key,
+    get_postgrest_url,
+)
 
-def create_bot_supabase_client() -> Any:
+
+def create_bot_postgrest_client() -> Any:
     from supabase import ClientOptions, create_client
 
-    url = (os.environ.get("SUPABASE_URL") or "").strip()
+    url = get_postgrest_url()
     if not url:
-        raise RuntimeError("SUPABASE_URL is not set")
+        raise RuntimeError("POSTGREST_URL is not set")
 
-    api_key = (
-        os.environ.get("SUPABASE_SERVICE_KEY")
-        or os.environ.get("SUPABASE_KEY")
-        or ""
-    ).strip()
-    bot_jwt = (os.environ.get("SUPABASE_BOT_JWT") or "").strip()
-    publishable = (
-        os.environ.get("SUPABASE_PUBLISHABLE_KEY")
-        or os.environ.get("SUPABASE_ANON_KEY")
-        or ""
-    ).strip()
+    api_key = get_postgrest_key()
+    bot_jwt = get_postgrest_jwt()
+    publishable = get_postgrest_anon_key()
 
     if bot_jwt and publishable:
         opts = ClientOptions(headers={"Authorization": f"Bearer {bot_jwt}"})
@@ -32,6 +30,6 @@ def create_bot_supabase_client() -> Any:
         return create_client(url, api_key)
 
     raise RuntimeError(
-        "Supabase not configured: set SUPABASE_SERVICE_KEY or "
-        "SUPABASE_BOT_JWT + SUPABASE_PUBLISHABLE_KEY"
+        "Postgres REST is not configured: set POSTGREST_KEY or "
+        "POSTGREST_JWT + POSTGREST_ANON_KEY"
     )

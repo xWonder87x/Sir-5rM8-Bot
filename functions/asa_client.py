@@ -23,7 +23,9 @@ _NETWORK_STATUS_RE = re.compile(
     re.IGNORECASE,
 )
 _HTML_TAG_RE = re.compile(r"<[^>]+>")
+_BR_RE = re.compile(r"<br\s*/?>", re.IGNORECASE)
 _EMPTY_NOTICE = frozenset({"", ".", "..", "...", "none", "n/a"})
+_ANNOUNCEMENT_MAX = 4000
 
 
 def fetch_url(url: str, *, timeout: int = 15) -> requests.Response | None:
@@ -219,11 +221,13 @@ def fetch_network_status() -> NetworkStatus:
 def parse_announcement(text: str, *, fetch_ok: bool = True) -> AsaAnnouncement:
     if not fetch_ok:
         return AsaAnnouncement(fetch_ok=False, text=None, error="fetch_failed")
-    stripped = _HTML_TAG_RE.sub(" ", text or "")
-    stripped = " ".join(stripped.split()).strip()
+    raw = _BR_RE.sub("\n", text or "")
+    stripped = _HTML_TAG_RE.sub(" ", raw)
+    lines = [" ".join(line.split()) for line in stripped.splitlines()]
+    stripped = "\n".join(line for line in lines if line).strip()
     if stripped.lower() in _EMPTY_NOTICE:
         return AsaAnnouncement(fetch_ok=True, text=None)
-    return AsaAnnouncement(fetch_ok=True, text=stripped[:500] or None)
+    return AsaAnnouncement(fetch_ok=True, text=stripped[:_ANNOUNCEMENT_MAX] or None)
 
 
 def fetch_announcement() -> AsaAnnouncement:

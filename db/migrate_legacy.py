@@ -1,15 +1,15 @@
-"""Import bot state from the legacy Sir-5rM8 Supabase project into Discord Bots."""
+"""Import bot state from a legacy Sir-5rM8 Postgres REST project into Discord Bots."""
 from __future__ import annotations
 
 import os
 from typing import Any
 
-from db._base import use_supabase
+from db._base import use_postgrest
 from db.migrate_json import (
     MigrationError,
     MigrationResult,
     MigrationSummary,
-    SupabaseNotConfiguredError,
+    RemoteDbNotConfiguredError,
     apply_migration_payload,
     database_counts,
 )
@@ -19,25 +19,29 @@ BATCH_SIZE = 1000
 OLD_PROJECT_URL = "https://pplxciubfymklbpvuill.supabase.co"
 
 
-class OldSupabaseNotConfiguredError(MigrationError):
-    """Raised when OLD_SUPABASE_URL / OLD_SUPABASE_SERVICE_KEY are not set."""
+class LegacyDbNotConfiguredError(MigrationError):
+    """Raised when LEGACY_DB_URL / LEGACY_DB_KEY are not set."""
 
 
-class NoOldSupabaseDataError(MigrationError):
+class NoLegacyDbDataError(MigrationError):
     """Raised when the legacy project has no importable rows."""
 
 
 def _old_credentials() -> tuple[str, str]:
-    url = (os.environ.get("OLD_SUPABASE_URL") or OLD_PROJECT_URL).strip()
+    url = (
+        os.environ.get("LEGACY_DB_URL")
+        or os.environ.get("OLD_SUPABASE_URL")
+        or OLD_PROJECT_URL
+    ).strip()
     key = (
-        os.environ.get("OLD_SUPABASE_SERVICE_KEY")
+        os.environ.get("LEGACY_DB_KEY")
+        or os.environ.get("OLD_SUPABASE_SERVICE_KEY")
         or os.environ.get("OLD_SUPABASE_KEY")
         or ""
     ).strip()
     if not key:
-        raise OldSupabaseNotConfiguredError(
-            "Set OLD_SUPABASE_SERVICE_KEY in Railway (secret key or service_role JWT "
-            "for the old Sir-5rM8 project pplxciubfymklbpvuill)."
+        raise LegacyDbNotConfiguredError(
+            "Set LEGACY_DB_KEY (secret key or service_role JWT for the old Sir-5rM8 project)."
         )
     return url, key
 
@@ -76,7 +80,7 @@ def _event_row(record: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def collect_old_supabase_payload() -> dict[str, Any]:
+def collect_legacy_payload() -> dict[str, Any]:
     client = _old_client()
     client.table("rate_state").select("id").eq("id", 1).limit(1).execute()
 
@@ -154,25 +158,25 @@ def _source_has_data(payload: dict[str, Any]) -> bool:
 
 
 def _ensure_ready() -> dict[str, Any]:
-    if not use_supabase():
-        raise SupabaseNotConfiguredError(
-            "Discord Bots Supabase must be configured (SUPABASE_URL + SUPABASE_SERVICE_KEY)."
+    if not use_postgrest():
+        raise RemoteDbNotConfiguredError(
+            "Discord Bots Postgres REST must be configured (POSTGREST_URL + POSTGREST_KEY)."
         )
-    payload = collect_old_supabase_payload()
+    payload = collect_legacy_payload()
     if not _source_has_data(payload):
-        raise NoOldSupabaseDataError(
-            "Legacy Supabase project has no importable rows. "
-            "Check OLD_SUPABASE_SERVICE_KEY and that the old project still exists."
+        raise NoLegacyDbDataError(
+            "Legacy database has no importable rows. "
+            "Check LEGACY_DB_KEY and that the old project still exists."
         )
     return payload
 
 
-def preview_old_supabase_migration() -> MigrationSummary:
+def preview_legacy_migration() -> MigrationSummary:
     return MigrationSummary.from_payload(_ensure_ready())
 
 
-def run_old_supabase_migration(*, force: bool = False) -> MigrationResult:
-    from db.supabase import check_connection
+def run_legacy_migration(*, force: bool = False) -> MigrationResult:
+    from db.postgrest import check_connection
 
     payload = _ensure_ready()
     source = MigrationSummary.from_payload(payload)

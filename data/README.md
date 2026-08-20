@@ -1,6 +1,6 @@
 # Data Directory
 
-When **Supabase** is not configured (`SUPABASE_URL` + `SUPABASE_SERVICE_KEY` in `.env`), the bot stores state here. See [docs/SUPABASE.md](../docs/SUPABASE.md) — unified **Discord Bots** project (`msksvvopixdaqhvdewvw`).
+When **no remote database** is configured (`DATABASE_URL` or Postgres REST vars in `.env`), the bot stores state here. See [docs/DATABASE.md](../docs/DATABASE.md) — unified **Discord Bots** project (`msksvvopixdaqhvdewvw`).
 
 This directory is created automatically when the bot runs with file storage.
 
@@ -10,8 +10,10 @@ This directory is created automatically when the bot runs with file storage.
 data/
 ├── config.json             # Guild settings + karma balances & cooldowns
 ├── karma_history.jsonl     # Append-only karma event log (one JSON object per line)
+├── guild_list_message.json # Sticky message id for the guild-list embed
 └── rate_state/
-    └── previous_values.json  # Previous parsed rate values for change detection
+    ├── previous_values.json  # Previous parsed rate values for change detection
+    └── ark_notice.json       # Previous official in-game notice text
 ```
 
 ## config.json
@@ -24,6 +26,9 @@ data/
       "rate_notifications": {
         "channel_id": "...",
         "role_id": "..."
+      },
+      "ark_notifications": {
+        "channel_id": "..."
       }
     }
   },
@@ -36,7 +41,7 @@ data/
 }
 ```
 
-- **guilds** — Per-server rate notification settings
+- **guilds** — Per-server rate notification and official in-game notice settings
 - **karma.balances** — Global karma per user (shared across all servers)
 - **karma.cooldowns** — Last karma-given timestamp per (giver, receiver) pair
 - **karma.cooldown_hours** — Hours before giving karma to the same person again (default: 24)
@@ -59,4 +64,4 @@ Append-only log of karma events. Each line is a JSON object:
 - **admin_id** — Discord user ID of admin (remove; for pingable mentions)
 - **reason** — Reason when giving (add only; required)
 
-`config.json`, `karma_history.jsonl`, and `rate_state/` are gitignored to avoid committing user data.
+`config.json`, `karma_history.jsonl`, `guild_list_message.json`, and `rate_state/` are gitignored to avoid committing user data.

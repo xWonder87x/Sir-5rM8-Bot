@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import discord
 import pytest
 
+from commands.community import ark_notifications as ark_mod
 from commands.community import karma as karma_mod
 from commands.core import admin as admin_mod
 
@@ -120,3 +121,17 @@ async def test_clear_rate_channel_uses_to_thread() -> None:
         mock_tt.return_value = True
         await cog.clear_rate_channel.callback(cog, interaction)
         mock_tt.assert_awaited_once_with(admin_mod.functions.clear_server_channel, "1")
+
+
+@pytest.mark.asyncio
+async def test_arknotifications_uses_to_thread() -> None:
+    bot = MagicMock()
+    cog = ark_mod.ArkNotifications(bot)
+    interaction = _interaction()
+
+    with patch.object(ark_mod.asyncio, "to_thread", new_callable=AsyncMock) as mock_tt:
+        mock_tt.return_value = None
+        await cog.arknotifications.callback(cog, interaction)
+        mock_tt.assert_awaited_once_with(ark_mod.db.get_ark_notification, "1")
+        interaction.response.defer.assert_awaited()
+        interaction.followup.send.assert_awaited()

@@ -1,4 +1,4 @@
-"""Owner DMs when the bot is added to a Discord server."""
+"""Owner notices in the guild-list channel when the bot restarts or joins a server."""
 from __future__ import annotations
 
 import asyncio
@@ -113,6 +113,57 @@ def build_guild_join_embed(
     return embed
 
 
+async def get_owner_notify_channel(bot: discord.Client) -> discord.TextChannel | None:
+    channel_id = config.GUILD_LIST_CHANNEL_ID
+    if not channel_id:
+        return None
+    channel = bot.get_channel(channel_id)
+    if channel is None:
+        try:
+            channel = await bot.fetch_channel(channel_id)
+        except (discord.NotFound, discord.Forbidden, discord.HTTPException) as exc:
+            logger.warning("Owner notify channel %s unavailable: %s", channel_id, exc)
+            return None
+    if not isinstance(channel, discord.TextChannel):
+        logger.warning("Owner notify channel %s is not a text channel", channel_id)
+        return None
+    return channel
+
+
+async def post_owner_notice(
+    bot: discord.Client,
+    *,
+    content: str = "",
+    embed: discord.Embed | None = None,
+) -> bool:
+    notify_id = config.RESTART_NOTIFY_USER_ID
+    if not notify_id:
+        return False
+    channel = await get_owner_notify_channel(bot)
+    if channel is None:
+        logger.warning("Guild list channel is unset or unavailable; skipping owner notice")
+        return False
+
+    ping = f"<@{int(notify_id)}>"
+    text = ping if not content else f"{ping} {content}"
+    try:
+        kwargs: dict = {
+            "content": text,
+            "allowed_mentions": discord.AllowedMentions(
+                everyone=False,
+                roles=False,
+                users=[discord.Object(id=int(notify_id))],
+            ),
+        }
+        if embed is not None:
+            kwargs["embed"] = embed
+        await channel.send(**kwargs)
+        return True
+    except (discord.Forbidden, discord.HTTPException) as exc:
+        logger.warning("Could not post owner notice in %s: %s", channel.id, exc)
+        return False
+
+
 async def _find_bot_adder(guild: discord.Guild) -> discord.abc.User | None:
     me = guild.me
     if me is None:
@@ -135,9 +186,8 @@ async def _find_bot_adder(guild: discord.Guild) -> discord.abc.User | None:
     return await scan()
 
 
-async def send_guild_join_dm(bot: discord.Client, guild: discord.Guild) -> None:
-    notify_id = config.RESTART_NOTIFY_USER_ID
-    if not notify_id:
+async def notify_guild_join(bot: discord.Client, guild: discord.Guild) -> None:
+    if not config.RESTART_NOTIFY_USER_ID:
         return
 
     owner = guild.owner
@@ -154,9 +204,10 @@ async def send_guild_join_dm(bot: discord.Client, guild: discord.Guild) -> None:
         added_by=added_by,
         bot_guild_count=len(bot.guilds),
     )
-    try:
-        user = bot.get_user(int(notify_id)) or await bot.fetch_user(int(notify_id))
-        await user.send(embed=embed)
-        logger.info("Sent guild-join DM for %s (%s) to user %s", guild.name, guild.id, notify_id)
-    except (discord.Forbidden, discord.HTTPException, discord.NotFound) as exc:
-        logger.warning("Could not send guild-join DM to %s: %s", notify_id, exc)
+    if await post_owner_notice(bot, embed=embed):
+        logger.info("Posted guild-join notice for %s (%s)", guild.name, guild.id)
+
+
+async def notify_restart(bot: discord.Client, message: str) -> None:
+    if await post_owner_notice(bot, content=message):
+        logger.info("Posted restart notice")

@@ -1,4 +1,4 @@
-"""Import bot state from JSON files under DATA_DIR into Supabase."""
+"""Import bot state from JSON files under DATA_DIR into the remote database."""
 from __future__ import annotations
 
 import json
@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import config
-from db._base import use_supabase
+from db._base import use_postgrest
 
 CONFIG_FILE = config.DATA_DIR / "config.json"
 KARMA_HISTORY_FILE = config.DATA_DIR / "karma_history.jsonl"
@@ -16,11 +16,11 @@ BATCH_SIZE = 200
 
 
 class MigrationError(Exception):
-    """Base class for JSON → Supabase migration failures."""
+    """Base class for JSON → database migration failures."""
 
 
-class SupabaseNotConfiguredError(MigrationError):
-    """Raised when Supabase env vars are not set."""
+class RemoteDbNotConfiguredError(MigrationError):
+    """Raised when Postgres REST env vars are not set."""
 
 
 class NoJsonDataError(MigrationError):
@@ -28,13 +28,13 @@ class NoJsonDataError(MigrationError):
 
 
 class DatabaseHasDataError(MigrationError):
-    """Raised when Supabase already has rows and force=False."""
+    """Raised when the remote database already has rows and force=False."""
 
     def __init__(self, counts: dict[str, int]) -> None:
         self.counts = counts
         parts = ", ".join(f"{k}={v}" for k, v in counts.items() if v)
         super().__init__(
-            "Supabase already contains data. Re-run with force=True to upsert over "
+            "Remote database already contains data. Re-run with force=True to upsert over "
             "settings/balances/cooldowns/guilds and append karma events again."
             + (f" ({parts})" if parts else "")
         )
@@ -192,7 +192,7 @@ def collect_json_payload() -> dict[str, Any]:
 
 
 def _sb():
-    from db.supabase import _sb as client
+    from db.postgrest import _sb as client
 
     return client()
 
@@ -280,14 +280,14 @@ def _apply_payload(payload: dict[str, Any], *, force: bool) -> None:
 
 
 def apply_migration_payload(payload: dict[str, Any], *, force: bool = False) -> None:
-    """Write a collected migration payload into the configured Supabase project."""
+    """Write a collected migration payload into the configured remote database."""
     _apply_payload(payload, force=force)
 
 
 def _ensure_ready() -> dict[str, Any]:
-    if not use_supabase():
-        raise SupabaseNotConfiguredError(
-            "SUPABASE_URL and credentials must be set before importing JSON data."
+    if not use_postgrest():
+        raise RemoteDbNotConfiguredError(
+            "POSTGREST_URL and credentials must be set before importing JSON data."
         )
     if not json_data_exists():
         raise NoJsonDataError(f"No JSON data found under {config.DATA_DIR}.")
@@ -300,7 +300,7 @@ def preview_migration() -> MigrationSummary:
 
 
 def run_migration(*, force: bool = False) -> MigrationResult:
-    from db.supabase import check_connection
+    from db.postgrest import check_connection
 
     payload = _ensure_ready()
     source = MigrationSummary.from_payload(payload)

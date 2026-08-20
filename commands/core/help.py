@@ -37,6 +37,11 @@ class Help(commands.Cog):
                 "If a server is offline, tap **Notify me when it's up** or **Report Outage**.",
             ),
             _embed(
+                "Official in-game ARK notifications",
+                "`/arknotifications` *(Admin)* — pick a channel for the same notices "
+                "Wildcard posts inside ASA. Use **Disable** to stop.",
+            ),
+            _embed(
                 "Karma System",
                 "`/karma [member] [reason]`\n"
                 "`/manage_karma action:check [member]`\n"
@@ -53,13 +58,13 @@ class Help(commands.Cog):
             _embed(
                 "Admin Tools",
                 "`/say [message]`\n"
-                "`/sync-commands` *(Admin)* — refresh slash commands\n"
-                "`/servers` *(Admin)* — list every server the bot is in\n\n"
+                "`/sync-commands` *(Admin)* — refresh slash commands\n\n"
                 "**Quick Start**\n"
                 "1. Try `/rates` and `/serverstatus server:5313`\n"
                 "2. Optional: `/set_rate_channel` for rate alerts\n"
-                "3. Optional: `/bothunter` to catch spam bots\n"
-                "4. Use `/karma` to reward helpful members",
+                "3. Optional: `/arknotifications` for in-game Wildcard notices\n"
+                "4. Optional: `/bothunter` to catch spam bots\n"
+                "5. Use `/karma` to reward helpful members",
             ),
         ]
 

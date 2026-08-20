@@ -1,5 +1,5 @@
 """
-JSON file storage (default when Supabase env vars are not set).
+JSON file storage (default when no remote database is configured).
 """
 from __future__ import annotations
 
@@ -86,6 +86,66 @@ def get_rate_notification_channels() -> list[dict]:
                 "role": rn["role_id"],
             })
     return result
+
+
+def set_ark_notification(guild_id: str, channel_id: str) -> None:
+    data = _load_config()
+    if "guilds" not in data:
+        data["guilds"] = {}
+    if guild_id not in data["guilds"]:
+        data["guilds"][guild_id] = {}
+    data["guilds"][guild_id]["ark_notifications"] = {"channel_id": channel_id}
+    _save_config(data)
+
+
+def get_ark_notification(guild_id: str) -> dict | None:
+    data = _load_config()
+    return data.get("guilds", {}).get(guild_id, {}).get("ark_notifications")
+
+
+def clear_ark_notification(guild_id: str) -> bool:
+    data = _load_config()
+    if guild_id not in data.get("guilds", {}):
+        return False
+    if "ark_notifications" in data["guilds"][guild_id]:
+        del data["guilds"][guild_id]["ark_notifications"]
+        if not data["guilds"][guild_id]:
+            del data["guilds"][guild_id]
+        _save_config(data)
+        return True
+    return False
+
+
+def get_ark_notification_channels() -> list[dict]:
+    data = _load_config()
+    result = []
+    for guild_id, guild_data in data.get("guilds", {}).items():
+        rn = guild_data.get("ark_notifications")
+        if rn and rn.get("channel_id"):
+            result.append({"guild_id": guild_id, "channel_id": rn["channel_id"]})
+    return result
+
+
+ARK_NOTICE_STATE_FILE = RATE_STATE_DIR / "ark_notice.json"
+
+
+def get_previous_ark_notice() -> str | None:
+    if not ARK_NOTICE_STATE_FILE.exists():
+        return None
+    try:
+        with open(ARK_NOTICE_STATE_FILE, "r", encoding="utf-8") as f:
+            payload = json.load(f)
+    except (json.JSONDecodeError, IOError):
+        return None
+    if not isinstance(payload, dict) or "previous_text" not in payload:
+        return None
+    return payload.get("previous_text")
+
+
+def save_previous_ark_notice(text: str) -> None:
+    _ensure_data_dir()
+    with open(ARK_NOTICE_STATE_FILE, "w", encoding="utf-8") as f:
+        json.dump({"previous_text": text}, f, indent=2)
 
 
 def get_previous_rate_values() -> dict | None:

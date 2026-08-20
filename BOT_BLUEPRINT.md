@@ -1,6 +1,6 @@
 # BOT_BLUEPRINT.md
 
-**Universal architecture and strategy for Discord bots** built with **Python 3.10+**, **discord.py** (slash/interactions only), and **Neon / Lakebase Postgres**.
+**Universal architecture and strategy for Discord bots** built with **Python 3.10+**, **discord.py** (slash/interactions only), and **Postgres**.
 
 Copy this file into every bot repo unchanged. Pair it with a bot-specific **`AGENTS.md`**. This file defines **how** bots are built — not **what** each bot does.
 
@@ -48,7 +48,7 @@ Every bot shares the **skeleton** below. Feature folders under `commands/` are c
 │   ├── _base.py            # Client, _tbl, EXPECTED_SCHEMA, check_schema, use_postgres
 │   ├── pg_client.py        # psycopg client (PostgREST-shaped table/rpc API)
 │   ├── <domain>.py         # One module per table group this bot uses
-│   └── sql/                # Canonical DDL + patches (Neon SQL Editor)
+│   └── sql/                # Canonical DDL + patches
 │       ├── schema.sql
 │       ├── README.md
 │       └── probe.py        # Optional connection ping (no db package import)
@@ -74,7 +74,7 @@ Every bot shares the **skeleton** below. Feature folders under `commands/` are c
 |------|------|
 | `main.py` | `commands.Bot`, staggered login / 429 exit+restart, `on_ready` extension load list, maintenance gate, global listeners |
 | `config.py` | `CHANNELS`, `ROLES`, guild IDs, timeouts, message templates — read env with `os.environ.get` |
-| `db/` | All Neon/Postgres access; `EXPECTED_SCHEMA` + `check_schema()` in `db/_base.py` |
+| `db/` | All Postgres access; `EXPECTED_SCHEMA` + `check_schema()` in `db/_base.py` |
 | `functions/` | Guards, shared business logic — add modules only when 2+ cogs need the same code |
 | `commands/<feature>/` | One or more cogs; each exposes `async def setup(bot)` — **only folders this bot uses** |
 | `commands/common/` | Optional helpers (`state.py`, `sticky.py`, `logging.py`) — never loaded as an extension |
@@ -93,7 +93,7 @@ These appear in some bots (e.g. ALICE) but are **not required** by this blueprin
 - Background `@tasks.loop` jobs
 - Restart/redeploy owner DM (`RESTART_NOTIFY_USER_ID`)
 - JSON-file storage fallback when `DATABASE_URL` is unset
-- Shared multi-bot Neon project (separate databases or schemas per bot)
+- Shared multi-bot Postgres project (separate databases or schemas per bot)
 
 If a bot does not need something, **omit it** — do not scaffold empty cogs "because the blueprint shows them."
 
@@ -105,11 +105,11 @@ If a bot does not need something, **omit it** — do not scaffold empty cogs "be
 |-------|--------|
 | Language | Python 3.10+ (`.python-version` for pyenv) |
 | Discord | `discord.py` — interactions / app commands only |
-| Database | **Lakebase Postgres via Neon** (`DATABASE_URL` + `psycopg[binary]`) |
+| Database | **Postgres** (`DATABASE_URL` + `psycopg[binary]`) |
 | Config | `config.py` for IDs/tunables; `.env` / host vars for secrets |
 | Deploy | Docker (`python:3.12-slim`) on Railway or similar worker host |
 | Logging | Python `logging`; optional remote handler (e.g. Postgres `bot_logs`) |
-| Files | Railway S3 (or Neon Object Storage) — not a hosted REST storage API |
+| Files | S3-compatible object storage — not a hosted REST storage API |
 
 ---
 
@@ -158,7 +158,7 @@ Split by **domain** (one file per table group). Keep each module focused; aim fo
 
 **When to split:** a single `db.py` is fine for small bots. Once it exceeds ~400–500 lines or mixes unrelated tables, split into `db/` with `__init__.py` re-exports so callers keep using `import db`.
 
-**Storage backends:** new bots use Neon via `DATABASE_URL` (alias `NEON_DATABASE_URL`). Prefer the **pooled** `-pooler` connection string for the long-running bot process; use the **direct** (non-pooler) URL only for schema dumps / one-shot migrations. Some bots may fall back to JSON under `data/` when `DATABASE_URL` is unset — document that in `AGENTS.md`. Do **not** scaffold a Supabase REST client for new bots.
+**Storage backends:** new bots use Postgres via `DATABASE_URL`. Prefer a **pooled** connection string for the long-running bot process; use the **direct** (non-pooler) URL only for schema dumps / one-shot migrations. Some bots may fall back to JSON under `data/` when `DATABASE_URL` is unset — document that in `AGENTS.md`. Do **not** scaffold a Postgres REST client for new bots.
 
 ### `functions/` package
 
@@ -305,9 +305,9 @@ Do **not** call blocking `requests` / `psycopg` `.execute()` directly inside asy
 
 ## Database workflow
 
-1. Create a Neon project; copy the **pooled** (`-pooler`) connection string into `DATABASE_URL` (`sslmode=require`).
+1. Create a Postgres database; copy the **pooled** connection string into `DATABASE_URL` (`sslmode=require`).
 2. Design table → add **`CREATE TABLE IF NOT EXISTS`** to `db/sql/schema.sql`.
-3. Apply `schema.sql` in the **Neon SQL Editor** (or `psql "$DATABASE_URL_UNPOOLED" -f db/sql/schema.sql` with the **direct** URL).
+3. Apply `schema.sql` in the SQL editor (or `psql "$DATABASE_URL_UNPOOLED" -f db/sql/schema.sql` with the **direct** URL).
 4. Add table + columns to **`db/_base.py::EXPECTED_SCHEMA`**.
 5. Implement helpers in **`db/<domain>.py`**.
 6. Note the change in **`db/sql/README.md`**.
@@ -317,11 +317,11 @@ Never skip the `EXPECTED_SCHEMA` step — `check_schema()` is the guardrail agai
 
 For a **new bot**, design tables for that bot's features only. Do **not** copy another bot's tables unless you explicitly share a database.
 
-### Shared Neon project (optional multi-bot pattern)
+### Shared Postgres project (optional multi-bot pattern)
 
-Several bots may share one Neon project with **separate databases** (or schemas) per bot. In that setup:
+Several bots may share one Postgres project with **separate databases** (or schemas) per bot. In that setup:
 
-- Give each bot its own `DATABASE_URL` (its own database on the project, or its own Neon project).
+- Give each bot its own `DATABASE_URL` (its own database on the project, or its own Postgres project).
 - Keep a privileged / owner role for backups and migrations only.
 - Document project, database name, and owned tables in that bot's **`AGENTS.md`** / `db/sql/README.md`.
 - Data migrations: CLI scripts under `scripts/` (or `db/migrate_*.py` called by scripts) — remove temporary slash migrate commands once cutover is done.
@@ -335,13 +335,11 @@ Several bots may share one Neon project with **separate databases** (or schemas)
 | Variable | Purpose |
 |----------|---------|
 | `TOKEN` | Discord bot token |
-| `DATABASE_URL` | Neon pooled connection string (`postgresql://…@…-pooler.…/…?sslmode=require`) |
+| `DATABASE_URL` | Postgres pooled connection string (`postgresql://…@…-pooler.…/…?sslmode=require`) |
 
 ### Auth alternatives
 
-| Variable | Purpose |
-|----------|---------|
-| `NEON_DATABASE_URL` | Alias for `DATABASE_URL` if the host injects that name |
+Host-injected aliases for `DATABASE_URL` are fine if the runtime still reads `DATABASE_URL` first.
 
 ### Common optional
 
@@ -361,7 +359,7 @@ Feature-specific vars (channel IDs, API keys, intervals, etc.) belong in that bo
 ```bash
 python3.10 --version          # 3.10+ required (.python-version in repo for pyenv)
 pip install -r requirements.txt
-# create .env with TOKEN and DATABASE_URL (Neon pooled string)
+# create .env with TOKEN and DATABASE_URL (Postgres pooled string)
 python main.py
 ```
 
@@ -452,7 +450,7 @@ When adding or modifying features in any bot:
 
 ### New bot (greenfield)
 
-> I'm starting a brand-new Discord bot. Follow **`BOT_BLUEPRINT.md`**: Python 3.10+, discord.py slash-only, `main.py` + `config.py` + `db/` package + `functions/` (as needed) + `commands/<feature>/` cogs + `db/sql/schema.sql` + `EXPECTED_SCHEMA`. Persist with **Neon** via `DATABASE_URL` and `psycopg` (`db/pg_client.py`). Create a bot-specific **`AGENTS.md`** listing only the cogs and slash commands for **this** bot. Do **not** copy commands, cogs, or feature folders from my other bots. For v1, here are the features I want: … (list). Create skeleton, requirements, `.env` docs, empty cogs with `setup()`, and README command section.
+> I'm starting a brand-new Discord bot. Follow **`BOT_BLUEPRINT.md`**: Python 3.10+, discord.py slash-only, `main.py` + `config.py` + `db/` package + `functions/` (as needed) + `commands/<feature>/` cogs + `db/sql/schema.sql` + `EXPECTED_SCHEMA`. Persist with **Postgres** via `DATABASE_URL` and `psycopg` (`db/pg_client.py`). Create a bot-specific **`AGENTS.md`** listing only the cogs and slash commands for **this** bot. Do **not** copy commands, cogs, or feature folders from my other bots. For v1, here are the features I want: … (list). Create skeleton, requirements, `.env` docs, empty cogs with `setup()`, and README command section.
 
 ### Existing bot
 
@@ -460,7 +458,7 @@ When adding or modifying features in any bot:
 
 ### Starting from ALICE as template
 
-> Copy **`BOT_BLUEPRINT.md`** and use **ALICE** (`AGENTS.md` + repo structure) as one reference implementation. **Strip** ALICE-specific cogs, tables, and commands; keep only the package layout and conventions that this new bot actually needs. Use Neon (`DATABASE_URL` + `psycopg`); do not add a Supabase client unless this bot still documents a cutover fallback in `AGENTS.md`.
+> Copy **`BOT_BLUEPRINT.md`** and use **ALICE** (`AGENTS.md` + repo structure) as one reference implementation. **Strip** ALICE-specific cogs, tables, and commands; keep only the package layout and conventions that this new bot actually needs. Use Postgres (`DATABASE_URL` + `psycopg`); do not add a Postgres REST client unless this bot still documents a cutover fallback in `AGENTS.md`.
 
 ---
 

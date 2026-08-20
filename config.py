@@ -78,7 +78,21 @@ DEFAULT_COOLDOWN_HOURS = 24
 KARMA_REASON_DISPLAY_MAX = 80
 DISCORD_MESSAGE_MAX = 2000
 
-# DM this user on restart/redeploy and when the bot joins a guild. None = disabled.
+
+def _optional_snowflake(name: str, default: str = "") -> int | None:
+    raw = (os.environ.get(name, default) or "").strip()
+    return int(raw) if raw.isdigit() else None
+
+
+# Permanent guild-list embed (replaces /servers). Env GUILD_LIST_CHANNEL_ID overrides.
+CHANNELS = {
+    "guild_list": None,
+}
+GUILD_LIST_CHANNEL_ID: int | None = (
+    _optional_snowflake("GUILD_LIST_CHANNEL_ID") or CHANNELS["guild_list"]
+)
+
+# Ping this user in GUILD_LIST_CHANNEL_ID on restart/redeploy and guild join. None = disabled.
 # Override with RESTART_NOTIFY_USER_ID in the environment if needed.
 _restart_notify_raw = os.environ.get("RESTART_NOTIFY_USER_ID", "464386520124620800")
 RESTART_NOTIFY_USER_ID: int | None = (

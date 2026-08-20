@@ -89,9 +89,9 @@ def test_collect_json_payload_maps_guilds_karma_and_rate_state(data_dir: Path):
     assert payload["guild_notifications"][0]["guild_id"] == "111"
 
 
-def test_preview_migration_requires_supabase(data_dir: Path, monkeypatch: pytest.MonkeyPatch):
+def test_preview_migration_requires_remote_db(data_dir: Path, monkeypatch: pytest.MonkeyPatch):
     (data_dir / "config.json").write_text('{"version":1,"guilds":{}}', encoding="utf-8")
-    monkeypatch.setattr("db.migrate_json.use_supabase", lambda: False)
+    monkeypatch.setattr("db.migrate_json.use_postgrest", lambda: False)
 
-    with pytest.raises(Exception, match="SUPABASE_URL"):
+    with pytest.raises(Exception, match="POSTGREST_URL"):
         preview_migration()

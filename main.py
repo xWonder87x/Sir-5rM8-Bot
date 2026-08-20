@@ -14,7 +14,7 @@ import config
 import db
 from commands.core.command_sync import sync_application_commands
 from commands.core.extensions import load_all_extensions
-from functions.owner_notify import send_guild_join_dm
+from functions.owner_notify import notify_restart
 
 LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 config.DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -30,7 +30,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Bumps when deploy verification matters; check logs after redeploy.
-DEPLOY_MARKER = "v1.2.8"
+DEPLOY_MARKER = "v1.2.10"
 
 
 def _last_commit_title(*, fallback: str | None = None) -> str:
@@ -64,7 +64,7 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 extensions_loaded = False
 global_sync_ok = False
-restart_dm_sent = False  # One DM per process startup (not every Discord reconnect)
+restart_notice_sent = False  # One channel ping per process startup (not every Discord reconnect)
 COMMIT_TITLE = _last_commit_title()
 
 
@@ -88,14 +88,14 @@ def _validate_env() -> None:
     logger.info("Deploy marker: %s · commit: %s", DEPLOY_MARKER, COMMIT_TITLE)
 
     if db.use_postgres():
-        logger.info("Storage backend: Postgres/Neon")
+        logger.info("Storage backend: Postgres")
         try:
             db.check_connection()
             logger.info("Postgres connection OK")
         except Exception as exc:
             logger.error(
                 "Postgres connection failed: %s. "
-                "Check DATABASE_URL (Neon pooled or direct connection string).",
+                "Check DATABASE_URL (pooled or direct connection string).",
                 exc,
             )
             sys.exit(1)
@@ -106,15 +106,15 @@ def _validate_env() -> None:
             else:
                 logger.error("Schema check failed for %s: %s", name, err)
                 sys.exit(1)
-    elif db.use_supabase():
-        logger.info("Storage backend: Supabase (%s)", os.environ.get("SUPABASE_URL"))
+    elif db.use_postgrest():
+        logger.info("Storage backend: Postgres REST (%s)", db.get_postgrest_url())
         try:
             db.check_connection()
-            logger.info("Supabase connection OK")
+            logger.info("Postgres REST connection OK")
         except Exception as exc:
             logger.error(
-                "Supabase connection failed: %s. "
-                "Check SUPABASE_URL and credentials, set DATABASE_URL for Neon, "
+                "Postgres REST connection failed: %s. "
+                "Check POSTGREST_URL and credentials, set DATABASE_URL for Postgres, "
                 "or remove remote DB env vars to fall back to JSON files in %s.",
                 exc,
                 config.DATA_DIR,
@@ -145,24 +145,18 @@ async def on_command_error(ctx: commands.Context, error: Exception) -> None:
 
 @bot.event
 async def on_ready():
-    global extensions_loaded, global_sync_ok, restart_dm_sent
+    global extensions_loaded, global_sync_ok, restart_notice_sent
 
     logger.info("Logged in as %s (ID: %s)", bot.user, bot.user.id)
 
-    # First action after login: notify owner that this process is online.
-    if not restart_dm_sent:
-        restart_dm_sent = True
-        notify_id = config.RESTART_NOTIFY_USER_ID
-        if notify_id:
-            try:
-                user = bot.get_user(int(notify_id)) or await bot.fetch_user(int(notify_id))
-                await user.send(
-                    f"Sir-5rM8 is online after restart/redeploy "
-                    f"(`{bot.user}` / `{DEPLOY_MARKER}` · `{COMMIT_TITLE}`)."
-                )
-                logger.info("Sent restart DM to user %s", notify_id)
-            except (discord.Forbidden, discord.HTTPException, discord.NotFound) as e:
-                logger.warning("Could not send restart DM to %s: %s", notify_id, e)
+    # First action after login: ping the owner in the guild-list channel.
+    if not restart_notice_sent:
+        restart_notice_sent = True
+        await notify_restart(
+            bot,
+            f"Sir-5rM8 is online after restart/redeploy "
+            f"(`{bot.user}` / `{DEPLOY_MARKER}` · `{COMMIT_TITLE}`).",
+        )
 
     if not extensions_loaded:
         try:
@@ -198,11 +192,6 @@ async def on_ready():
             logger.error("Retry slash command sync failed")
 
     _start_background_tasks()
-
-
-@bot.event
-async def on_guild_join(guild: discord.Guild) -> None:
-    await send_guild_join_dm(bot, guild)
 
 
 async def main():

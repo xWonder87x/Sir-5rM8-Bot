@@ -1,12 +1,12 @@
--- Sir-5rM8 — unified Supabase on the Discord Bots project (msksvvopixdaqhvdewvw).
--- Canonical apply path: ALICE/supabase/merge_other_bots_schema.sql + bot_roles.sql
+-- Sir-5rM8 — unified Postgres REST on the Discord Bots project (msksvvopixdaqhvdewvw).
+-- Canonical apply path: ALICE merge schema + bot_roles.sql
 -- Runbook: ../ALICE/docs/UNIFIED_SUPABASE.md
 -- Bot credential: JWT with role=bot_sir5rm8 (mint via ALICE/scripts/mint_bot_jwt.py)
 --
 -- Legacy note: this file is kept for reference. Tables may omit public. prefix; merge SQL uses public.
 
--- Sir-5rM8 — run this in Supabase SQL Editor (Dashboard → SQL → New query)
--- Then set SUPABASE_URL and SUPABASE_SERVICE_KEY in the bot’s .env (per-bot JWT, not service_role).
+-- Sir-5rM8 — run this in the SQL editor
+-- Then set POSTGREST_URL and POSTGREST_KEY in the bot’s .env (per-bot JWT, not a superuser key).
 
 -- Rate notification targets (one row per Discord guild)
 CREATE TABLE IF NOT EXISTS guild_rate_notifications (
@@ -70,10 +70,10 @@ CREATE INDEX IF NOT EXISTS idx_karma_events_remove_created
   ON karma_events (action, created_at DESC)
   WHERE action = 'remove';
 
--- Optional: tighten API access — the Discord bot uses the service_role key and bypasses RLS.
--- If you ever use the anon key from clients, add RLS policies here.
+-- Optional: tighten API access — the Discord bot uses a privileged API key and bypasses RLS.
+-- If you ever use an anonymous key from clients, add RLS policies here.
 
--- Atomic karma balance updates (used by storage_supabase.py via RPC)
+-- Atomic karma balance updates (used by db/postgrest.py via RPC)
 CREATE OR REPLACE FUNCTION karma_increment_balance(p_user_id TEXT)
 RETURNS INT
 LANGUAGE plpgsql
@@ -104,3 +104,17 @@ BEGIN
   RETURN new_balance;
 END;
 $$;
+
+CREATE TABLE IF NOT EXISTS guild_ark_notifications (
+  guild_id   TEXT PRIMARY KEY,
+  channel_id TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS ark_notification_state (
+  id             SMALLINT PRIMARY KEY CHECK (id = 1),
+  previous_text  TEXT
+);
+
+INSERT INTO ark_notification_state (id, previous_text)
+VALUES (1, NULL)
+ON CONFLICT (id) DO NOTHING;

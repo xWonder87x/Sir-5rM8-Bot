@@ -1,4 +1,4 @@
-"""Neon / Postgres storage backend (psycopg)."""
+"""Postgres storage backend (psycopg)."""
 from __future__ import annotations
 
 from contextlib import contextmanager
@@ -14,7 +14,7 @@ try:
     from psycopg.types.json import Jsonb
 except ImportError as exc:  # pragma: no cover
     raise RuntimeError(
-        "psycopg is required for DATABASE_URL / Neon. pip install 'psycopg[binary]'"
+        "psycopg is required for DATABASE_URL. pip install 'psycopg[binary]'"
     ) from exc
 
 
@@ -110,6 +110,87 @@ def get_rate_notification_channels() -> list[dict]:
     ]
 
 
+def _ensure_ark_notice_state_row(conn) -> None:
+    conn.execute(
+        """
+        INSERT INTO ark_notification_state (id, previous_text)
+        VALUES (1, NULL)
+        ON CONFLICT (id) DO NOTHING
+        """
+    )
+
+
+def set_ark_notification(guild_id: str, channel_id: str) -> None:
+    with _conn() as conn:
+        conn.execute(
+            """
+            INSERT INTO guild_ark_notifications (guild_id, channel_id)
+            VALUES (%s, %s)
+            ON CONFLICT (guild_id) DO UPDATE
+              SET channel_id = EXCLUDED.channel_id
+            """,
+            (guild_id, channel_id),
+        )
+
+
+def get_ark_notification(guild_id: str) -> dict | None:
+    with _conn() as conn:
+        row = conn.execute(
+            """
+            SELECT channel_id
+            FROM guild_ark_notifications
+            WHERE guild_id = %s
+            LIMIT 1
+            """,
+            (guild_id,),
+        ).fetchone()
+    if not row:
+        return None
+    return {"channel_id": row["channel_id"]}
+
+
+def clear_ark_notification(guild_id: str) -> bool:
+    if get_ark_notification(guild_id) is None:
+        return False
+    with _conn() as conn:
+        conn.execute(
+            "DELETE FROM guild_ark_notifications WHERE guild_id = %s",
+            (guild_id,),
+        )
+    return True
+
+
+def get_ark_notification_channels() -> list[dict]:
+    with _conn() as conn:
+        rows = conn.execute(
+            "SELECT guild_id, channel_id FROM guild_ark_notifications"
+        ).fetchall()
+    return [
+        {"guild_id": row["guild_id"], "channel_id": row["channel_id"]}
+        for row in rows
+    ]
+
+
+def get_previous_ark_notice() -> str | None:
+    with _conn() as conn:
+        _ensure_ark_notice_state_row(conn)
+        row = conn.execute(
+            "SELECT previous_text FROM ark_notification_state WHERE id = 1 LIMIT 1"
+        ).fetchone()
+    if not row:
+        return None
+    return row.get("previous_text")
+
+
+def save_previous_ark_notice(text: str) -> None:
+    with _conn() as conn:
+        _ensure_ark_notice_state_row(conn)
+        conn.execute(
+            "UPDATE ark_notification_state SET previous_text = %s WHERE id = 1",
+            (text,),
+        )
+
+
 def get_previous_rate_values() -> dict | None:
     with _conn() as conn:
         _ensure_rate_state_row(conn)
@@ -193,7 +274,7 @@ def karma_add(giver_id: str, receiver_id: str, giver_name: str, reason: str) -> 
         ).fetchone()
         if not row or row.get("balance") is None:
             raise RuntimeError(
-                "karma_increment_balance failed — apply neon/schema.sql (or supabase/schema.sql)"
+                "karma_increment_balance failed — apply postgres/schema.sql"
             )
         new_bal = int(row["balance"])
         conn.execute(
@@ -336,7 +417,7 @@ def import_payload(payload: dict[str, Any], *, force: bool = False) -> None:
     )
     if has_data and not force:
         raise RuntimeError(
-            "Neon already has data. Re-run with --force to overwrite/upsert."
+            "Postgres already has data. Re-run with --force to overwrite/upsert."
         )
 
     with _conn() as conn:

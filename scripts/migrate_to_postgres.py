@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-Apply Sir-5rM8 schema to Neon and optionally copy data from Supabase.
+Apply Sir-5rM8 schema to Postgres and optionally copy data from Postgres REST.
 
 Usage:
-  # Set DATABASE_URL to your Neon connection string first.
-  python scripts/migrate_supabase_to_neon.py --apply-schema
-  python scripts/migrate_supabase_to_neon.py                 # dry-run counts from Supabase
-  python scripts/migrate_supabase_to_neon.py --apply         # copy data
-  python scripts/migrate_supabase_to_neon.py --apply --force
+  # Set DATABASE_URL to your Postgres connection string first.
+  python scripts/migrate_to_postgres.py --apply-schema
+  python scripts/migrate_to_postgres.py                 # dry-run counts from REST
+  python scripts/migrate_to_postgres.py --apply         # copy data
+  python scripts/migrate_to_postgres.py --apply --force
 """
 from __future__ import annotations
 
@@ -22,25 +22,20 @@ from dotenv import load_dotenv
 
 load_dotenv(ROOT / ".env")
 
-SCHEMA_FILE = ROOT / "neon" / "schema.sql"
+SCHEMA_FILE = ROOT / "postgres" / "schema.sql"
 
 
-def _collect_from_supabase() -> dict:
-    """Read current Supabase tables using the REST client (needs SUPABASE_* env)."""
-    import os
-
+def _collect_from_postgrest() -> dict:
+    """Read current REST tables (needs POSTGREST_* / legacy REST env)."""
+    from db._base import get_postgrest_key, get_postgrest_url
     from supabase import create_client
 
-    url = (os.environ.get("SUPABASE_URL") or "").strip()
-    key = (
-        os.environ.get("SUPABASE_SERVICE_KEY")
-        or os.environ.get("SUPABASE_KEY")
-        or ""
-    ).strip()
+    url = get_postgrest_url()
+    key = get_postgrest_key()
     if not url or not key:
         raise SystemExit(
-            "Supabase credentials required to export data "
-            "(SUPABASE_URL + SUPABASE_SERVICE_KEY)."
+            "Postgres REST credentials required to export data "
+            "(POSTGREST_URL + POSTGREST_KEY)."
         )
 
     sb = create_client(url, key)
@@ -139,30 +134,30 @@ def _print_payload(payload: dict, label: str) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Migrate Sir-5rM8 from Supabase to Neon.")
+    parser = argparse.ArgumentParser(description="Migrate Sir-5rM8 to Postgres.")
     parser.add_argument(
         "--apply-schema",
         action="store_true",
-        help="Create tables/functions on Neon (DATABASE_URL).",
+        help="Create tables/functions on Postgres (DATABASE_URL).",
     )
     parser.add_argument(
         "--apply",
         action="store_true",
-        help="Copy data from Supabase into Neon.",
+        help="Copy data from Postgres REST into Postgres.",
     )
     parser.add_argument(
         "--force",
         action="store_true",
-        help="Allow import when Neon already has rows.",
+        help="Allow import when Postgres already has rows.",
     )
     args = parser.parse_args()
 
-    import os
+    from db._base import get_database_url
 
-    db_url = (os.environ.get("DATABASE_URL") or os.environ.get("NEON_DATABASE_URL") or "").strip()
+    db_url = get_database_url()
     if (args.apply_schema or args.apply) and not db_url:
         print(
-            "Set DATABASE_URL to your Neon connection string first.",
+            "Set DATABASE_URL to your Postgres connection string first.",
             file=sys.stderr,
         )
         sys.exit(1)
@@ -174,26 +169,26 @@ def main() -> None:
         apply_schema(sql)
         print(f"Applied schema from {SCHEMA_FILE}")
         if not args.apply:
-            print("\nSchema applied. Re-run with --apply to copy data from Supabase.")
+            print("\nSchema applied. Re-run with --apply to copy data from Postgres REST.")
             return
 
-    # Dry-run or --apply: export from Supabase then optionally import.
-    payload = _collect_from_supabase()
-    _print_payload(payload, "Supabase source")
+    # Dry-run or --apply: export from REST then optionally import.
+    payload = _collect_from_postgrest()
+    _print_payload(payload, "Postgres REST source")
 
     if not args.apply:
-        print("\nDry run only — re-run with --apply to copy into Neon.")
+        print("\nDry run only — re-run with --apply to copy into Postgres.")
         return
 
     from db.postgres import database_counts, import_payload
 
     import_payload(payload, force=args.force)
     print("\nMigration applied successfully.")
-    print("Neon row counts:", database_counts())
+    print("Postgres row counts:", database_counts())
     print(
         "\nNext steps:\n"
-        "  1. Keep DATABASE_URL in .env / Railway (Supabase vars become unused).\n"
-        "  2. Restart the bot — expect: Storage backend: Postgres/Neon\n"
+        "  1. Keep DATABASE_URL in .env / the host (REST vars become unused).\n"
+        "  2. Restart the bot — expect: Storage backend: Postgres\n"
         "  3. Smoke test /rate_channel_status and /manage_karma action:check"
     )
 

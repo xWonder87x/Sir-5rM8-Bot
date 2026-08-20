@@ -1,6 +1,6 @@
--- Sir-5rM8 schema for Neon / any Postgres.
--- Apply: python scripts/migrate_supabase_to_neon.py --apply-schema
--- Or: psql "$DATABASE_URL" -f neon/schema.sql
+-- Sir-5rM8 schema for Postgres.
+-- Apply: python scripts/migrate_to_postgres.py --apply-schema
+-- Or: psql "$DATABASE_URL" -f postgres/schema.sql
 
 CREATE TABLE IF NOT EXISTS guild_rate_notifications (
   guild_id   TEXT PRIMARY KEY,
@@ -150,3 +150,18 @@ CREATE TABLE IF NOT EXISTS server_up_notify (
 
 CREATE INDEX IF NOT EXISTS idx_server_up_notify_key
   ON server_up_notify (server_key);
+
+-- Official in-game ASA notifications (cdn2.arkdedicated.com/asa/notification.html)
+CREATE TABLE IF NOT EXISTS guild_ark_notifications (
+  guild_id   TEXT PRIMARY KEY,
+  channel_id TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS ark_notification_state (
+  id             SMALLINT PRIMARY KEY CHECK (id = 1),
+  previous_text  TEXT
+);
+
+INSERT INTO ark_notification_state (id, previous_text)
+VALUES (1, NULL)
+ON CONFLICT (id) DO NOTHING;

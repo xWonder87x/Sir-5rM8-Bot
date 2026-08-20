@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.2.10] - 2026-08-20
+
+### Changed
+
+- Removed `/servers`. A sticky embed in `GUILD_LIST_CHANNEL_ID` lists every Discord guild the bot is in, refreshed hourly and when the bot joins or leaves a server
+- Owner alerts (restart and new-guild join) post in that same channel and ping `RESTART_NOTIFY_USER_ID` instead of DMing
+- Deploy marker `v1.2.10`
+
+## [1.2.9] - 2026-08-20
+
+### Added
+
+- `/arknotifications` *(Admin)* — pick a Discord channel for official in-game ASA notices from `notification.html`
+- Posts when Wildcard publishes a new notice; empty pages (`..`) are ignored; restart seeds state without spam
+- Deploy marker `v1.2.9`
+
+  **Schema:** apply `guild_ark_notifications` + `ark_notification_state` with `python scripts/migrate_to_postgres.py --apply-schema` (or the matching SQL) before restarting on Postgres.
+
+### Changed
+
+- Docs, logs, and module names use Postgres / Postgres REST instead of vendor product names
+
 ## [1.2.8] - 2026-08-18
 
 ### Changed
@@ -38,7 +60,7 @@
 
 - `/serverstatus` still shows occupancy + BattleMetrics uptime when the official list misses a known server (offline)
 - Offline replies include **Notify me when it's up**; the bot checks every minute and pings subscribers in that channel when it returns
-- Storage: `server_up_notify` (Neon / Supabase / JSON fallback)
+- Storage: `server_up_notify` (Postgres / Postgres REST / JSON fallback)
 - Deploy marker `v1.2.4`
 
 ## [1.2.3] - 2026-08-17
@@ -64,7 +86,7 @@
 ### Added
 
 - `/serverstatus` graphs: occupancy bar + 24h player-count history (PNG embed image)
-- Background sampler for watched ASA servers (`server_watchlist` / `server_player_samples` on Neon)
+- Background sampler for watched ASA servers (`server_watchlist` / `server_player_samples` on Postgres)
 - `Pillow` for chart rendering
 
 ### Changed
@@ -79,19 +101,19 @@
   - `/bothunter` — configure trap channel, log channel, softban/ban/disabled, experiments
   - `/bothunter-messages` — custom warning / DM / log messages
   - Softban (ban+unban) deletes recent messages; skips owners/admins; optional DM + reinvite + timeout-first
-  - Storage: JSON / Neon `bothunter_config` + `bothunter_events` / Supabase same tables
+  - Storage: JSON / Postgres `bothunter_config` + `bothunter_events` / REST same tables
 
 ### Changed
 
-- Primary storage is **Neon/Postgres** (`DATABASE_URL`); all Sir-5rM8 tables (rates, karma, bothunter) live there
+- Primary storage is **Postgres** (`DATABASE_URL`); all Sir-5rM8 tables (rates, karma, bothunter) live there
 - Deploy marker `v1.2.0`
 
 ## [1.1.0] - 2026-08-10
 
 ### Added
 
-- Shared **Discord Bots** Supabase storage (`bot_sir5rm8` role) with JSON fallback
-- JSON → Supabase and legacy Supabase → Discord Bots migration scripts
+- Shared **Discord Bots** Postgres REST storage (`bot_sir5rm8` role) with JSON fallback
+- JSON → database and legacy database → Discord Bots migration scripts
 - Deploy marker + slash sync listing for easier production verification
 - Restart/redeploy DM to `RESTART_NOTIFY_USER_ID` (once per process, like ALICE)
 - `asyncio.to_thread` regression tests for karma/admin storage paths
@@ -99,15 +121,15 @@
 
 ### Changed
 
-- Cut over from the old Sir-5rM8 Supabase project to the unified Discord Bots database
-- Upgrade `supabase` client to `>=2.15` (supports `sb_secret_…` API keys)
+- Cut over from the old Sir-5rM8 database project to the unified Discord Bots database
+- Upgrade the Postgres REST Python client to `>=2.15` (supports `sb_secret_…` API keys)
 - Port ALICE reliability patterns: defer before DB, offload sync storage, fail-fast extension load, `SyncResult` slash sync
 - Lighter schema probes (`.limit(0)`); docs renamed from ALICE project label to Discord Bots
 - BOT_BLUEPRINT clarifications for optional feature folders
 
 ### Removed
 
-- Temporary `/migrate-json-to-db` and `/migrate-old-supabase-to-db` slash commands (CLI scripts retained)
+- Temporary `/migrate-json-to-db` and `/migrate-old-db-to-db` slash commands (CLI scripts retained)
 - `.env.example` (configure `.env` / host vars directly)
 
 ## [1.0.0] - 2025-02

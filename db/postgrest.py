@@ -1,4 +1,4 @@
-"""Supabase (PostgreSQL) storage backend."""
+"""Postgres REST storage backend."""
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -12,7 +12,7 @@ def _sb():
 
 
 def check_connection() -> None:
-    """Verify Supabase is reachable (DNS, URL, auth). Raises on failure."""
+    """Verify Postgres REST is reachable (DNS, URL, auth). Raises on failure."""
     _sb().table("rate_state").select("id").eq("id", 1).limit(1).execute()
 
 
@@ -73,6 +73,55 @@ def get_rate_notification_channels() -> list[dict]:
     ]
 
 
+def _ensure_ark_notice_state_row() -> None:
+    sb = _sb()
+    r = sb.table("ark_notification_state").select("id").eq("id", 1).limit(1).execute()
+    if not r.data:
+        sb.table("ark_notification_state").insert({"id": 1, "previous_text": None}).execute()
+
+
+def set_ark_notification(guild_id: str, channel_id: str) -> None:
+    _sb().table("guild_ark_notifications").upsert(
+        {"guild_id": guild_id, "channel_id": channel_id},
+        on_conflict="guild_id",
+    ).execute()
+
+
+def get_ark_notification(guild_id: str) -> dict | None:
+    r = _sb().table("guild_ark_notifications").select("channel_id").eq("guild_id", guild_id).limit(1).execute()
+    if not r.data:
+        return None
+    return {"channel_id": r.data[0]["channel_id"]}
+
+
+def clear_ark_notification(guild_id: str) -> bool:
+    if get_ark_notification(guild_id) is None:
+        return False
+    _sb().table("guild_ark_notifications").delete().eq("guild_id", guild_id).execute()
+    return True
+
+
+def get_ark_notification_channels() -> list[dict]:
+    r = _sb().table("guild_ark_notifications").select("guild_id, channel_id").execute()
+    return [
+        {"guild_id": row["guild_id"], "channel_id": row["channel_id"]}
+        for row in (r.data or [])
+    ]
+
+
+def get_previous_ark_notice() -> str | None:
+    _ensure_ark_notice_state_row()
+    r = _sb().table("ark_notification_state").select("previous_text").eq("id", 1).limit(1).execute()
+    if not r.data:
+        return None
+    return r.data[0].get("previous_text")
+
+
+def save_previous_ark_notice(text: str) -> None:
+    _ensure_ark_notice_state_row()
+    _sb().table("ark_notification_state").update({"previous_text": text}).eq("id", 1).execute()
+
+
 def get_previous_rate_values() -> dict | None:
     _ensure_rate_state_row()
     r = _sb().table("rate_state").select("previous_rates").eq("id", 1).limit(1).execute()
@@ -131,7 +180,7 @@ def karma_add(giver_id: str, receiver_id: str, giver_name: str, reason: str) -> 
     new_bal = _rpc_int(sb.rpc("karma_increment_balance", {"p_user_id": receiver_id}).execute())
     if new_bal is None:
         raise RuntimeError(
-            "karma_increment_balance failed — re-run supabase/schema.sql in Supabase SQL Editor"
+            "karma_increment_balance failed — apply postgres/schema.sql"
         )
 
     sb.table("karma_cooldowns").upsert(

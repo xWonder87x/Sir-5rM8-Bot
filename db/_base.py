@@ -53,42 +53,62 @@ EXPECTED_SCHEMA: dict[str, list[str]] = {
         "session_name",
         "created_at",
     ],
+    "guild_ark_notifications": ["guild_id", "channel_id"],
+    "ark_notification_state": ["id", "previous_text"],
 }
 
 _client: Any = None
 
 
+def _first_env(*names: str) -> str:
+    for name in names:
+        value = (os.environ.get(name) or "").strip()
+        if value:
+            return value
+    return ""
+
+
 def get_database_url() -> str:
-    return (os.environ.get("DATABASE_URL") or os.environ.get("NEON_DATABASE_URL") or "").strip()
+    return _first_env("DATABASE_URL", "NEON_DATABASE_URL")
+
+
+def get_postgrest_url() -> str:
+    return _first_env("POSTGREST_URL", "SUPABASE_URL")
+
+
+def get_postgrest_key() -> str:
+    return _first_env("POSTGREST_KEY", "SUPABASE_SERVICE_KEY", "SUPABASE_KEY")
+
+
+def get_postgrest_jwt() -> str:
+    return _first_env("POSTGREST_JWT", "SUPABASE_BOT_JWT")
+
+
+def get_postgrest_anon_key() -> str:
+    return _first_env("POSTGREST_ANON_KEY", "SUPABASE_PUBLISHABLE_KEY", "SUPABASE_ANON_KEY")
 
 
 def use_postgres() -> bool:
-    """Prefer Neon / Postgres when DATABASE_URL (or NEON_DATABASE_URL) is set."""
+    """Prefer Postgres when DATABASE_URL is set."""
     return bool(get_database_url())
 
 
-def use_supabase() -> bool:
+def use_postgrest() -> bool:
+    """Postgres REST fallback when DATABASE_URL is unset."""
     if use_postgres():
         return False
-    url = os.environ.get("SUPABASE_URL")
-    if not url:
+    if not get_postgrest_url():
         return False
-    if os.environ.get("SUPABASE_SERVICE_KEY") or os.environ.get("SUPABASE_KEY"):
+    if get_postgrest_key():
         return True
-    return bool(
-        os.environ.get("SUPABASE_BOT_JWT")
-        and (
-            os.environ.get("SUPABASE_PUBLISHABLE_KEY")
-            or os.environ.get("SUPABASE_ANON_KEY")
-        )
-    )
+    return bool(get_postgrest_jwt() and get_postgrest_anon_key())
 
 
 def storage_backend_name() -> str:
     if use_postgres():
         return "postgres"
-    if use_supabase():
-        return "supabase"
+    if use_postgrest():
+        return "postgrest"
     return "files"
 
 
@@ -96,11 +116,11 @@ def _get_client() -> Any:
     global _client
     if _client is not None:
         return _client
-    if not use_supabase():
-        raise RuntimeError("Supabase is not configured (SUPABASE_URL and key required).")
-    from db.supabase_client import create_bot_supabase_client
+    if not use_postgrest():
+        raise RuntimeError("Postgres REST is not configured (POSTGREST_URL and key required).")
+    from db.postgrest_client import create_bot_postgrest_client
 
-    _client = create_bot_supabase_client()
+    _client = create_bot_postgrest_client()
     return _client
 
 
@@ -115,9 +135,9 @@ def check_schema() -> list[tuple[str, bool, Optional[str]]]:
 
     if use_postgres():
         return _check_schema_postgres()
-    if not use_supabase():
+    if not use_postgrest():
         return [(name, False, "No remote database configured") for name in EXPECTED_SCHEMA]
-    return _check_schema_supabase()
+    return _check_schema_postgrest()
 
 
 def _check_schema_postgres() -> list[tuple[str, bool, Optional[str]]]:
@@ -141,7 +161,7 @@ def _check_schema_postgres() -> list[tuple[str, bool, Optional[str]]]:
     return results
 
 
-def _check_schema_supabase() -> list[tuple[str, bool, Optional[str]]]:
+def _check_schema_postgrest() -> list[tuple[str, bool, Optional[str]]]:
     results: list[tuple[str, bool, Optional[str]]] = []
     try:
         client = _get_client()
