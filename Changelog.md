@@ -1,11 +1,17 @@
 # Changelog
 
+## [1.2.11] - 2026-08-21
+
+### Changed
+
+- Restart/redeploy still DMs `RESTART_NOTIFY_USER_ID`. New-guild join posts in `GUILD_LIST_CHANNEL_ID` and pings that user
+- Deploy marker `v1.2.11`
+
 ## [1.2.10] - 2026-08-20
 
 ### Changed
 
 - Removed `/servers`. A sticky embed in `GUILD_LIST_CHANNEL_ID` lists every Discord guild the bot is in, refreshed hourly and when the bot joins or leaves a server
-- Owner alerts (restart and new-guild join) post in that same channel and ping `RESTART_NOTIFY_USER_ID` instead of DMing
 - Deploy marker `v1.2.10`
 
 ## [1.2.9] - 2026-08-20

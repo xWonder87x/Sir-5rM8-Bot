@@ -1,4 +1,4 @@
-"""Owner notices in the guild-list channel when the bot restarts or joins a server."""
+"""Owner restart DMs and guild-join notices in the guild-list channel."""
 from __future__ import annotations
 
 import asyncio
@@ -209,5 +209,12 @@ async def notify_guild_join(bot: discord.Client, guild: discord.Guild) -> None:
 
 
 async def notify_restart(bot: discord.Client, message: str) -> None:
-    if await post_owner_notice(bot, content=message):
-        logger.info("Posted restart notice")
+    notify_id = config.RESTART_NOTIFY_USER_ID
+    if not notify_id:
+        return
+    try:
+        user = bot.get_user(int(notify_id)) or await bot.fetch_user(int(notify_id))
+        await user.send(message)
+        logger.info("Sent restart DM to user %s", notify_id)
+    except (discord.Forbidden, discord.HTTPException, discord.NotFound) as exc:
+        logger.warning("Could not send restart DM to %s: %s", notify_id, exc)

@@ -7,7 +7,7 @@ import discord
 import pytest
 
 import config
-from functions.owner_notify import build_guild_join_embed, post_owner_notice
+from functions.owner_notify import build_guild_join_embed, notify_restart, post_owner_notice
 
 
 class _User:
@@ -121,3 +121,28 @@ async def test_post_owner_notice_skips_when_user_disabled(monkeypatch):
     ok = await post_owner_notice(SimpleNamespace(), content="hello")
     assert ok is False
     assert channel.kwargs is None
+
+
+class _NotifyUser:
+    def __init__(self, user_id: int) -> None:
+        self.id = user_id
+        self.sent: str | None = None
+
+    async def send(self, content: str) -> None:
+        self.sent = content
+
+
+@pytest.mark.asyncio
+async def test_notify_restart_dms_user(monkeypatch):
+    user = _NotifyUser(42)
+    monkeypatch.setattr(config, "RESTART_NOTIFY_USER_ID", 42)
+
+    class _Bot:
+        def get_user(self, user_id: int):
+            return user if user_id == 42 else None
+
+        async def fetch_user(self, user_id: int):
+            return user if user_id == 42 else None
+
+    await notify_restart(_Bot(), "Sir-5rM8 is online after restart/redeploy.")
+    assert user.sent == "Sir-5rM8 is online after restart/redeploy."

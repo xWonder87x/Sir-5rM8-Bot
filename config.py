@@ -86,13 +86,13 @@ def _optional_snowflake(name: str, default: str = "") -> int | None:
 
 # Permanent guild-list embed (replaces /servers). Env GUILD_LIST_CHANNEL_ID overrides.
 CHANNELS = {
-    "guild_list": None,
+    "guild_list": 1540099281896087583,
 }
 GUILD_LIST_CHANNEL_ID: int | None = (
     _optional_snowflake("GUILD_LIST_CHANNEL_ID") or CHANNELS["guild_list"]
 )
 
-# Ping this user in GUILD_LIST_CHANNEL_ID on restart/redeploy and guild join. None = disabled.
+# DM this user on restart/redeploy; ping them in GUILD_LIST_CHANNEL_ID on guild join. None = disabled.
 # Override with RESTART_NOTIFY_USER_ID in the environment if needed.
 _restart_notify_raw = os.environ.get("RESTART_NOTIFY_USER_ID", "464386520124620800")
 RESTART_NOTIFY_USER_ID: int | None = (

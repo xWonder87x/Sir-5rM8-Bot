@@ -30,7 +30,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Bumps when deploy verification matters; check logs after redeploy.
-DEPLOY_MARKER = "v1.2.10"
+DEPLOY_MARKER = "v1.2.11"
 
 
 def _last_commit_title(*, fallback: str | None = None) -> str:
@@ -64,7 +64,7 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 extensions_loaded = False
 global_sync_ok = False
-restart_notice_sent = False  # One channel ping per process startup (not every Discord reconnect)
+restart_notice_sent = False  # One DM per process startup (not every Discord reconnect)
 COMMIT_TITLE = _last_commit_title()
 
 
@@ -149,7 +149,7 @@ async def on_ready():
 
     logger.info("Logged in as %s (ID: %s)", bot.user, bot.user.id)
 
-    # First action after login: ping the owner in the guild-list channel.
+    # First action after login: DM the owner that this process is online.
     if not restart_notice_sent:
         restart_notice_sent = True
         await notify_restart(
