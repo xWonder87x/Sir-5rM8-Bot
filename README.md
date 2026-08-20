@@ -107,7 +107,7 @@ Optional storage: **Postgres** (`DATABASE_URL`) preferred, else Postgres REST �
 
 ## 📄 License
 
-This project is licensed under the GNU GPL v3 — see the [LICENSE](LICENSE) file for details.
+This project is licensed under the GNU Affero GPL v3 — see the [LICENSE](LICENSE) file for details.
 
 ---
 

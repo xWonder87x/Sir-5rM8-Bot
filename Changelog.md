@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.2.13] - 2026-08-21
+
+### Changed
+
+- License is GNU Affero GPL v3 (AGPL-3.0), matching the honeypot-derived bothunter code
+
 ## [1.2.12] - 2026-08-21
 
 ### Changed
