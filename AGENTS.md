@@ -4,7 +4,7 @@ Follow **`BOT_BLUEPRINT.md`** for architecture and validation. This file is bot-
 
 ## Purpose
 
-Discord bot for ARK: Survival Ascended communities: live official PVE rates, server status lookup, official in-game notice relay, karma system, per-guild rate-change notifications, and bothunter (spam-trap channel).
+Discord bot for ARK: Survival Ascended communities: live official PVE rates, server status lookup, official in-game notice relay, per-guild rate-change notifications, and bothunter (spam-trap channel).
 
 ## Extension load order
 
@@ -17,9 +17,8 @@ Defined in `commands/core/extensions.py` (`COG_EXTENSIONS`):
 5. `commands.community.rates`
 6. `commands.community.server`
 7. `commands.community.ark_notifications`
-8. `commands.community.karma`
-9. `commands.mod.bothunter`
-10. `commands.integrations.ratecheck`
+8. `commands.mod.bothunter`
+9. `commands.integrations.ratecheck`
 
 ## Slash commands
 
@@ -31,7 +30,6 @@ Defined in `commands/core/extensions.py` (`COG_EXTENSIONS`):
 | `/rates` | `commands.community.rates` | Live ASA rates; Subscribe / Unsubscribe rate-alert role |
 | `/serverstatus` | `commands.community.server` | Official-list status + occupancy; BM uptime graph fallback |
 | `/arknotifications` | `commands.community.ark_notifications` | Admin channel picker for official in-game ASA notices |
-| `/karma`, `/manage_karma` | `commands.community.karma` | Karma system |
 | `/bothunter`, `/bothunter-messages` | `commands.mod.bothunter` | Spam-trap channel (honeypot port) |
 
 No user-facing prefix commands.
@@ -86,7 +84,6 @@ No user-facing prefix commands.
 | `rate_state` | Previous ASA rates for change detection |
 | `guild_ark_notifications` | Per-guild channel for official in-game ASA notices |
 | `ark_notification_state` | Previous `notification.html` text for change detection |
-| `karma_*` | Karma balances, cooldowns, events, settings |
 | `bothunter_config` | Per-guild trap channel, action, experiments, messages |
 | `bothunter_events` | Bothunter moderation event log |
 | `server_watchlist` | Legacy local sample watchlist (unused by live chart) |

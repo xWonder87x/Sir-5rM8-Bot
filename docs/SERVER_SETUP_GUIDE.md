@@ -64,23 +64,7 @@ When a notice is already live, the bot posts it once after you pick the channel.
 
 ---
 
-## 5. Karma System
-
-Karma rewards helpful community members. It's **global** (shared across all servers using the bot).
-
-### Commands
-
-| Command | Description |
-|---------|-------------|
-| `/karma [member] [reason]` | Give 1 karma (reason required; 24h cooldown per person) |
-| `/manage_karma action:check [member]` | Check balance (omit member for yourself) |
-| `/manage_karma action:history [member]` | View history (admins can view anyone's) |
-| `/manage_karma action:remove [member]` | Remove 1 karma *(Admin)* |
-| `/manage_karma action:audit` | Recent removals *(Admin)* |
-
----
-
-## 6. Bothunter (spam trap)
+## 5. Bothunter (spam trap)
 
 Catch mass-spam bots with a dedicated trap channel. Anyone who posts there is softbanned (default) or banned. Softban bans then unbans so Discord deletes their recent messages.
 
@@ -96,7 +80,7 @@ Run `/bothunter` with no options to see current status. Use `clear:True` to remo
 
 ---
 
-## 7. Help & admin tools
+## 6. Help & admin tools
 
 | Command | Description |
 |---------|-------------|
@@ -116,7 +100,6 @@ If a command is missing after an update, an admin can run `/sync-commands`.
 - [ ] *(Optional)* Set up rate notifications with `/set_rate_channel`
 - [ ] *(Optional)* Set up in-game ARK notices with `/arknotifications`
 - [ ] *(Optional)* Set up bothunter with `/bothunter`
-- [ ] Explain karma to your community — `/karma` for helpful members
 
 ---
 

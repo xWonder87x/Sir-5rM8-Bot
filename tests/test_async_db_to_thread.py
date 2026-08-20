@@ -1,14 +1,12 @@
 """Async command paths should delegate blocking storage work to asyncio.to_thread."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import discord
 import pytest
 
 from commands.community import ark_notifications as ark_mod
-from commands.community import karma as karma_mod
 from commands.core import admin as admin_mod
 
 
@@ -28,54 +26,6 @@ def _interaction(*, guild: bool = True, admin: bool = False) -> MagicMock:
     interaction.response.is_done = MagicMock(return_value=False)
     interaction.followup = AsyncMock()
     return interaction
-
-
-@pytest.mark.asyncio
-async def test_karma_give_uses_to_thread() -> None:
-    bot = MagicMock()
-    cog = karma_mod.Karma(bot)
-    interaction = _interaction()
-    member = MagicMock()
-    member.id = 200
-    member.display_name = "Receiver"
-    member.mention = "<@200>"
-
-    with patch.object(karma_mod.asyncio, "to_thread", new_callable=AsyncMock) as mock_tt:
-        mock_tt.side_effect = [
-            {"cooldown_hours": 24, "history_limit": 10},
-            None,
-            5,
-        ]
-        await cog.karma.callback(cog, interaction, member, "helped")
-        assert mock_tt.await_count == 3
-        mock_tt.assert_any_await(karma_mod.functions.get_karma_settings)
-        mock_tt.assert_any_await(
-            karma_mod.functions.karma_get_cooldown, "100", "200"
-        )
-        mock_tt.assert_any_await(
-            karma_mod.functions.karma_add,
-            "100",
-            "200",
-            "Giver",
-            reason="helped",
-        )
-        interaction.response.defer.assert_awaited()
-        interaction.followup.send.assert_awaited()
-
-
-@pytest.mark.asyncio
-async def test_karma_check_uses_to_thread() -> None:
-    bot = MagicMock()
-    cog = karma_mod.Karma(bot)
-    interaction = _interaction()
-    action = MagicMock()
-    action.value = "check"
-
-    with patch.object(karma_mod.asyncio, "to_thread", new_callable=AsyncMock) as mock_tt:
-        mock_tt.return_value = 3
-        await cog.manage_karma.callback(cog, interaction, action, None)
-        mock_tt.assert_awaited_once_with(karma_mod.functions.karma_get_balance, "100")
-        interaction.response.defer.assert_awaited()
 
 
 @pytest.mark.asyncio

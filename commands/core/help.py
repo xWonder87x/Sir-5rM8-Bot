@@ -42,14 +42,6 @@ class Help(commands.Cog):
                 "Wildcard posts inside ASA. Use **Disable** to stop.",
             ),
             _embed(
-                "Karma System",
-                "`/karma [member] [reason]`\n"
-                "`/manage_karma action:check [member]`\n"
-                "`/manage_karma action:history [member]`\n"
-                "`/manage_karma action:remove [member]` *(Admin)*\n"
-                "`/manage_karma action:audit` *(Admin)*",
-            ),
-            _embed(
                 "Bothunter (spam trap)",
                 "`/bothunter [channel] [log_channel] [action] …` *(Admin)*\n"
                 "`/bothunter-messages [warning] [dm] [log]` *(Admin)*\n\n"
@@ -63,8 +55,7 @@ class Help(commands.Cog):
                 "1. Try `/rates` and `/serverstatus server:5313`\n"
                 "2. Optional: `/set_rate_channel` for rate alerts\n"
                 "3. Optional: `/arknotifications` for in-game Wildcard notices\n"
-                "4. Optional: `/bothunter` to catch spam bots\n"
-                "5. Use `/karma` to reward helpful members",
+                "4. Optional: `/bothunter` to catch spam bots",
             ),
         ]
 

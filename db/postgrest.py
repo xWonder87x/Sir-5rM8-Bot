@@ -1,8 +1,6 @@
 """Postgres REST storage backend."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
-
 import config
 from db._base import _get_client
 
@@ -14,26 +12,6 @@ def _sb():
 def check_connection() -> None:
     """Verify Postgres REST is reachable (DNS, URL, auth). Raises on failure."""
     _sb().table("rate_state").select("id").eq("id", 1).limit(1).execute()
-
-
-def _rpc_int(result) -> int | None:
-    data = result.data
-    if data is None:
-        return None
-    if isinstance(data, list):
-        return int(data[0]) if data else None
-    return int(data)
-
-
-def _ensure_karma_settings_row() -> None:
-    sb = _sb()
-    r = sb.table("karma_global_settings").select("id").eq("id", 1).limit(1).execute()
-    if not r.data:
-        sb.table("karma_global_settings").insert({
-            "id": 1,
-            "cooldown_hours": config.DEFAULT_COOLDOWN_HOURS,
-            "history_limit": config.DEFAULT_KARMA_HISTORY_LIMIT,
-        }).execute()
 
 
 def _ensure_rate_state_row() -> None:
@@ -133,137 +111,6 @@ def get_previous_rate_values() -> dict | None:
 def save_previous_rate_values(values: dict) -> None:
     _ensure_rate_state_row()
     _sb().table("rate_state").update({"previous_rates": values}).eq("id", 1).execute()
-
-
-def get_karma_settings() -> dict:
-    _ensure_karma_settings_row()
-    r = _sb().table("karma_global_settings").select("cooldown_hours, history_limit").eq("id", 1).limit(1).execute()
-    if not r.data:
-        return {
-            "cooldown_hours": config.DEFAULT_COOLDOWN_HOURS,
-            "history_limit": config.DEFAULT_KARMA_HISTORY_LIMIT,
-        }
-    row = r.data[0]
-    return {
-        "cooldown_hours": row.get("cooldown_hours") or config.DEFAULT_COOLDOWN_HOURS,
-        "history_limit": row.get("history_limit") or config.DEFAULT_KARMA_HISTORY_LIMIT,
-    }
-
-
-def karma_get_balance(user_id: str) -> int:
-    r = _sb().table("karma_balances").select("balance").eq("user_id", user_id).limit(1).execute()
-    if not r.data:
-        return 0
-    return int(r.data[0].get("balance") or 0)
-
-
-def karma_get_cooldown(giver_id: str, receiver_id: str) -> datetime | None:
-    r = _sb().table("karma_cooldowns").select("last_given").eq("giver_id", giver_id).eq("receiver_id", receiver_id).limit(1).execute()
-    if not r.data:
-        return None
-    ts = r.data[0].get("last_given")
-    if not ts:
-        return None
-    if isinstance(ts, str):
-        dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
-    else:
-        dt = ts
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
-    return dt
-
-
-def karma_add(giver_id: str, receiver_id: str, giver_name: str, reason: str) -> int:
-    sb = _sb()
-    now_iso = datetime.now(timezone.utc).isoformat()
-
-    new_bal = _rpc_int(sb.rpc("karma_increment_balance", {"p_user_id": receiver_id}).execute())
-    if new_bal is None:
-        raise RuntimeError(
-            "karma_increment_balance failed — apply postgres/schema.sql"
-        )
-
-    sb.table("karma_cooldowns").upsert(
-        {"giver_id": giver_id, "receiver_id": receiver_id, "last_given": now_iso},
-        on_conflict="giver_id,receiver_id",
-    ).execute()
-
-    sb.table("karma_events").insert({
-        "user_id": receiver_id,
-        "created_at": now_iso,
-        "action": "add",
-        "amount": 1,
-        "by_name": giver_name,
-        "giver_id": giver_id,
-        "admin_id": None,
-        "reason": reason,
-    }).execute()
-
-    return new_bal
-
-
-def karma_take(target_id: str, admin_id: str, admin_name: str) -> int | None:
-    sb = _sb()
-    new_bal = _rpc_int(sb.rpc("karma_decrement_balance", {"p_user_id": target_id}).execute())
-    if new_bal is None:
-        return None
-
-    now_iso = datetime.now(timezone.utc).isoformat()
-    sb.table("karma_events").insert({
-        "user_id": target_id,
-        "created_at": now_iso,
-        "action": "remove",
-        "amount": 1,
-        "by_name": admin_name,
-        "giver_id": None,
-        "admin_id": admin_id,
-        "reason": None,
-    }).execute()
-    return new_bal
-
-
-def _event_row_to_history_dict(row: dict) -> dict:
-    ts = row.get("created_at")
-    if hasattr(ts, "isoformat"):
-        ts = ts.isoformat()
-    return {
-        "timestamp": ts,
-        "action": row["action"],
-        "amount": row.get("amount", 1),
-        "by": row.get("by_name") or "?",
-        "giver_id": row.get("giver_id"),
-        "admin_id": row.get("admin_id"),
-        "reason": row.get("reason"),
-    }
-
-
-def karma_get_history(user_id: str) -> list[dict]:
-    limit = get_karma_settings()["history_limit"]
-    r = _sb().table("karma_events").select(
-        "created_at, action, amount, by_name, giver_id, admin_id, reason"
-    ).eq("user_id", user_id).order("created_at", desc=True).limit(limit).execute()
-    rows = r.data or []
-    return [_event_row_to_history_dict(row) for row in rows]
-
-
-def karma_get_audit(limit: int = 20) -> list[dict]:
-    r = _sb().table("karma_events").select(
-        "user_id, created_at, action, amount, by_name, giver_id, admin_id, reason"
-    ).eq("action", "remove").order("created_at", desc=True).limit(limit).execute()
-    out = []
-    for row in r.data or []:
-        ts = row.get("created_at")
-        if hasattr(ts, "isoformat"):
-            ts = ts.isoformat()
-        out.append({
-            "user_id": row["user_id"],
-            "timestamp": ts,
-            "action": row["action"],
-            "amount": row.get("amount", 1),
-            "by": row.get("by_name") or "?",
-            "admin_id": row.get("admin_id"),
-        })
-    return out
 
 
 # --- Bothunter ---

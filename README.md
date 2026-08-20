@@ -10,7 +10,7 @@
 
 # **Sir-5rM8**
 
-**Version:** 1.2.10
+**Version:** 1.2.14
 
 ### *Making the community better, one command at a time.*
 
@@ -24,7 +24,7 @@
 
 [**Add Sir-5rM8 to Discord**](https://discord.com/oauth2/authorize?client_id=1236457243222868010)
 
-**[📖 Server Setup Guide](docs/SERVER_SETUP_GUIDE.md)** — For server owners: configure rate notifications, in-game ARK notices, karma, and more.
+**[📖 Server Setup Guide](docs/SERVER_SETUP_GUIDE.md)** — For server owners: configure rate notifications, in-game ARK notices, and more.
 
 ---
 
@@ -52,16 +52,6 @@ Use **`/help`** in Discord for the same command list.
 | Command | Description |
 |---------|-------------|
 | `/arknotifications` | Pick a channel for the same notices Wildcard posts inside ASA *(Admin only)*. Includes a **Disable** button |
-
-### Karma System
-
-| Command | Description |
-|---------|-------------|
-| `/karma [member] [reason]` | Give 1 karma (24h cooldown per person) |
-| `/manage_karma action:check [member]` | Check karma balance |
-| `/manage_karma action:history [member]` | View karma history |
-| `/manage_karma action:remove [member]` | Remove 1 karma *(Admin only)* |
-| `/manage_karma action:audit` | Recent removals *(Admin only)* |
 
 ### Bothunter (spam trap)
 

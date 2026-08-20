@@ -19,9 +19,6 @@ def data_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     monkeypatch.setattr(config, "DATA_DIR", tmp_path)
     monkeypatch.setattr("db.migrate_json.CONFIG_FILE", tmp_path / "config.json")
     monkeypatch.setattr(
-        "db.migrate_json.KARMA_HISTORY_FILE", tmp_path / "karma_history.jsonl"
-    )
-    monkeypatch.setattr(
         "db.migrate_json.RATE_STATE_FILE",
         tmp_path / "rate_state" / "previous_values.json",
     )
@@ -32,7 +29,7 @@ def test_json_data_exists_false_when_empty(data_dir: Path):
     assert json_data_exists() is False
 
 
-def test_collect_json_payload_maps_guilds_karma_and_rate_state(data_dir: Path):
+def test_collect_json_payload_maps_guilds_and_rate_state(data_dir: Path):
     (data_dir / "rate_state").mkdir()
     (data_dir / "config.json").write_text(
         json.dumps(
@@ -46,29 +43,8 @@ def test_collect_json_payload_maps_guilds_karma_and_rate_state(data_dir: Path):
                         }
                     }
                 },
-                "karma": {
-                    "balances": {"999": 4},
-                    "cooldowns": {"1:2": "2025-02-11T12:00:00"},
-                    "cooldown_hours": 12,
-                    "history_limit": 5,
-                },
             }
         ),
-        encoding="utf-8",
-    )
-    (data_dir / "karma_history.jsonl").write_text(
-        json.dumps(
-            {
-                "user_id": "999",
-                "timestamp": "2025-02-11T14:30:00",
-                "action": "add",
-                "amount": 1,
-                "by": "Sam",
-                "giver_id": "1",
-                "reason": "helped",
-            }
-        )
-        + "\n",
         encoding="utf-8",
     )
     (data_dir / "rate_state" / "previous_values.json").write_text(
@@ -80,12 +56,7 @@ def test_collect_json_payload_maps_guilds_karma_and_rate_state(data_dir: Path):
     summary = MigrationSummary.from_payload(payload)
 
     assert summary.guild_notifications == 1
-    assert summary.balances == 1
-    assert summary.cooldowns == 1
-    assert summary.events == 1
     assert summary.has_rate_state is True
-    assert summary.cooldown_hours == 12
-    assert summary.history_limit == 5
     assert payload["guild_notifications"][0]["guild_id"] == "111"
 
 

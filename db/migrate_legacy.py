@@ -67,19 +67,6 @@ def _fetch_all(client, table: str) -> list[dict[str, Any]]:
     return rows
 
 
-def _event_row(record: dict[str, Any]) -> dict[str, Any]:
-    return {
-        "user_id": str(record["user_id"]),
-        "created_at": record["created_at"],
-        "action": record["action"],
-        "amount": int(record.get("amount", 1)),
-        "by_name": record.get("by_name"),
-        "giver_id": record.get("giver_id"),
-        "admin_id": record.get("admin_id"),
-        "reason": record.get("reason"),
-    }
-
-
 def collect_legacy_payload() -> dict[str, Any]:
     client = _old_client()
     client.table("rate_state").select("id").eq("id", 1).limit(1).execute()
@@ -92,39 +79,6 @@ def collect_legacy_payload() -> dict[str, Any]:
         }
         for row in _fetch_all(client, "guild_rate_notifications")
     ]
-    balances = [
-        {"user_id": str(row["user_id"]), "balance": int(row["balance"])}
-        for row in _fetch_all(client, "karma_balances")
-    ]
-    cooldowns = [
-        {
-            "giver_id": str(row["giver_id"]),
-            "receiver_id": str(row["receiver_id"]),
-            "last_given": row["last_given"],
-        }
-        for row in _fetch_all(client, "karma_cooldowns")
-    ]
-    events = [_event_row(row) for row in _fetch_all(client, "karma_events")]
-
-    settings_resp = (
-        client.table("karma_global_settings")
-        .select("cooldown_hours, history_limit")
-        .eq("id", 1)
-        .limit(1)
-        .execute()
-    )
-    if settings_resp.data:
-        settings = {
-            "cooldown_hours": int(settings_resp.data[0]["cooldown_hours"]),
-            "history_limit": int(settings_resp.data[0]["history_limit"]),
-        }
-    else:
-        import config
-
-        settings = {
-            "cooldown_hours": config.DEFAULT_COOLDOWN_HOURS,
-            "history_limit": config.DEFAULT_KARMA_HISTORY_LIMIT,
-        }
 
     rate_resp = (
         client.table("rate_state")
@@ -139,10 +93,6 @@ def collect_legacy_payload() -> dict[str, Any]:
 
     return {
         "guild_notifications": guild_notifications,
-        "balances": balances,
-        "cooldowns": cooldowns,
-        "settings": settings,
-        "events": events,
         "rate_state": rate_state,
     }
 
@@ -150,9 +100,6 @@ def collect_legacy_payload() -> dict[str, Any]:
 def _source_has_data(payload: dict[str, Any]) -> bool:
     return bool(
         payload["guild_notifications"]
-        or payload["balances"]
-        or payload["cooldowns"]
-        or payload["events"]
         or payload["rate_state"] is not None
     )
 

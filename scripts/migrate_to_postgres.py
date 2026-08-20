@@ -62,45 +62,6 @@ def _collect_from_postgrest() -> dict:
         }
         for r in fetch_all("guild_rate_notifications")
     ]
-    balances = [
-        {"user_id": str(r["user_id"]), "balance": int(r["balance"])}
-        for r in fetch_all("karma_balances")
-    ]
-    cooldowns = [
-        {
-            "giver_id": str(r["giver_id"]),
-            "receiver_id": str(r["receiver_id"]),
-            "last_given": r["last_given"],
-        }
-        for r in fetch_all("karma_cooldowns")
-    ]
-    events = []
-    for r in fetch_all("karma_events"):
-        events.append({
-            "user_id": str(r["user_id"]),
-            "created_at": r["created_at"],
-            "action": r["action"],
-            "amount": int(r.get("amount", 1)),
-            "by_name": r.get("by_name"),
-            "giver_id": r.get("giver_id"),
-            "admin_id": r.get("admin_id"),
-            "reason": r.get("reason"),
-        })
-
-    settings_resp = (
-        sb.table("karma_global_settings")
-        .select("cooldown_hours, history_limit")
-        .eq("id", 1)
-        .limit(1)
-        .execute()
-    )
-    if settings_resp.data:
-        settings = {
-            "cooldown_hours": int(settings_resp.data[0]["cooldown_hours"]),
-            "history_limit": int(settings_resp.data[0]["history_limit"]),
-        }
-    else:
-        settings = {"cooldown_hours": 24, "history_limit": 10}
 
     rate_resp = (
         sb.table("rate_state").select("previous_rates").eq("id", 1).limit(1).execute()
@@ -111,10 +72,6 @@ def _collect_from_postgrest() -> dict:
 
     return {
         "guild_notifications": guilds,
-        "balances": balances,
-        "cooldowns": cooldowns,
-        "settings": settings,
-        "events": events,
         "rate_state": rate_state,
     }
 
@@ -122,15 +79,7 @@ def _collect_from_postgrest() -> dict:
 def _print_payload(payload: dict, label: str) -> None:
     print(f"\n{label}")
     print(f"  Rate notification guilds: {len(payload['guild_notifications'])}")
-    print(f"  Karma balances:           {len(payload['balances'])}")
-    print(f"  Karma cooldowns:          {len(payload['cooldowns'])}")
-    print(f"  Karma events:             {len(payload['events'])}")
     print(f"  Rate state cache:         {'yes' if payload['rate_state'] else 'no'}")
-    print(
-        f"  Karma settings:           "
-        f"{payload['settings']['cooldown_hours']}h / "
-        f"{payload['settings']['history_limit']} history"
-    )
 
 
 def main() -> None:
@@ -189,7 +138,7 @@ def main() -> None:
         "\nNext steps:\n"
         "  1. Keep DATABASE_URL in .env / the host (REST vars become unused).\n"
         "  2. Restart the bot — expect: Storage backend: Postgres\n"
-        "  3. Smoke test /rate_channel_status and /manage_karma action:check"
+        "  3. Smoke test /rate_channel_status"
     )
 
 

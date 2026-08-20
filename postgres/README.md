@@ -22,7 +22,7 @@ With `DATABASE_URL` set, Postgres REST vars are ignored by the bot.
 ```bash
 pip install -r requirements.txt
 
-# Create tables + karma RPCs
+# Create tables
 python scripts/migrate_to_postgres.py --apply-schema
 
 # Preview rows that will be copied from Postgres REST

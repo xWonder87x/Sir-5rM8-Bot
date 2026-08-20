@@ -10,19 +10,6 @@ logger = logging.getLogger("db")
 EXPECTED_SCHEMA: dict[str, list[str]] = {
     "guild_rate_notifications": ["guild_id", "channel_id", "role_id"],
     "rate_state": ["id", "previous_rates"],
-    "karma_global_settings": ["id", "cooldown_hours", "history_limit"],
-    "karma_balances": ["user_id", "balance"],
-    "karma_cooldowns": ["giver_id", "receiver_id", "last_given"],
-    "karma_events": [
-        "user_id",
-        "created_at",
-        "action",
-        "amount",
-        "by_name",
-        "giver_id",
-        "admin_id",
-        "reason",
-    ],
     "bothunter_config": [
         "guild_id",
         "channel_id",

@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.14] - 2026-08-21
+
+### Removed
+
+- `/karma` and `/manage_karma` (the karma system)
+- Deploy marker `v1.2.14`. After deploy, run `/sync-commands` so Discord drops the old slash commands. Unused karma tables may remain in Postgres.
+
 ## [1.2.13] - 2026-08-21
 
 ### Changed

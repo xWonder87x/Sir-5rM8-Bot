@@ -16,14 +16,7 @@ __all__ = [
     "fetch_current_rates_async",
     "find_server",
     "find_server_async",
-    "get_karma_settings",
     "get_server_channel",
-    "karma_add",
-    "karma_get_audit",
-    "karma_get_balance",
-    "karma_get_cooldown",
-    "karma_get_history",
-    "karma_take",
 ]
 
 
@@ -45,34 +38,6 @@ def get_server_channel(guild_id: str) -> dict | None:
 
 def clear_server_channel(guild_id: str) -> bool:
     return db.clear_rate_notification(guild_id)
-
-
-def karma_get_balance(user_id: str) -> int:
-    return db.karma_get_balance(user_id)
-
-
-def karma_get_cooldown(giver_id: str, receiver_id: str):
-    return db.karma_get_cooldown(giver_id, receiver_id)
-
-
-def karma_add(giver_id: str, receiver_id: str, giver_name: str, reason: str) -> int:
-    return db.karma_add(giver_id, receiver_id, giver_name, reason)
-
-
-def karma_take(target_id: str, admin_id: str, admin_name: str) -> int | None:
-    return db.karma_take(target_id, admin_id, admin_name)
-
-
-def karma_get_history(user_id: str) -> list:
-    return db.karma_get_history(user_id)
-
-
-def karma_get_audit(limit: int = 20) -> list:
-    return db.karma_get_audit(limit)
-
-
-def get_karma_settings() -> dict:
-    return db.get_karma_settings()
 
 
 def check_rate_changes() -> tuple[list | None, dict | None, dict | None, int]:
