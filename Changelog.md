@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.12] - 2026-08-21
+
+### Changed
+
+- Restart/redeploy always DMs `RESTART_NOTIFY_USER_ID` on process start; retries on later `on_ready` if the first send fails
+- Deploy marker `v1.2.12`
+
 ## [1.2.11] - 2026-08-21
 
 ### Changed

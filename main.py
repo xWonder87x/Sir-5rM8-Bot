@@ -30,7 +30,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Bumps when deploy verification matters; check logs after redeploy.
-DEPLOY_MARKER = "v1.2.11"
+DEPLOY_MARKER = "v1.2.12"
 
 
 def _last_commit_title(*, fallback: str | None = None) -> str:
@@ -149,10 +149,9 @@ async def on_ready():
 
     logger.info("Logged in as %s (ID: %s)", bot.user, bot.user.id)
 
-    # First action after login: DM the owner that this process is online.
+    # DM the owner on every process start (retry on later on_ready if the first send fails).
     if not restart_notice_sent:
-        restart_notice_sent = True
-        await notify_restart(
+        restart_notice_sent = await notify_restart(
             bot,
             f"Sir-5rM8 is online after restart/redeploy "
             f"(`{bot.user}` / `{DEPLOY_MARKER}` · `{COMMIT_TITLE}`).",

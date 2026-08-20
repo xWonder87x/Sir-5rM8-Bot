@@ -144,5 +144,13 @@ async def test_notify_restart_dms_user(monkeypatch):
         async def fetch_user(self, user_id: int):
             return user if user_id == 42 else None
 
-    await notify_restart(_Bot(), "Sir-5rM8 is online after restart/redeploy.")
+    ok = await notify_restart(_Bot(), "Sir-5rM8 is online after restart/redeploy.")
+    assert ok is True
     assert user.sent == "Sir-5rM8 is online after restart/redeploy."
+
+
+@pytest.mark.asyncio
+async def test_notify_restart_returns_false_when_disabled(monkeypatch):
+    monkeypatch.setattr(config, "RESTART_NOTIFY_USER_ID", None)
+    ok = await notify_restart(SimpleNamespace(), "hello")
+    assert ok is False
