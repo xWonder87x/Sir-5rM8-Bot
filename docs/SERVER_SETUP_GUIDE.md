@@ -1,6 +1,6 @@
 # Server Setup Guide
 
-Welcome! This guide helps you get the most out of Sir-5rM8 after adding it to your Discord server.
+Welcome! This guide helps you get the most out of Sir-5rM8 after adding it to your Discord server. In Discord, `/help` shows the same command list.
 
 ---
 
@@ -96,17 +96,22 @@ Run `/bothunter` with no options to see current status. Use `clear:True` to remo
 
 ---
 
-## 7. Admin Tools
+## 7. Help & admin tools
 
 | Command | Description |
 |---------|-------------|
+| `/help` | Setup guide and command reference |
 | `/say [message]` | Repeats a message *(Admin)* |
+| `/sync-commands` | Refresh slash commands after a bot update *(Admin)* |
+
+If a command is missing after an update, an admin can run `/sync-commands`.
 
 ---
 
 ## Quick Start Checklist
 
 - [ ] Invite the bot
+- [ ] Run `/help` for the command list
 - [ ] Try `/rates` and `/serverstatus server:5313`
 - [ ] *(Optional)* Set up rate notifications with `/set_rate_channel`
 - [ ] *(Optional)* Set up in-game ARK notices with `/arknotifications`

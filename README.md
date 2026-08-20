@@ -10,7 +10,7 @@
 
 # **Sir-5rM8**
 
-**Version:** 1.2.0
+**Version:** 1.2.10
 
 ### *Making the community better, one command at a time.*
 
@@ -20,7 +20,7 @@
 
 ## Add to Your Server
 
-**Invite Sir-5rM8 to your Discord server** — no setup required. Just add the bot and start using it.
+**Invite Sir-5rM8 to your Discord server** — no setup required. Just add the bot and start with `/help`.
 
 [**Add Sir-5rM8 to Discord**](https://discord.com/oauth2/authorize?client_id=1236457243222868010)
 
@@ -29,6 +29,8 @@
 ---
 
 ## ✨ Features
+
+Use **`/help`** in Discord for the same command list.
 
 ### ASA Official PVE Rate Fetch & Dynamic Rate Monitoring
 
@@ -72,11 +74,13 @@ Catch mass-spam bots by monitoring a dedicated trap channel. Anyone who posts th
 
 **Setup tips:** place the trap near the top of your channel list, keep the bot’s role above member roles, and ensure it has **Ban Members**. Softban bans then unbans so Discord deletes recent messages.
 
-### Admin Tools
+### Help & admin tools
 
 | Command | Description |
 |---------|-------------|
-| `/say [message]` | Repeats a message |
+| `/help` | Setup guide and command reference |
+| `/say [message]` | Repeats a message *(Admin)* |
+| `/sync-commands` | Refresh slash commands *(Admin)* |
 
 ### Coming soon features
 
