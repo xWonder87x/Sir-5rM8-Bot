@@ -1,7 +1,6 @@
 -- Sir-5rM8 — unified Postgres REST on the Discord Bots project (msksvvopixdaqhvdewvw).
--- Canonical apply path: ALICE merge schema + bot_roles.sql
--- Runbook: ../ALICE/docs/UNIFIED_SUPABASE.md
--- Bot credential: JWT with role=bot_sir5rm8 (mint via ALICE/scripts/mint_bot_jwt.py)
+-- Apply postgres/schema.sql for DATABASE_URL; this file is the REST-oriented copy.
+-- Bot credential: JWT with role=bot_sir5rm8
 --
 -- Legacy note: this file is kept for reference. Tables may omit public. prefix; merge SQL uses public.
 

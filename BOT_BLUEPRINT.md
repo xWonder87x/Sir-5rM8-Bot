@@ -16,7 +16,7 @@ Copy this file into every bot repo unchanged. Pair it with a bot-specific **`AGE
 
 **Do not put bot-specific commands, cogs, or feature folders in this blueprint.** Document those in that bot's `AGENTS.md` and `README.md`.
 
-For a large, filled-in example of the pattern, see **ALICE** (`ALICE/AGENTS.md` + repo layout). ALICE is one bot — not a checklist every other bot must copy.
+This blueprint is the shared skeleton — not a checklist of features every bot must copy.
 
 ---
 
@@ -84,7 +84,7 @@ Every bot shares the **skeleton** below. Feature folders under `commands/` are c
 
 ### Not every bot has
 
-These appear in some bots (e.g. ALICE) but are **not required** by this blueprint:
+These appear in some bots but are **not required** by this blueprint:
 
 - `commands/mod/`, `economy/`, `partner/`, `integrations/` — feature areas, not standard folders
 - Sticky-channel embeds (`commands/common/sticky.py`)
@@ -297,7 +297,7 @@ Discord must ACK interactions quickly. Established pattern across reference bots
 2. Run sync `db.*` / storage helpers via **`await asyncio.to_thread(...)`**.
 3. Reply with **`interaction.followup.send(...)`** (or edit the deferred response).
 4. Wrap background `@tasks.loop` bodies in `try/except` + `logger.exception` so one failure does not kill the loop.
-5. Prefer regression tests that assert command paths call `asyncio.to_thread` for blocking storage (see Sir-5rM8 / ALICE patterns).
+5. Prefer regression tests that assert command paths call `asyncio.to_thread` for blocking storage.
 
 Do **not** call blocking `requests` / `psycopg` `.execute()` directly inside async slash handlers or views.
 
@@ -410,7 +410,7 @@ Offline tests live in `tests/` when present. Feature scripts in `scripts/verify_
 
 ### 8. Scaffold a new bot repo
 
-From a repo that ships `scripts/scaffold_bot.py` (e.g. **ALICE**):
+From a repo that ships `scripts/scaffold_bot.py`:
 
 ```bash
 python scripts/scaffold_bot.py /path/to/NewBot --name "New Bot"
@@ -455,10 +455,6 @@ When adding or modifying features in any bot:
 ### Existing bot
 
 > Follow **`BOT_BLUEPRINT.md`** for architecture and validation. Follow this repo's **`AGENTS.md`** for bot-specific commands, load order, and env vars. Preserve public import paths (`import db`, `import functions`, extension names). Split large files into packages with `__init__.py` re-exports rather than changing callers. Keep slash handlers non-blocking (`defer` + `asyncio.to_thread`); fail closed if extension load fails.
-
-### Starting from ALICE as template
-
-> Copy **`BOT_BLUEPRINT.md`** and use **ALICE** (`AGENTS.md` + repo structure) as one reference implementation. **Strip** ALICE-specific cogs, tables, and commands; keep only the package layout and conventions that this new bot actually needs. Use Postgres (`DATABASE_URL` + `psycopg`); do not add a Postgres REST client unless this bot still documents a cutover fallback in `AGENTS.md`.
 
 ---
 

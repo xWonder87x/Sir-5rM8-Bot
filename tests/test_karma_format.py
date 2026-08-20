@@ -16,7 +16,7 @@ def test_format_history_line_truncates_reason():
         "timestamp": "2025-01-01T12:00:00+00:00",
         "action": "add",
         "amount": 1,
-        "by": "Alice",
+        "by": "Sam",
         "giver_id": "1",
         "reason": "y" * 200,
     }

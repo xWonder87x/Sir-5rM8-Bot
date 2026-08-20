@@ -134,7 +134,7 @@
 - Shared **Discord Bots** Postgres REST storage (`bot_sir5rm8` role) with JSON fallback
 - JSON → database and legacy database → Discord Bots migration scripts
 - Deploy marker + slash sync listing for easier production verification
-- Restart/redeploy DM to `RESTART_NOTIFY_USER_ID` (once per process, like ALICE)
+- Restart/redeploy DM to `RESTART_NOTIFY_USER_ID` (once per process)
 - `asyncio.to_thread` regression tests for karma/admin storage paths
 - `pytest-asyncio` for async unit tests
 
@@ -142,8 +142,8 @@
 
 - Cut over from the old Sir-5rM8 database project to the unified Discord Bots database
 - Upgrade the Postgres REST Python client to `>=2.15` (supports `sb_secret_…` API keys)
-- Port ALICE reliability patterns: defer before DB, offload sync storage, fail-fast extension load, `SyncResult` slash sync
-- Lighter schema probes (`.limit(0)`); docs renamed from ALICE project label to Discord Bots
+- Reliability patterns: defer before DB, offload sync storage, fail-fast extension load, `SyncResult` slash sync
+- Lighter schema probes (`.limit(0)`); docs renamed to Discord Bots
 - BOT_BLUEPRINT clarifications for optional feature folders
 
 ### Removed

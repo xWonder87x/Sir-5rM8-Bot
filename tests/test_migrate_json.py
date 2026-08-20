@@ -63,7 +63,7 @@ def test_collect_json_payload_maps_guilds_karma_and_rate_state(data_dir: Path):
                 "timestamp": "2025-02-11T14:30:00",
                 "action": "add",
                 "amount": 1,
-                "by": "Alice",
+                "by": "Sam",
                 "giver_id": "1",
                 "reason": "helped",
             }

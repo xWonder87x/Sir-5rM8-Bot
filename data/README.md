@@ -52,7 +52,7 @@ data/
 Append-only log of karma events. Each line is a JSON object:
 
 ```json
-{"user_id": "123", "timestamp": "2025-02-11T14:30:00", "action": "add", "amount": 1, "by": "Alice", "giver_id": "456", "reason": "for helping"}
+{"user_id": "123", "timestamp": "2025-02-11T14:30:00", "action": "add", "amount": 1, "by": "Sam", "giver_id": "456", "reason": "for helping"}
 {"user_id": "123", "timestamp": "2025-02-11T12:00:00", "action": "remove", "amount": 1, "by": "ModAdmin", "admin_id": "789"}
 ```
 
