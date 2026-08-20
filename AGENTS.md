@@ -95,7 +95,7 @@ No user-facing prefix commands.
 
 Without a remote DB, the same data lives under `data/` as JSON.
 
-See **`postgres/README.md`**, **`docs/DATABASE.md`**, and **`../ALICE/docs/UNIFIED_SUPABASE.md`**.
+See **`postgres/README.md`**.
 
 ## Official ASA monitoring
 

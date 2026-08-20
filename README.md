@@ -99,7 +99,7 @@ pip install -r requirements.txt
 python main.py
 ```
 
-Optional storage: **Postgres** (`DATABASE_URL`) preferred, else Postgres REST — see [postgres/README.md](postgres/README.md) and [docs/DATABASE.md](docs/DATABASE.md).
+Optional storage: **Postgres** (`DATABASE_URL`) preferred, else Postgres REST — see [postgres/README.md](postgres/README.md).
 
 **Developer:** After code changes without a full restart, bot owner or admins can run `!reload` in Discord to reload cogs and re-sync slash commands.
 

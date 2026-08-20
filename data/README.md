@@ -1,6 +1,6 @@
 # Data Directory
 
-When **no remote database** is configured (`DATABASE_URL` or Postgres REST vars in `.env`), the bot stores state here. See [docs/DATABASE.md](../docs/DATABASE.md) — unified **Discord Bots** project (`msksvvopixdaqhvdewvw`).
+When **no remote database** is configured (`DATABASE_URL` or Postgres REST vars in `.env`), the bot stores state here. See [postgres/README.md](../postgres/README.md).
 
 This directory is created automatically when the bot runs with file storage.
 
