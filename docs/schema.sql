@@ -28,9 +28,13 @@ ON CONFLICT (id) DO NOTHING;
 -- If you ever use an anonymous key from clients, add RLS policies here.
 
 CREATE TABLE IF NOT EXISTS guild_ark_notifications (
-  guild_id   TEXT PRIMARY KEY,
-  channel_id TEXT NOT NULL
+  guild_id         TEXT PRIMARY KEY,
+  channel_id       TEXT NOT NULL,
+  last_message_id  TEXT
 );
+
+ALTER TABLE guild_ark_notifications
+  ADD COLUMN IF NOT EXISTS last_message_id TEXT;
 
 CREATE TABLE IF NOT EXISTS ark_notification_state (
   id             SMALLINT PRIMARY KEY CHECK (id = 1),

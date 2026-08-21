@@ -59,17 +59,50 @@ def _ensure_ark_notice_state_row() -> None:
 
 
 def set_ark_notification(guild_id: str, channel_id: str) -> None:
+    existing = get_ark_notification(guild_id)
+    payload: dict = {"guild_id": guild_id, "channel_id": channel_id}
+    if existing and existing.get("channel_id") == channel_id and existing.get("last_message_id"):
+        payload["last_message_id"] = existing["last_message_id"]
+    elif existing and existing.get("channel_id") != channel_id:
+        payload["last_message_id"] = None
     _sb().table("guild_ark_notifications").upsert(
-        {"guild_id": guild_id, "channel_id": channel_id},
+        payload,
         on_conflict="guild_id",
     ).execute()
 
 
+def set_ark_notice_last_message(guild_id: str, message_id: str | None) -> None:
+    _sb().table("guild_ark_notifications").update(
+        {"last_message_id": message_id}
+    ).eq("guild_id", guild_id).execute()
+
+
 def get_ark_notification(guild_id: str) -> dict | None:
-    r = _sb().table("guild_ark_notifications").select("channel_id").eq("guild_id", guild_id).limit(1).execute()
+    try:
+        r = (
+            _sb()
+            .table("guild_ark_notifications")
+            .select("channel_id, last_message_id")
+            .eq("guild_id", guild_id)
+            .limit(1)
+            .execute()
+        )
+    except Exception:
+        r = (
+            _sb()
+            .table("guild_ark_notifications")
+            .select("channel_id")
+            .eq("guild_id", guild_id)
+            .limit(1)
+            .execute()
+        )
     if not r.data:
         return None
-    return {"channel_id": r.data[0]["channel_id"]}
+    row = r.data[0]
+    return {
+        "channel_id": row["channel_id"],
+        "last_message_id": row.get("last_message_id"),
+    }
 
 
 def clear_ark_notification(guild_id: str) -> bool:
@@ -80,9 +113,26 @@ def clear_ark_notification(guild_id: str) -> bool:
 
 
 def get_ark_notification_channels() -> list[dict]:
-    r = _sb().table("guild_ark_notifications").select("guild_id, channel_id").execute()
+    try:
+        r = (
+            _sb()
+            .table("guild_ark_notifications")
+            .select("guild_id, channel_id, last_message_id")
+            .execute()
+        )
+    except Exception:
+        r = (
+            _sb()
+            .table("guild_ark_notifications")
+            .select("guild_id, channel_id")
+            .execute()
+        )
     return [
-        {"guild_id": row["guild_id"], "channel_id": row["channel_id"]}
+        {
+            "guild_id": row["guild_id"],
+            "channel_id": row["channel_id"],
+            "last_message_id": row.get("last_message_id"),
+        }
         for row in (r.data or [])
     ]
 

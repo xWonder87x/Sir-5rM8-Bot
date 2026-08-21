@@ -104,7 +104,7 @@ Primary CDN endpoints (see `functions/asa_client.py` + `functions/asa_cache.py`)
 
 Matching order: SessionID, exact `Name`, IP / IP:port, numeric server id in the session name, then exact session name. Substring match is last resort.
 
-`/arknotifications` relays `notification.html` to a guild-chosen Discord channel when the text changes to a non-empty notice. Empty pages (`..`) are stored but not posted. The first observation after a restart is seeded without posting.
+`/arknotifications` relays `notification.html` to a guild-chosen Discord channel when the text changes to a non-empty notice. Empty pages (`..`) and `execsave` are stored but not posted. The 15 / 10 / 5 minute restart warnings replace the previous countdown message (only the 5-minute post is left). The first observation after a restart is seeded without posting.
 
 Per-server ONLINE means the row is in the latest **successful** list and `LastUpdated` is fresher than `ASA_STALE_SECONDS`. Missing rows increment a miss counter; after `ASA_OFFLINE_MISS_THRESHOLD` they become OFFLINE. A CDN failure is `API_UNAVAILABLE` and keeps last-known state. `ServerPing` is latency, not an online flag — Wildcard does not publish an authoritative per-server heartbeat.
 

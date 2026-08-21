@@ -85,3 +85,39 @@ async def test_arknotifications_uses_to_thread() -> None:
         mock_tt.assert_awaited_once_with(ark_mod.db.get_ark_notification, "1")
         interaction.response.defer.assert_awaited()
         interaction.followup.send.assert_awaited()
+
+
+@pytest.mark.asyncio
+async def test_post_ark_notice_skips_execsave() -> None:
+    channel = MagicMock()
+    channel.send = AsyncMock()
+    with patch.object(ark_mod.asyncio, "to_thread", new_callable=AsyncMock) as mock_tt:
+        result = await ark_mod.post_ark_notice(
+            channel, "execsave", guild_id="1", last_message_id="10"
+        )
+    assert result == "10"
+    channel.send.assert_not_called()
+    mock_tt.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_post_ark_notice_replaces_previous_countdown() -> None:
+    old = MagicMock()
+    old.delete = AsyncMock()
+    sent = MagicMock()
+    sent.id = 20
+    channel = MagicMock()
+    channel.fetch_message = AsyncMock(return_value=old)
+    channel.send = AsyncMock(return_value=sent)
+    with patch.object(ark_mod.asyncio, "to_thread", new_callable=AsyncMock) as mock_tt:
+        result = await ark_mod.post_ark_notice(
+            channel,
+            "Servers restart in 5 minutes",
+            guild_id="1",
+            last_message_id="10",
+        )
+    assert result == "20"
+    channel.fetch_message.assert_awaited_once_with(10)
+    old.delete.assert_awaited_once()
+    channel.send.assert_awaited()
+    mock_tt.assert_awaited_once_with(ark_mod.db.set_ark_notice_last_message, "1", "20")

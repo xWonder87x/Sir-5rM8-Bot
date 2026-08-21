@@ -93,7 +93,23 @@ def set_ark_notification(guild_id: str, channel_id: str) -> None:
         data["guilds"] = {}
     if guild_id not in data["guilds"]:
         data["guilds"][guild_id] = {}
-    data["guilds"][guild_id]["ark_notifications"] = {"channel_id": channel_id}
+    existing = data["guilds"][guild_id].get("ark_notifications") or {}
+    payload: dict = {"channel_id": channel_id}
+    if existing.get("channel_id") == channel_id and existing.get("last_message_id"):
+        payload["last_message_id"] = existing["last_message_id"]
+    data["guilds"][guild_id]["ark_notifications"] = payload
+    _save_config(data)
+
+
+def set_ark_notice_last_message(guild_id: str, message_id: str | None) -> None:
+    data = _load_config()
+    rn = data.get("guilds", {}).get(guild_id, {}).get("ark_notifications")
+    if not rn:
+        return
+    if message_id:
+        rn["last_message_id"] = str(message_id)
+    else:
+        rn.pop("last_message_id", None)
     _save_config(data)
 
 
@@ -121,7 +137,11 @@ def get_ark_notification_channels() -> list[dict]:
     for guild_id, guild_data in data.get("guilds", {}).items():
         rn = guild_data.get("ark_notifications")
         if rn and rn.get("channel_id"):
-            result.append({"guild_id": guild_id, "channel_id": rn["channel_id"]})
+            result.append({
+                "guild_id": guild_id,
+                "channel_id": rn["channel_id"],
+                "last_message_id": rn.get("last_message_id"),
+            })
     return result
 
 

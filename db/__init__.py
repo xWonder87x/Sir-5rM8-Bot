@@ -39,6 +39,7 @@ if use_postgres():
         set_bothunter_config,
         set_rate_notification,
         set_ark_notification,
+        set_ark_notice_last_message,
         watch_server,
     )
 elif use_postgrest():
@@ -70,6 +71,7 @@ elif use_postgrest():
         set_bothunter_config,
         set_rate_notification,
         set_ark_notification,
+        set_ark_notice_last_message,
         watch_server,
     )
 else:
@@ -100,6 +102,7 @@ else:
         set_bothunter_config,
         set_rate_notification,
         set_ark_notification,
+        set_ark_notice_last_message,
         watch_server,
     )
 

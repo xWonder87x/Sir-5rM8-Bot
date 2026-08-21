@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.3.0] - 2026-08-21
+
+### Changed
+
+- Official ARK notices skip posting `execsave`
+- 15 / 10 / 5 minute restart warnings replace the previous countdown message, so only the 5-minute notice remains
+- Deploy marker `v1.3.0`
+
 ## [1.2.14] - 2026-08-21
 
 ### Removed

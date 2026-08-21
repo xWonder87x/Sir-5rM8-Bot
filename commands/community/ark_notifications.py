@@ -10,7 +10,11 @@ from discord.ext import commands, tasks
 
 import config
 import db
-from functions.ark_notices import consume_ark_notice_update
+from functions.ark_notices import (
+    consume_ark_notice_update,
+    is_execsave_notice,
+    is_restart_countdown_notice,
+)
 from functions.asa_cache import current_announcement
 
 logger = logging.getLogger(__name__)
@@ -30,6 +34,33 @@ def build_ark_notice_embed(text: str) -> discord.Embed:
     embed.set_thumbnail(url=config.THUMBNAIL_URL)
     embed.set_footer(text="In-game official notice")
     return embed
+
+
+async def _delete_previous_notice(channel, last_message_id: str | None) -> None:
+    if not last_message_id:
+        return
+    try:
+        old = await channel.fetch_message(int(last_message_id))
+        await old.delete()
+    except (ValueError, TypeError, discord.NotFound, discord.Forbidden, discord.HTTPException):
+        pass
+
+
+async def post_ark_notice(
+    channel,
+    text: str,
+    *,
+    guild_id: str,
+    last_message_id: str | None,
+) -> str | None:
+    """Post a notice, replacing the previous countdown message. Returns the new message id."""
+    if is_execsave_notice(text):
+        return last_message_id
+    if is_restart_countdown_notice(text):
+        await _delete_previous_notice(channel, last_message_id)
+    sent = await channel.send(embed=build_ark_notice_embed(text))
+    await asyncio.to_thread(db.set_ark_notice_last_message, guild_id, str(sent.id))
+    return str(sent.id)
 
 
 async def _resolve_guild_channel(interaction: discord.Interaction, raw) -> discord.abc.Messageable | None:
@@ -111,9 +142,19 @@ class ArkNotifyChannelSelect(discord.ui.ChannelSelect):
         mention = getattr(channel, "mention", f"<#{channel.id}>")
         notice = current_announcement()
         posted = False
-        if notice is not None and notice.fetch_ok and notice.text:
+        if (
+            notice is not None
+            and notice.fetch_ok
+            and notice.text
+            and not is_execsave_notice(notice.text)
+        ):
             try:
-                await channel.send(embed=build_ark_notice_embed(notice.text))
+                await post_ark_notice(
+                    channel,
+                    notice.text,
+                    guild_id=str(interaction.guild.id),
+                    last_message_id=None,
+                )
                 posted = True
             except discord.Forbidden:
                 await interaction.followup.send(
@@ -177,14 +218,18 @@ class ArkNotifications(commands.Cog):
             text, channels = await asyncio.to_thread(consume_ark_notice_update)
             if not text or not channels:
                 return
-            embed = build_ark_notice_embed(text)
             for ent in channels:
                 try:
                     guild = self.bot.get_guild(int(ent["guild_id"]))
                     channel = guild.get_channel(int(ent["channel_id"])) if guild else None
                     if channel is None or not hasattr(channel, "send"):
                         continue
-                    await channel.send(embed=embed)
+                    await post_ark_notice(
+                        channel,
+                        text,
+                        guild_id=str(ent["guild_id"]),
+                        last_message_id=ent.get("last_message_id"),
+                    )
                 except (KeyError, TypeError, ValueError, discord.Forbidden, discord.HTTPException) as exc:
                     logger.warning(
                         "ARK notice skipped for guild %s: %s",

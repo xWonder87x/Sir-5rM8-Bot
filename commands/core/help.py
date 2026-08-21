@@ -39,7 +39,8 @@ class Help(commands.Cog):
             _embed(
                 "Official in-game ARK notifications",
                 "`/arknotifications` *(Admin)* — pick a channel for the same notices "
-                "Wildcard posts inside ASA. Use **Disable** to stop.",
+                "Wildcard posts inside ASA. Restart countdowns replace the previous "
+                "timer; `execsave` is not posted. Use **Disable** to stop.",
             ),
             _embed(
                 "Bothunter (spam trap)",

@@ -31,6 +31,12 @@ def _conn() -> Iterator[psycopg.Connection]:
 def check_connection() -> None:
     with _conn() as conn:
         conn.execute("SELECT 1 FROM rate_state WHERE id = 1 LIMIT 1")
+        conn.execute(
+            """
+            ALTER TABLE guild_ark_notifications
+            ADD COLUMN IF NOT EXISTS last_message_id TEXT
+            """
+        )
 
 
 def _ensure_rate_state_row(conn: psycopg.Connection) -> None:
@@ -116,9 +122,26 @@ def set_ark_notification(guild_id: str, channel_id: str) -> None:
             INSERT INTO guild_ark_notifications (guild_id, channel_id)
             VALUES (%s, %s)
             ON CONFLICT (guild_id) DO UPDATE
-              SET channel_id = EXCLUDED.channel_id
+              SET channel_id = EXCLUDED.channel_id,
+                  last_message_id = CASE
+                    WHEN guild_ark_notifications.channel_id = EXCLUDED.channel_id
+                    THEN guild_ark_notifications.last_message_id
+                    ELSE NULL
+                  END
             """,
             (guild_id, channel_id),
+        )
+
+
+def set_ark_notice_last_message(guild_id: str, message_id: str | None) -> None:
+    with _conn() as conn:
+        conn.execute(
+            """
+            UPDATE guild_ark_notifications
+            SET last_message_id = %s
+            WHERE guild_id = %s
+            """,
+            (message_id, guild_id),
         )
 
 
@@ -126,7 +149,7 @@ def get_ark_notification(guild_id: str) -> dict | None:
     with _conn() as conn:
         row = conn.execute(
             """
-            SELECT channel_id
+            SELECT channel_id, last_message_id
             FROM guild_ark_notifications
             WHERE guild_id = %s
             LIMIT 1
@@ -135,7 +158,10 @@ def get_ark_notification(guild_id: str) -> dict | None:
         ).fetchone()
     if not row:
         return None
-    return {"channel_id": row["channel_id"]}
+    return {
+        "channel_id": row["channel_id"],
+        "last_message_id": row.get("last_message_id"),
+    }
 
 
 def clear_ark_notification(guild_id: str) -> bool:
@@ -152,10 +178,14 @@ def clear_ark_notification(guild_id: str) -> bool:
 def get_ark_notification_channels() -> list[dict]:
     with _conn() as conn:
         rows = conn.execute(
-            "SELECT guild_id, channel_id FROM guild_ark_notifications"
+            "SELECT guild_id, channel_id, last_message_id FROM guild_ark_notifications"
         ).fetchall()
     return [
-        {"guild_id": row["guild_id"], "channel_id": row["channel_id"]}
+        {
+            "guild_id": row["guild_id"],
+            "channel_id": row["channel_id"],
+            "last_message_id": row.get("last_message_id"),
+        }
         for row in rows
     ]
 
