@@ -6,7 +6,8 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-load_dotenv()
+# Railway bucket refs use ${{...}}; disable interpolation so dotenv does not mangle them.
+load_dotenv(interpolate=False)
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 DATA_DIR = Path(os.environ.get("DATA_DIR", PROJECT_ROOT / "data"))

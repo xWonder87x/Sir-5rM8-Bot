@@ -21,7 +21,30 @@ _loaded: set[str] = set()
 
 def state_bucket_configured() -> bool:
     bucket = (getattr(config, "STATE_BUCKET", None) or "").strip()
-    return bool(bucket) and storage.use_s3_storage()
+    if not bucket or not storage.use_s3_storage():
+        return False
+    if storage.looks_like_railway_template(bucket):
+        return False
+    return storage.bucket_name_valid(bucket)
+
+
+def probe_bucket_connection() -> tuple[bool, str]:
+    """Lightweight read/write check against STATE_BUCKET. For startup diagnostics."""
+    bucket = _bucket()
+    if not state_bucket_configured():
+        if bucket and storage.looks_like_railway_template(bucket):
+            return False, "STATE_BUCKET is still a Railway template (set Variable References on the service)"
+        if bucket and not storage.bucket_name_valid(bucket):
+            return False, f"STATE_BUCKET is not a valid S3 bucket name ({bucket!r})"
+        return False, "STATE_BUCKET or S3 credentials not configured"
+    probe_key = "state/_sir5rm8_connectivity_probe.json"
+    payload = {"ok": True}
+    if not save_json(probe_key, payload):
+        return False, "write to STATE_BUCKET failed (check credentials and endpoint)"
+    if load_json(probe_key).get("ok") is not True:
+        return False, "read back from STATE_BUCKET failed"
+    delete_json(probe_key)
+    return True, "read/write OK"
 
 
 def _bucket() -> str:

@@ -30,7 +30,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Bumps when deploy verification matters; check logs after redeploy.
-DEPLOY_MARKER = "v1.4.0"
+DEPLOY_MARKER = "v1.4.1"
 
 
 def _last_commit_title(*, fallback: str | None = None) -> str:
@@ -87,15 +87,34 @@ def _validate_env() -> None:
 
     logger.info("Deploy marker: %s · commit: %s", DEPLOY_MARKER, COMMIT_TITLE)
 
-    from functions.blob_state import state_bucket_configured
+    from db import storage
+    from functions.blob_state import probe_bucket_connection, state_bucket_configured
 
+    bucket_raw = (config.STATE_BUCKET or "").strip()
     if state_bucket_configured():
         logger.info("Object cache: Railway bucket (%s)", config.STATE_BUCKET)
-    elif config.STATE_BUCKET:
-        logger.warning(
-            "STATE_BUCKET is set but S3 credentials/endpoint are missing; "
-            "ASA cache will stay in-memory only"
-        )
+        ok, detail = probe_bucket_connection()
+        if ok:
+            logger.info("Object cache probe: %s", detail)
+        else:
+            logger.warning("Object cache probe failed: %s", detail)
+    elif bucket_raw:
+        if storage.looks_like_railway_template(bucket_raw):
+            logger.warning(
+                "STATE_BUCKET looks like a Railway template (%s); "
+                "use Variable References on the Sir-5rM8 service, not a copied .env value",
+                bucket_raw,
+            )
+        elif not storage.bucket_name_valid(bucket_raw):
+            logger.warning(
+                "STATE_BUCKET %r is not a valid bucket name; ASA cache will stay in-memory only",
+                bucket_raw,
+            )
+        else:
+            logger.warning(
+                "STATE_BUCKET is set but S3 credentials/endpoint are missing; "
+                "ASA cache will stay in-memory only"
+            )
 
     if db.use_postgres():
         logger.info("Storage backend: Postgres")

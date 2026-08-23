@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.4.1] - 2026-08-23
+
+### Fixed
+
+- Disable dotenv interpolation so Railway `${{bot-state.*}}` references are not mangled into invalid bucket names locally
+- Startup logs a STATE_BUCKET read/write probe and clearer warnings when bucket vars are missing or still templates
+- Deploy marker `v1.4.1`
+
 ## [1.4.0] - 2026-08-23
 
 ### Added

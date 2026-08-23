@@ -2,10 +2,13 @@
 from __future__ import annotations
 
 import os
+import re
 from functools import lru_cache
 from typing import Any
 
 from db._base import logger
+
+_BUCKET_NAME_RE = re.compile(r"^[a-zA-Z0-9.\-_]{1,255}$")
 
 
 def _env(*names: str) -> str:
@@ -27,6 +30,16 @@ def storage_endpoint() -> str:
 
 def storage_region() -> str:
     return _env("STORAGE_REGION", "AWS_REGION", "AWS_DEFAULT_REGION") or "auto"
+
+
+def bucket_name_valid(name: str) -> bool:
+    return bool((name or "").strip()) and bool(_BUCKET_NAME_RE.fullmatch(name.strip()))
+
+
+def looks_like_railway_template(value: str) -> bool:
+    """True when a value is still a Railway variable reference, not a resolved bucket name."""
+    v = (value or "").strip()
+    return "${{" in v or (v.startswith("${") and v.endswith("}"))
 
 
 def use_s3_storage() -> bool:
