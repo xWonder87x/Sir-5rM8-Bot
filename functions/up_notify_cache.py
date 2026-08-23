@@ -30,18 +30,28 @@ def add(
         server_key, user_id, channel_id, guild_id, query, session_name
     )
     if added:
-        watchers = _watchers()
-        watchers.append(
-            {
-                "server_key": str(server_key),
-                "user_id": str(user_id),
-                "channel_id": str(channel_id),
-                "guild_id": guild_id,
-                "query": query,
-                "session_name": session_name,
-            }
+        new_watcher = {
+            "server_key": str(server_key),
+            "user_id": str(user_id),
+            "channel_id": str(channel_id),
+            "guild_id": guild_id,
+            "query": query,
+            "session_name": session_name,
+        }
+        cache.update(
+            "up_notify",
+            db.list_up_notify_watchers_all,
+            lambda watchers: [
+                row
+                for row in watchers
+                if not (
+                    str(row.get("server_key")) == str(server_key)
+                    and str(row.get("user_id")) == str(user_id)
+                    and str(row.get("channel_id")) == str(channel_id)
+                )
+            ]
+            + [new_watcher],
         )
-        cache.put("up_notify", watchers)
     return added
 
 
@@ -49,16 +59,21 @@ def clear(server_key: str, channel_id: str | None = None) -> int:
     cleared = db.clear_up_notify(server_key, channel_id)
     if cleared:
         key = str(server_key).strip()
-        watchers = _watchers()
-        watchers = [
-            row
-            for row in watchers
-            if not (
-                str(row.get("server_key")) == key
-                and (channel_id is None or str(row.get("channel_id")) == str(channel_id))
-            )
-        ]
-        cache.put("up_notify", watchers)
+        cache.update(
+            "up_notify",
+            db.list_up_notify_watchers_all,
+            lambda watchers: [
+                row
+                for row in watchers
+                if not (
+                    str(row.get("server_key")) == key
+                    and (
+                        channel_id is None
+                        or str(row.get("channel_id")) == str(channel_id)
+                    )
+                )
+            ],
+        )
     return cleared
 
 

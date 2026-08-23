@@ -9,6 +9,7 @@ This directory is created automatically when the bot runs with file storage.
 ```
 data/
 ├── config.json             # Guild settings (rate + ARK notice channels)
+├── cache/db/               # Non-authoritative database cache envelopes
 ├── guild_list_message.json # Sticky message id for the guild-list embed
 └── rate_state/
     ├── previous_values.json  # Previous parsed rate values for change detection
@@ -36,4 +37,10 @@ data/
 
 - **guilds** — Per-server rate notification and official in-game notice settings
 
-`config.json`, `guild_list_message.json`, and `rate_state/` are gitignored to avoid committing user data.
+`cache/db/` contains versioned JSON envelopes with freshness metadata. These
+files may make startup reads fast, but Postgres/Postgres REST remains
+authoritative and reconciliation replaces cache values only with database
+values. Failed cache writes are retried in process.
+
+`config.json`, `cache/`, `guild_list_message.json`, and `rate_state/` are
+gitignored to avoid committing runtime or user data.

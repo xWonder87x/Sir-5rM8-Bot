@@ -31,10 +31,14 @@ async def fetch_current_rates_async() -> dict | None:
 
 def add_server_channel(guild_id: str, channel_id: str, role_id: str) -> None:
     db.set_rate_notification(guild_id, channel_id, role_id)
-    channels = cache.get("rate_notifications", db.get_rate_notification_channels)
-    channels = [row for row in channels if str(row.get("server_id")) != str(guild_id)]
-    channels.append({"server_id": str(guild_id), "channel_id": str(channel_id), "role": str(role_id)})
-    cache.put("rate_notifications", channels)
+    cache.update(
+        "rate_notifications",
+        db.get_rate_notification_channels,
+        lambda channels: [
+            row for row in channels if str(row.get("server_id")) != str(guild_id)
+        ]
+        + [{"server_id": str(guild_id), "channel_id": str(channel_id), "role": str(role_id)}],
+    )
 
 
 def get_server_channel(guild_id: str) -> dict | None:
@@ -48,10 +52,12 @@ def get_server_channel(guild_id: str) -> dict | None:
 def clear_server_channel(guild_id: str) -> bool:
     cleared = db.clear_rate_notification(guild_id)
     if cleared:
-        channels = cache.get("rate_notifications", db.get_rate_notification_channels)
-        cache.put(
+        cache.update(
             "rate_notifications",
-            [row for row in channels if str(row.get("server_id")) != str(guild_id)],
+            db.get_rate_notification_channels,
+            lambda channels: [
+                row for row in channels if str(row.get("server_id")) != str(guild_id)
+            ],
         )
     return cleared
 
@@ -98,13 +104,16 @@ def verify_cached_db_state() -> dict[str, bool]:
     from functions.bothunter_cache import verify_cached_bothunter_state
     from functions.up_notify_cache import verify_cached_up_notify_state
 
-    result = {
-        "rate_state": cache.verify("rate_state", db.get_previous_rate_values),
-        "rate_notifications": cache.verify(
-            "rate_notifications", db.get_rate_notification_channels
-        ),
-    }
-    result.update(verify_cached_ark_state())
-    result.update(verify_cached_bothunter_state())
-    result.update(verify_cached_up_notify_state())
-    return result
+    try:
+        result = {
+            "rate_state": cache.verify("rate_state", db.get_previous_rate_values),
+            "rate_notifications": cache.verify(
+                "rate_notifications", db.get_rate_notification_channels
+            ),
+        }
+        result.update(verify_cached_ark_state())
+        result.update(verify_cached_bothunter_state())
+        result.update(verify_cached_up_notify_state())
+        return result
+    finally:
+        cache.retry_dirty()

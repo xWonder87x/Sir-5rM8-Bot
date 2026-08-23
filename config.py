@@ -15,6 +15,15 @@ DATA_DIR = Path(os.environ.get("DATA_DIR", PROJECT_ROOT / "data"))
 # Railway Storage Bucket (S3) for ASA cache + sticky message ids
 STATE_BUCKET = (os.environ.get("STATE_BUCKET") or "").strip()
 ASA_BUCKET_FLUSH_SECONDS = int(os.environ.get("ASA_BUCKET_FLUSH_SECONDS", "300"))
+JSON_CACHE_STARTUP_GRACE_SECONDS = max(
+    0.0, float(os.environ.get("JSON_CACHE_STARTUP_GRACE_SECONDS", "10"))
+)
+JSON_CACHE_STARTUP_JITTER_SECONDS = max(
+    0.0, float(os.environ.get("JSON_CACHE_STARTUP_JITTER_SECONDS", "20"))
+)
+JSON_CACHE_RECONCILE_SECONDS = max(
+    1.0, float(os.environ.get("JSON_CACHE_RECONCILE_SECONDS", "3600"))
+)
 
 TOKEN = os.getenv("TOKEN")
 

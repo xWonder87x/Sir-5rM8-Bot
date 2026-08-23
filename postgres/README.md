@@ -37,21 +37,31 @@ Schema source: [`postgres/schema.sql`](schema.sql).
 If you already applied an older schema, re-run `--apply-schema` after upgrades that add tables
 (e.g. bothunter, `server_up_notify`, `guild_ark_notifications`). `CREATE TABLE IF NOT EXISTS` is safe to re-run.
 
-## 4. Railway object cache (optional)
+## 4. Dedicated Railway object cache (optional)
 
-Sir-5rM8 can share **ALICE's `bot-state` bucket** (same S3 bucket, different object keys). On the Sir-5rM8 bot service, add Variable References from that bucket:
+Provision a separate Railway bucket for Sir-5rM8 (for example,
+`sir-5rm8-state`). Do not reuse ALICE's bucket or credentials. On the Sir-5rM8
+bot service, add Variable References from the dedicated resource:
 
 ```env
 STORAGE_ENDPOINT=https://storage.railway.app
 STORAGE_REGION=auto
-STATE_BUCKET=${{bot-state.BUCKET}}
-STATE_ACCESS_KEY_ID=${{bot-state.ACCESS_KEY_ID}}
-STATE_SECRET_ACCESS_KEY=${{bot-state.SECRET_ACCESS_KEY}}
+STATE_BUCKET=${{sir-5rm8-state.BUCKET}}
+STATE_ACCESS_KEY_ID=${{sir-5rm8-state.ACCESS_KEY_ID}}
+STATE_SECRET_ACCESS_KEY=${{sir-5rm8-state.SECRET_ACCESS_KEY}}
 ```
 
-Sir-5rM8 writes `cache/asa.json` and `state/guild_list_message.json`. ALICE uses other `state/*.json` keys — they do not overlap.
+Or, after linking the bot service, run:
 
-The official ASA list last-known-good snapshot and the sticky guild-list message id are written here so they survive ephemeral disk. Postgres remains the source of truth for guild settings.
+```bash
+scripts/railway_state_bucket.sh sir-5rm8-state
+```
+
+Sir-5rM8 writes the official-list snapshot and database cache envelopes under
+`cache/`, and sticky ids under `state/`. These objects survive ephemeral disk,
+but Postgres remains authoritative. Persisted database copies can serve during
+the short startup grace and are then reconciled from Postgres in the
+background.
 
 ## 5. Restart the bot
 

@@ -3,11 +3,14 @@ from __future__ import annotations
 
 import tempfile
 from pathlib import Path
+from unittest.mock import AsyncMock
 
 import discord
 import pytest
 
+from commands.common import sticky as sticky_module
 from commands.common.sticky import StickyMessage
+from commands.core import guild_list
 
 TITLE = "Sticky X"
 BOT_ID = 42
@@ -114,3 +117,59 @@ async def test_sticky_clear() -> None:
     await s.clear()
     assert s.message_id is None
     assert not sp.exists()
+
+
+@pytest.mark.asyncio
+async def test_sticky_clear_delegates_blocking_state(monkeypatch, tmp_path) -> None:
+    sp = tmp_path / "st.json"
+    sp.write_text('{"message_id": "1"}', encoding="ascii")
+    sticky = StickyMessage(
+        FakeBot(), state_path=sp, matcher=_matcher, log_label="t"
+    )
+    to_thread = AsyncMock(side_effect=lambda function, *args: function(*args))
+    monkeypatch.setattr(sticky_module.asyncio, "to_thread", to_thread)
+
+    await sticky.clear()
+
+    to_thread.assert_awaited_once_with(
+        sticky_module.clear_persisted_message_id, sp
+    )
+
+
+@pytest.mark.asyncio
+async def test_sticky_save_delegates_blocking_state(monkeypatch, tmp_path) -> None:
+    sp = tmp_path / "st.json"
+    sticky = StickyMessage(
+        FakeBot(), state_path=sp, matcher=_matcher, log_label="t"
+    )
+    to_thread = AsyncMock(side_effect=lambda function, *args: function(*args))
+    monkeypatch.setattr(sticky_module.asyncio, "to_thread", to_thread)
+
+    channel = FakeChannel([])
+    await sticky.ensure(channel, discord.Embed(title=TITLE))
+
+    to_thread.assert_awaited_once_with(
+        sticky_module.save_persisted_message_id, sp, sticky.message_id
+    )
+
+
+@pytest.mark.asyncio
+async def test_guild_list_offloads_initial_sticky_load(monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr(guild_list.config, "DATA_DIR", tmp_path)
+    loaded_sticky = object()
+    to_thread = AsyncMock(return_value=loaded_sticky)
+    monkeypatch.setattr(guild_list.asyncio, "to_thread", to_thread)
+    cog = guild_list.GuildList(FakeBot())
+
+    result = await cog._load_sticky()
+
+    to_thread.assert_awaited_once_with(
+        guild_list.StickyMessage,
+        cog.bot,
+        state_path=tmp_path / "guild_list_message.json",
+        matcher=guild_list.is_guild_list_sticky,
+        log_label="guild_list",
+        pin=guild_list._pin_guild_list,
+    )
+    assert cog._sticky is loaded_sticky
+    assert result is loaded_sticky

@@ -68,40 +68,50 @@ def get_ark_notification(guild_id: str) -> dict | None:
 
 def set_ark_notice_last_message(guild_id: str, message_id: str | None) -> None:
     db.set_ark_notice_last_message(guild_id, message_id)
-    channels = cache.get("ark_notifications", db.get_ark_notification_channels)
-    for row in channels:
-        if str(row.get("guild_id")) == str(guild_id):
-            row["last_message_id"] = message_id
-            break
-    cache.put("ark_notifications", channels)
+    def mutate(channels: list[dict]) -> None:
+        for row in channels:
+            if str(row.get("guild_id")) == str(guild_id):
+                row["last_message_id"] = message_id
+                break
+
+    cache.update("ark_notifications", db.get_ark_notification_channels, mutate)
 
 
 def set_ark_notification(guild_id: str, channel_id: str) -> None:
     db.set_ark_notification(guild_id, channel_id)
-    channels = cache.get("ark_notifications", db.get_ark_notification_channels)
-    existing = next(
-        (row for row in channels if str(row.get("guild_id")) == str(guild_id)),
-        None,
-    )
-    if existing is None:
-        channels.append(
-            {"guild_id": str(guild_id), "channel_id": str(channel_id), "last_message_id": None}
+    def mutate(channels: list[dict]) -> None:
+        existing = next(
+            (row for row in channels if str(row.get("guild_id")) == str(guild_id)),
+            None,
         )
-    else:
-        existing["last_message_id"] = (
-            existing.get("last_message_id") if existing.get("channel_id") == str(channel_id) else None
-        )
-        existing["channel_id"] = str(channel_id)
-    cache.put("ark_notifications", channels)
+        if existing is None:
+            channels.append(
+                {
+                    "guild_id": str(guild_id),
+                    "channel_id": str(channel_id),
+                    "last_message_id": None,
+                }
+            )
+        else:
+            existing["last_message_id"] = (
+                existing.get("last_message_id")
+                if existing.get("channel_id") == str(channel_id)
+                else None
+            )
+            existing["channel_id"] = str(channel_id)
+
+    cache.update("ark_notifications", db.get_ark_notification_channels, mutate)
 
 
 def clear_ark_notification(guild_id: str) -> bool:
     cleared = db.clear_ark_notification(guild_id)
     if cleared:
-        channels = cache.get("ark_notifications", db.get_ark_notification_channels)
-        cache.put(
+        cache.update(
             "ark_notifications",
-            [row for row in channels if str(row.get("guild_id")) != str(guild_id)],
+            db.get_ark_notification_channels,
+            lambda channels: [
+                row for row in channels if str(row.get("guild_id")) != str(guild_id)
+            ],
         )
     return cleared
 

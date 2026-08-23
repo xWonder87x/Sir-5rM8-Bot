@@ -9,6 +9,17 @@
 - Cache-aware writes update Neon first, then persist the successful value locally and in the Railway bucket
 - Deploy marker `v1.5.0`
 
+### Changed
+
+- Cache files use backward-compatible v2 envelopes with freshness metadata, newest-copy selection, per-key single-flight updates, dirty-write retries, and process-local statistics
+- Startup uses a configurable jittered stale-while-revalidate grace (10–30 seconds by default) instead of trusting persisted state for one hour
+- Railway setup now requires a dedicated Sir-5rM8 state bucket and documents the `cache/` and `state/` object prefixes
+
+### Fixed
+
+- Bothunter events keep aggregate and channel-specific cached counts in sync without double-incrementing events that have no channel
+- Sticky state bucket and local writes are offloaded from async Discord paths
+
 ## [1.4.1] - 2026-08-23
 
 ### Fixed

@@ -1,6 +1,6 @@
 # BOT_BLUEPRINT.md
 
-**Universal architecture and strategy for Discord bots** built with **Python 3.10+**, **discord.py** (slash/interactions only), and **Postgres**.
+**Universal architecture and strategy for Discord bots** built with **Python 3.10+**, **discord.py** (slash/interactions only), and **Neon / Lakebase Postgres**.
 
 Copy this file into every bot repo unchanged. Pair it with a bot-specific **`AGENTS.md`**. This file defines **how** bots are built — not **what** each bot does.
 
@@ -16,7 +16,7 @@ Copy this file into every bot repo unchanged. Pair it with a bot-specific **`AGE
 
 **Do not put bot-specific commands, cogs, or feature folders in this blueprint.** Document those in that bot's `AGENTS.md` and `README.md`.
 
-This blueprint is the shared skeleton — not a checklist of features every bot must copy.
+For a large, filled-in example of the pattern, see **ALICE** (`ALICE/AGENTS.md` + repo layout). ALICE is one bot — not a checklist every other bot must copy.
 
 ---
 
@@ -32,6 +32,7 @@ This blueprint is the shared skeleton — not a checklist of features every bot 
 8. **Prefer `command_sync.sync_application_commands`** over ad hoc `bot.tree.sync()` so guild-scoped duplicates stay cleared where configured.
 9. **Keep the event loop free** — offload sync Postgres/JSON/HTTP helpers from async handlers with `asyncio.to_thread(...)`. Prefer `interaction.response.defer(...)` before any storage or network work, then `followup`.
 10. **Fail closed on startup** — if extension load fails, log, `await bot.close()`, and do **not** mark the bot ready with a half-loaded command tree.
+11. **Declare state authority before adding a cache** — a JSON file or object-storage blob must never silently become authoritative for rows owned by Postgres.
 
 ---
 
@@ -48,7 +49,7 @@ Every bot shares the **skeleton** below. Feature folders under `commands/` are c
 │   ├── _base.py            # Client, _tbl, EXPECTED_SCHEMA, check_schema, use_postgres
 │   ├── pg_client.py        # psycopg client (PostgREST-shaped table/rpc API)
 │   ├── <domain>.py         # One module per table group this bot uses
-│   └── sql/                # Canonical DDL + patches
+│   └── sql/                # Canonical DDL + patches (Neon SQL Editor)
 │       ├── schema.sql
 │       ├── README.md
 │       └── probe.py        # Optional connection ping (no db package import)
@@ -74,7 +75,7 @@ Every bot shares the **skeleton** below. Feature folders under `commands/` are c
 |------|------|
 | `main.py` | `commands.Bot`, staggered login / 429 exit+restart, `on_ready` extension load list, maintenance gate, global listeners |
 | `config.py` | `CHANNELS`, `ROLES`, guild IDs, timeouts, message templates — read env with `os.environ.get` |
-| `db/` | All Postgres access; `EXPECTED_SCHEMA` + `check_schema()` in `db/_base.py` |
+| `db/` | All Neon/Postgres access; `EXPECTED_SCHEMA` + `check_schema()` in `db/_base.py` |
 | `functions/` | Guards, shared business logic — add modules only when 2+ cogs need the same code |
 | `commands/<feature>/` | One or more cogs; each exposes `async def setup(bot)` — **only folders this bot uses** |
 | `commands/common/` | Optional helpers (`state.py`, `sticky.py`, `logging.py`) — never loaded as an extension |
@@ -84,7 +85,7 @@ Every bot shares the **skeleton** below. Feature folders under `commands/` are c
 
 ### Not every bot has
 
-These appear in some bots but are **not required** by this blueprint:
+These appear in some bots (e.g. ALICE) but are **not required** by this blueprint:
 
 - `commands/mod/`, `economy/`, `partner/`, `integrations/` — feature areas, not standard folders
 - Sticky-channel embeds (`commands/common/sticky.py`)
@@ -93,7 +94,7 @@ These appear in some bots but are **not required** by this blueprint:
 - Background `@tasks.loop` jobs
 - Restart/redeploy owner DM (`RESTART_NOTIFY_USER_ID`)
 - JSON-file storage fallback when `DATABASE_URL` is unset
-- Shared multi-bot Postgres project (separate databases or schemas per bot)
+- Shared multi-bot Neon project (separate databases or schemas per bot)
 
 If a bot does not need something, **omit it** — do not scaffold empty cogs "because the blueprint shows them."
 
@@ -105,11 +106,11 @@ If a bot does not need something, **omit it** — do not scaffold empty cogs "be
 |-------|--------|
 | Language | Python 3.10+ (`.python-version` for pyenv) |
 | Discord | `discord.py` — interactions / app commands only |
-| Database | **Postgres** (`DATABASE_URL` + `psycopg[binary]`) |
+| Database | **Lakebase Postgres via Neon** (`DATABASE_URL` + `psycopg[binary]`) |
 | Config | `config.py` for IDs/tunables; `.env` / host vars for secrets |
 | Deploy | Docker (`python:3.12-slim`) on Railway or similar worker host |
 | Logging | Python `logging`; optional remote handler (e.g. Postgres `bot_logs`) |
-| Files | S3-compatible object storage — not a hosted REST storage API |
+| Files | Railway S3 (or Neon Object Storage) — not a hosted REST storage API |
 
 ---
 
@@ -117,7 +118,7 @@ If a bot does not need something, **omit it** — do not scaffold empty cogs "be
 
 ### `main.py`
 
-- Load `.env`, validate required env (exit early with a clear message if missing).
+- Load `.env` **before importing modules that read environment at import time**, then validate required env (exit early with a clear message if missing). Use `load_dotenv(interpolate=False)` when local files may contain Railway `${{service.VAR}}` references.
 - Configure logging (console + optional remote handler).
 - Create `commands.Bot` with appropriate intents.
 - Load extensions in a **fixed, documented order** (listed in that bot's `AGENTS.md`). On failure: log + `bot.close()` — do not continue.
@@ -158,7 +159,7 @@ Split by **domain** (one file per table group). Keep each module focused; aim fo
 
 **When to split:** a single `db.py` is fine for small bots. Once it exceeds ~400–500 lines or mixes unrelated tables, split into `db/` with `__init__.py` re-exports so callers keep using `import db`.
 
-**Storage backends:** new bots use Postgres via `DATABASE_URL`. Prefer a **pooled** connection string for the long-running bot process; use the **direct** (non-pooler) URL only for schema dumps / one-shot migrations. Some bots may fall back to JSON under `data/` when `DATABASE_URL` is unset — document that in `AGENTS.md`. Do **not** scaffold a Postgres REST client for new bots.
+**Storage backends:** new bots use Neon via `DATABASE_URL` (alias `NEON_DATABASE_URL`). Prefer the **pooled** `-pooler` connection string for the long-running bot process; use the **direct** (non-pooler) URL only for schema dumps / one-shot migrations. Some bots may fall back to JSON under `data/` when `DATABASE_URL` is unset — document that in `AGENTS.md`. Do **not** scaffold a Supabase REST client for new bots.
 
 ### `functions/` package
 
@@ -297,17 +298,68 @@ Discord must ACK interactions quickly. Established pattern across reference bots
 2. Run sync `db.*` / storage helpers via **`await asyncio.to_thread(...)`**.
 3. Reply with **`interaction.followup.send(...)`** (or edit the deferred response).
 4. Wrap background `@tasks.loop` bodies in `try/except` + `logger.exception` so one failure does not kill the loop.
-5. Prefer regression tests that assert command paths call `asyncio.to_thread` for blocking storage.
+5. Prefer regression tests that assert command paths call `asyncio.to_thread` for blocking storage (see Sir-5rM8 / ALICE patterns).
 
 Do **not** call blocking `requests` / `psycopg` `.execute()` directly inside async slash handlers or views.
 
 ---
 
+## Object-storage JSON cache standard (optional)
+
+Use this pattern only when profiling shows repeated reads, timer scans, or restart recovery justify the extra state layer. A bucket reduces database load only when hot paths actually read memory/JSON instead of querying Postgres; it does not replace correct database indexes or queries.
+
+### Classify every object by authority
+
+| Class | Examples | Authority | Repair direction |
+|-------|----------|-----------|------------------|
+| **Database-backed derived cache** | Guild config, destinations, subscriptions, deadlines, aggregate counts | Neon/Postgres domain tables | **DB → cache only** |
+| **External-source snapshot** | Last-known-good third-party API/CDN response | Upstream service | **upstream → cache** |
+| **Cache-owned durable state** | Dedupe token, sticky message locator, resumable cursor | Explicitly documented bucket object | Bucket/object storage |
+
+Do not mix classes in one document. List every object key and its authority in the bot's `AGENTS.md`. A table such as `bot_state_blobs` may back up cache documents, but it is not authority for domain records.
+
+### Required semantics
+
+1. **Database-first writes:** commit the domain write, verify success, then update memory/local/bucket copies. A cache write failure must not roll back a successful domain write; mark the key dirty and retry.
+2. **Strict authoritative reads:** distinguish “query succeeded with zero rows” from “query failed.” A failed seed/reconcile must keep the old cache, remain unseeded, and retry with bounded backoff.
+3. **Stale-while-revalidate startup:** memory → local JSON → bucket → database on a complete miss. A persisted hit may serve during a short startup grace, then trigger a jittered DB verification. Do not trust restart-loaded JSON for a blind hour.
+4. **Authority-safe repair:** repair database-backed objects only from DB to JSON. Never flush bucket data into domain tables. Re-check authoritative state immediately before destructive or terminal actions; use conditional updates/claims for deadlines and queues.
+5. **Versioned envelope:** persist at least `version`, `written_at`, and `data`; add `source_revision` or `generation` when available. Read legacy formats only for migration. When local and bucket copies both exist, validate both and choose the freshest; corrupt copies fall through.
+6. **Atomic in-process access:** use per-key locks, single-flight loaders, deep copies, and an atomic `update(key, mutator)` API. Serialize persistence per key and write local files with a unique temporary file plus `os.replace`.
+7. **Multi-replica safety:** process locks do not protect multiple workers. Use database atomic operations, object generations/ETags with compare-and-swap, or a distributed lock. Otherwise deploy exactly one writer and document that constraint.
+8. **Failure recovery:** track dirty keys, retry failed bucket/local writes with bounded jitter, and preserve write ordering so an older async write cannot overwrite a newer generation.
+9. **Bucket isolation:** use a dedicated bucket and credentials per bot. If infrastructure forces a shared bucket, use bot-specific prefixes plus credentials restricted to that prefix. Never give two bots unrestricted credentials to each other's state.
+10. **Runtime hygiene:** ignore `data/cache/` (and equivalent runtime state) in Git. Never commit guild IDs, user IDs, reminders, or other runtime snapshots.
+11. **Non-blocking Discord paths:** all local file, bucket, and database I/O called from async code runs through `asyncio.to_thread(...)`.
+12. **Local observability:** count hits by source, cache age, DB loads, repairs, dirty retries, failures, and queries avoided. Log summaries locally; do not send routine INFO cache telemetry back into the database being protected.
+
+### Timer and delivery rules
+
+- Cache `next_check_at` / nearest deadline and use explicit wake hooks instead of scanning Postgres every busy tick.
+- Before ending an auction, giveaway, job, or lease, atomically confirm that the DB row is still active and due.
+- Claim work idempotently. For reminders/notifications, persist a sent/claimed transition before removing the cache item; delete only after the authoritative transition succeeds.
+- Paginate authoritative seeds. A fixed first-page limit can silently lose deadlines.
+
+### Minimum offline tests
+
+- Legacy/current envelope decode, corruption fallback, and freshest-copy selection
+- Failed seed retries without replacing state with empty data
+- DB → cache reconciliation and no cache → domain-table repair
+- Single-flight miss loading and concurrent atomic mutations
+- Failed persistence, dirty retry, and stale-write ordering
+- Startup stale-while-revalidate timing
+- Terminal deadline revalidation and idempotent delivery/claim behavior
+- `asyncio.to_thread` delegation for blocking Discord paths
+
+No cache test may require a Discord token, network, object storage, or a live database.
+
+---
+
 ## Database workflow
 
-1. Create a Postgres database; copy the **pooled** connection string into `DATABASE_URL` (`sslmode=require`).
+1. Create a Neon project; copy the **pooled** (`-pooler`) connection string into `DATABASE_URL` (`sslmode=require`).
 2. Design table → add **`CREATE TABLE IF NOT EXISTS`** to `db/sql/schema.sql`.
-3. Apply `schema.sql` in the SQL editor (or `psql "$DATABASE_URL_UNPOOLED" -f db/sql/schema.sql` with the **direct** URL).
+3. Apply `schema.sql` in the **Neon SQL Editor** (or `psql "$DATABASE_URL_UNPOOLED" -f db/sql/schema.sql` with the **direct** URL).
 4. Add table + columns to **`db/_base.py::EXPECTED_SCHEMA`**.
 5. Implement helpers in **`db/<domain>.py`**.
 6. Note the change in **`db/sql/README.md`**.
@@ -317,11 +369,11 @@ Never skip the `EXPECTED_SCHEMA` step — `check_schema()` is the guardrail agai
 
 For a **new bot**, design tables for that bot's features only. Do **not** copy another bot's tables unless you explicitly share a database.
 
-### Shared Postgres project (optional multi-bot pattern)
+### Shared Neon project (optional multi-bot pattern)
 
-Several bots may share one Postgres project with **separate databases** (or schemas) per bot. In that setup:
+Several bots may share one Neon project with **separate databases** (or schemas) per bot. In that setup:
 
-- Give each bot its own `DATABASE_URL` (its own database on the project, or its own Postgres project).
+- Give each bot its own `DATABASE_URL` (its own database on the project, or its own Neon project).
 - Keep a privileged / owner role for backups and migrations only.
 - Document project, database name, and owned tables in that bot's **`AGENTS.md`** / `db/sql/README.md`.
 - Data migrations: CLI scripts under `scripts/` (or `db/migrate_*.py` called by scripts) — remove temporary slash migrate commands once cutover is done.
@@ -335,11 +387,13 @@ Several bots may share one Postgres project with **separate databases** (or sche
 | Variable | Purpose |
 |----------|---------|
 | `TOKEN` | Discord bot token |
-| `DATABASE_URL` | Postgres pooled connection string (`postgresql://…@…-pooler.…/…?sslmode=require`) |
+| `DATABASE_URL` | Neon pooled connection string (`postgresql://…@…-pooler.…/…?sslmode=require`) |
 
 ### Auth alternatives
 
-Host-injected aliases for `DATABASE_URL` are fine if the runtime still reads `DATABASE_URL` first.
+| Variable | Purpose |
+|----------|---------|
+| `NEON_DATABASE_URL` | Alias for `DATABASE_URL` if the host injects that name |
 
 ### Common optional
 
@@ -348,6 +402,8 @@ Host-injected aliases for `DATABASE_URL` are fine if the runtime still reads `DA
 | `SLASH_SYNC_GUILD_IDS` | Comma-separated guild IDs for guild-scope command clear |
 | `RESTART_NOTIFY_USER_ID` | Discord user to DM once when the process comes online; empty disables |
 | `DATA_DIR` | Runtime JSON / log directory when used |
+| `STATE_BUCKET`, `STATE_ACCESS_KEY_ID`, `STATE_SECRET_ACCESS_KEY` | Dedicated S3-compatible cache bucket and its exact credentials, when the optional cache standard is used |
+| `JSON_CACHE_STARTUP_GRACE_SECONDS`, `JSON_CACHE_RECONCILE_SECONDS` | Optional stale-while-revalidate and reconciliation intervals |
 | `LOGIN_RETRY_ATTEMPT` | **Internal** — 429 retry counter; do not set manually |
 
 Feature-specific vars (channel IDs, API keys, intervals, etc.) belong in that bot's **`README.md`** and **`AGENTS.md`** — not in this file.
@@ -359,7 +415,7 @@ Feature-specific vars (channel IDs, API keys, intervals, etc.) belong in that bo
 ```bash
 python3.10 --version          # 3.10+ required (.python-version in repo for pyenv)
 pip install -r requirements.txt
-# create .env with TOKEN and DATABASE_URL (Postgres pooled string)
+# create .env with TOKEN and DATABASE_URL (Neon pooled string)
 python main.py
 ```
 
@@ -370,7 +426,7 @@ python main.py
 ### 1. Syntax
 
 ```bash
-python -m compileall main.py commands db config.py functions
+python -m compileall main.py config.py db functions commands scripts
 ```
 
 ### 2. Lint (project source only — exclude `.venv`)
@@ -399,18 +455,18 @@ Run relevant `scripts/verify_*.py` for the area you changed.
 
 Grep for `db.<name>` and `functions.<name>` usages; confirm every name exists on the package via `hasattr`.
 
-### 7. Pytest (recommended)
+### 7. Pytest
 
 ```bash
 pip install -r requirements-dev.txt
-pytest
+pytest -q
 ```
 
-Offline tests live in `tests/` when present. Feature scripts in `scripts/verify_*.py` for integration checks without Discord.
+Offline tests live in `tests/`; they never require a Discord token or live database. Feature scripts in `scripts/verify_*.py` provide additional integration checks without Discord.
 
 ### 8. Scaffold a new bot repo
 
-From a repo that ships `scripts/scaffold_bot.py`:
+From a repo that ships `scripts/scaffold_bot.py` (e.g. **ALICE**):
 
 ```bash
 python scripts/scaffold_bot.py /path/to/NewBot --name "New Bot"
@@ -436,6 +492,7 @@ When adding or modifying features in any bot:
 
 - [ ] IDs/tunables in `config.py` (not literals in cogs)
 - [ ] DB changes: `schema.sql` + `EXPECTED_SCHEMA` + domain module + `db/sql/README.md`
+- [ ] Cached state: authority class documented; DB-first writes; strict seed/reconcile; versioned envelope; dirty retry; isolated bucket
 - [ ] Async paths: `defer` + `asyncio.to_thread` for blocking storage/HTTP
 - [ ] Cog added to **`commands/core/extensions.py`** (`COG_EXTENSIONS`); load failure remains fail-closed
 - [ ] **`AGENTS.md`** updated (load order, commands, feature env vars)
@@ -450,11 +507,15 @@ When adding or modifying features in any bot:
 
 ### New bot (greenfield)
 
-> I'm starting a brand-new Discord bot. Follow **`BOT_BLUEPRINT.md`**: Python 3.10+, discord.py slash-only, `main.py` + `config.py` + `db/` package + `functions/` (as needed) + `commands/<feature>/` cogs + `db/sql/schema.sql` + `EXPECTED_SCHEMA`. Persist with **Postgres** via `DATABASE_URL` and `psycopg` (`db/pg_client.py`). Create a bot-specific **`AGENTS.md`** listing only the cogs and slash commands for **this** bot. Do **not** copy commands, cogs, or feature folders from my other bots. For v1, here are the features I want: … (list). Create skeleton, requirements, `.env` docs, empty cogs with `setup()`, and README command section.
+> I'm starting a brand-new Discord bot. Follow **`BOT_BLUEPRINT.md`**: Python 3.10+, discord.py slash-only, `main.py` + `config.py` + `db/` package + `functions/` (as needed) + `commands/<feature>/` cogs + `db/sql/schema.sql` + `EXPECTED_SCHEMA`. Persist with **Neon** via `DATABASE_URL` and `psycopg` (`db/pg_client.py`). Create a bot-specific **`AGENTS.md`** listing only the cogs and slash commands for **this** bot. Do **not** copy commands, cogs, or feature folders from my other bots. For v1, here are the features I want: … (list). Create skeleton, requirements, `.env` docs, empty cogs with `setup()`, and README command section. Do not add object-storage JSON caching until a hot-read need is identified; when added, keep Neon authoritative for domain state and use a dedicated bucket.
 
 ### Existing bot
 
 > Follow **`BOT_BLUEPRINT.md`** for architecture and validation. Follow this repo's **`AGENTS.md`** for bot-specific commands, load order, and env vars. Preserve public import paths (`import db`, `import functions`, extension names). Split large files into packages with `__init__.py` re-exports rather than changing callers. Keep slash handlers non-blocking (`defer` + `asyncio.to_thread`); fail closed if extension load fails.
+
+### Starting from ALICE as template
+
+> Copy **`BOT_BLUEPRINT.md`** and use **ALICE** (`AGENTS.md` + repo structure) as one reference implementation. **Strip** ALICE-specific cogs, tables, and commands; keep only the package layout and conventions that this new bot actually needs. Use Neon (`DATABASE_URL` + `psycopg`); do not add a Supabase client unless this bot still documents a cutover fallback in `AGENTS.md`.
 
 ---
 
@@ -467,7 +528,7 @@ Use only when a bot needs a persistent embed in a channel:
 3. Run verify/refresh loops with `@tasks.loop` in the feature cog.
 4. Optional: purge unrelated messages in the same channel (cog-specific sweep logic).
 
-State can also live in the DB when multiple instances or durability matters. Many bots never need this — skip it unless required.
+State can also live in the DB when multiple instances or durability matters. Sticky locators are cache-owned; domain data remains DB-owned. Follow the object-storage cache standard above if the locator is mirrored to a bucket. Many bots never need this — skip it unless required.
 
 ---
 

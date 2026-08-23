@@ -6,6 +6,7 @@ it in place when present, and re-post when missing.
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 from pathlib import Path
 from typing import Awaitable, Callable, Optional
@@ -63,13 +64,15 @@ class StickyMessage:
         async for msg in channel.history(limit=self.history_limit):
             if self.matcher(msg, bot.id):
                 self.message_id = msg.id
-                save_persisted_message_id(self.state_path, msg.id)
+                await asyncio.to_thread(
+                    save_persisted_message_id, self.state_path, msg.id
+                )
                 return
 
     async def clear(self) -> None:
         """Forget the tracked id and remove the persisted state file."""
         self.message_id = None
-        clear_persisted_message_id(self.state_path)
+        await asyncio.to_thread(clear_persisted_message_id, self.state_path)
 
     async def ensure(
         self,
@@ -105,5 +108,5 @@ class StickyMessage:
             logger.warning("%s: could not post info message: %s", self.log_label, e)
             return
         self.message_id = msg.id
-        save_persisted_message_id(self.state_path, msg.id)
+        await asyncio.to_thread(save_persisted_message_id, self.state_path, msg.id)
         await self._try_pin(msg)

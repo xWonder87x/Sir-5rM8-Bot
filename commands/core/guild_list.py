@@ -75,13 +75,7 @@ class GuildList(commands.Cog):
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
         self._lock = asyncio.Lock()
-        self._sticky = StickyMessage(
-            bot,
-            state_path=config.DATA_DIR / "guild_list_message.json",
-            matcher=is_guild_list_sticky,
-            log_label="guild_list",
-            pin=_pin_guild_list,
-        )
+        self._sticky: StickyMessage | None = None
 
     async def cog_load(self) -> None:
         if os.environ.get("EXTENSION_VERIFY"):
@@ -100,13 +94,26 @@ class GuildList(commands.Cog):
     async def _resolve_channel(self) -> discord.TextChannel | None:
         return await get_owner_notify_channel(self.bot)
 
+    async def _load_sticky(self) -> StickyMessage:
+        if self._sticky is None:
+            self._sticky = await asyncio.to_thread(
+                StickyMessage,
+                self.bot,
+                state_path=config.DATA_DIR / "guild_list_message.json",
+                matcher=is_guild_list_sticky,
+                log_label="guild_list",
+                pin=_pin_guild_list,
+            )
+        return self._sticky
+
     async def _refresh(self) -> None:
         async with self._lock:
             channel = await self._resolve_channel()
             if channel is None:
                 return
             embed = build_guild_list_embed(list(self.bot.guilds))
-            await self._sticky.ensure(channel, embed)
+            sticky = await self._load_sticky()
+            await sticky.ensure(channel, embed)
 
     @tasks.loop(hours=1)
     async def refresh_guild_list(self) -> None:
