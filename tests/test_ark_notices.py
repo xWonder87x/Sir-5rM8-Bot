@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
+import pytest
+
+from functions import json_db_cache
 from functions.ark_notices import (
     consume_ark_notice_update,
     is_execsave_notice,
@@ -10,6 +13,13 @@ from functions.ark_notices import (
 from functions.asa_client import parse_announcement
 from functions.asa_models import AsaAnnouncement
 import db.files as files
+
+
+@pytest.fixture(autouse=True)
+def reset_json_cache():
+    json_db_cache.reset()
+    yield
+    json_db_cache.reset()
 
 
 def test_announcement_dotdot_is_empty():

@@ -5,6 +5,7 @@ import asyncio
 
 import db
 from functions.asa import ServerLookupResult, fetch_current_rates, find_server
+from functions import json_db_cache as cache
 
 __all__ = [
     "ServerLookupResult",
@@ -30,14 +31,29 @@ async def fetch_current_rates_async() -> dict | None:
 
 def add_server_channel(guild_id: str, channel_id: str, role_id: str) -> None:
     db.set_rate_notification(guild_id, channel_id, role_id)
+    channels = cache.get("rate_notifications", db.get_rate_notification_channels)
+    channels = [row for row in channels if str(row.get("server_id")) != str(guild_id)]
+    channels.append({"server_id": str(guild_id), "channel_id": str(channel_id), "role": str(role_id)})
+    cache.put("rate_notifications", channels)
 
 
 def get_server_channel(guild_id: str) -> dict | None:
-    return db.get_rate_notification(guild_id)
+    channels = cache.get("rate_notifications", db.get_rate_notification_channels)
+    for row in channels:
+        if str(row.get("server_id")) == str(guild_id):
+            return {"channel_id": row.get("channel_id"), "role_id": row.get("role")}
+    return None
 
 
 def clear_server_channel(guild_id: str) -> bool:
-    return db.clear_rate_notification(guild_id)
+    cleared = db.clear_rate_notification(guild_id)
+    if cleared:
+        channels = cache.get("rate_notifications", db.get_rate_notification_channels)
+        cache.put(
+            "rate_notifications",
+            [row for row in channels if str(row.get("server_id")) != str(guild_id)],
+        )
+    return cleared
 
 
 def check_rate_changes() -> tuple[list | None, dict | None, dict | None, int]:
@@ -52,14 +68,21 @@ def check_rate_changes() -> tuple[list | None, dict | None, dict | None, int]:
     if not current:
         return None, None, None, 1
 
-    previous = db.get_previous_rate_values()
+    previous = cache.get("rate_state", db.get_previous_rate_values)
     if previous is None:
         db.save_previous_rate_values(current)
+        cache.put("rate_state", current)
         return None, None, None, 1
 
     if any(previous.get(k) != current.get(k) for k in config.RATE_KEYS):
+        # A change is the only normal-time read-back from Neon.  This protects
+        # against a stale cache before sending notifications.
+        verified_previous = db.get_previous_rate_values()
+        if verified_previous is not None:
+            previous = verified_previous
         db.save_previous_rate_values(current)
-        server_list = db.get_rate_notification_channels()
+        cache.put("rate_state", current)
+        server_list = cache.get("rate_notifications", db.get_rate_notification_channels)
         return server_list, current, previous, 0
 
     return None, None, None, 1
@@ -67,3 +90,21 @@ def check_rate_changes() -> tuple[list | None, dict | None, dict | None, int]:
 
 async def check_rate_changes_async() -> tuple[list | None, dict | None, dict | None, int]:
     return await asyncio.to_thread(check_rate_changes)
+
+
+def verify_cached_db_state() -> dict[str, bool]:
+    """Hourly Neon reconciliation for every JSON-backed runtime cache."""
+    from functions.ark_notices import verify_cached_ark_state
+    from functions.bothunter_cache import verify_cached_bothunter_state
+    from functions.up_notify_cache import verify_cached_up_notify_state
+
+    result = {
+        "rate_state": cache.verify("rate_state", db.get_previous_rate_values),
+        "rate_notifications": cache.verify(
+            "rate_notifications", db.get_rate_notification_channels
+        ),
+    }
+    result.update(verify_cached_ark_state())
+    result.update(verify_cached_bothunter_state())
+    result.update(verify_cached_up_notify_state())
+    return result

@@ -215,6 +215,21 @@ def get_bothunter_config(guild_id: str) -> dict | None:
     return cfg
 
 
+def get_bothunter_configs() -> dict[str, dict]:
+    data = _load_config()
+    result: dict[str, dict] = {}
+    for guild_id, guild_data in data.get("guilds", {}).items():
+        raw = guild_data.get("bothunter")
+        if not raw:
+            continue
+        cfg = _bothunter_defaults(guild_id)
+        cfg.update(raw)
+        cfg["guild_id"] = str(guild_id)
+        cfg["experiments"] = list(cfg.get("experiments") or [])
+        result[str(guild_id)] = cfg
+    return result
+
+
 def set_bothunter_config(config: dict) -> None:
     guild_id = str(config["guild_id"])
     data = _load_config()
@@ -530,6 +545,20 @@ def list_up_notify_watchers(server_key: str) -> list[dict]:
                 "session_name": row.get("session_name"),
             })
     return out
+
+
+def list_up_notify_watchers_all() -> list[dict]:
+    return [
+        {
+            "server_key": str(row.get("server_key") or ""),
+            "user_id": str(row.get("user_id") or ""),
+            "channel_id": str(row.get("channel_id") or ""),
+            "guild_id": row.get("guild_id"),
+            "query": row.get("query"),
+            "session_name": row.get("session_name"),
+        }
+        for row in _load_up_notify()
+    ]
 
 
 def clear_up_notify(server_key: str, channel_id: str | None = None) -> int:

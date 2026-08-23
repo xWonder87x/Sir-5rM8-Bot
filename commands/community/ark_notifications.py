@@ -9,7 +9,7 @@ from discord import app_commands
 from discord.ext import commands, tasks
 
 import config
-import db
+from functions import ark_notices as notice_cache
 from functions.ark_notices import (
     consume_ark_notice_update,
     is_execsave_notice,
@@ -59,7 +59,7 @@ async def post_ark_notice(
     if is_restart_countdown_notice(text):
         await _delete_previous_notice(channel, last_message_id)
     sent = await channel.send(embed=build_ark_notice_embed(text))
-    await asyncio.to_thread(db.set_ark_notice_last_message, guild_id, str(sent.id))
+    await asyncio.to_thread(notice_cache.set_ark_notice_last_message, guild_id, str(sent.id))
     return str(sent.id)
 
 
@@ -95,7 +95,7 @@ class ArkNotifySetupView(discord.ui.View):
             await interaction.response.send_message("Administrator permission required.", ephemeral=True)
             return
         await interaction.response.defer(ephemeral=True)
-        cleared = await asyncio.to_thread(db.clear_ark_notification, str(interaction.guild.id))
+        cleared = await asyncio.to_thread(notice_cache.clear_ark_notification, str(interaction.guild.id))
         for item in self.children:
             item.disabled = True
         try:
@@ -130,7 +130,7 @@ class ArkNotifyChannelSelect(discord.ui.ChannelSelect):
             await interaction.response.send_message("I couldn't use that channel.", ephemeral=True)
             return
         await interaction.response.defer(ephemeral=True)
-        await asyncio.to_thread(db.set_ark_notification, str(interaction.guild.id), str(channel.id))
+        await asyncio.to_thread(notice_cache.set_ark_notification, str(interaction.guild.id), str(channel.id))
         view: discord.ui.View | None = self.view
         if view is not None:
             for item in view.children:
@@ -200,7 +200,7 @@ class ArkNotifications(commands.Cog):
             await interaction.response.send_message("This command can only be used in a server.", ephemeral=True)
             return
         await interaction.response.defer(ephemeral=True)
-        current = await asyncio.to_thread(db.get_ark_notification, str(interaction.guild.id))
+        current = await asyncio.to_thread(notice_cache.get_ark_notification, str(interaction.guild.id))
         if current:
             channel = interaction.guild.get_channel(int(current["channel_id"]))
             where = channel.mention if channel else f"<#{current['channel_id']}>"

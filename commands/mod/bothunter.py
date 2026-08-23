@@ -9,8 +9,8 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-import db
 from functions import bothunter as bh
+from functions import bothunter_cache
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +74,7 @@ class Bothunter(commands.Cog):
 
     async def _channel_map(self) -> dict[int, int]:
         if self._channel_cache is None:
-            raw = await asyncio.to_thread(db.get_bothunter_channel_map)
+            raw = await asyncio.to_thread(bothunter_cache.channel_map)
             self._channel_cache = {int(cid): int(gid) for cid, gid in raw.items()}
         return self._channel_cache
 
@@ -123,7 +123,7 @@ class Bothunter(commands.Cog):
         guild_id = str(guild.id)
 
         if clear:
-            cfg = await asyncio.to_thread(db.get_bothunter_config, guild_id)
+            cfg = await asyncio.to_thread(bothunter_cache.get_config, guild_id)
             if cfg and cfg.get("warning_msg_id") and cfg.get("channel_id"):
                 ch = guild.get_channel(int(cfg["channel_id"]))
                 if isinstance(ch, discord.TextChannel):
@@ -132,7 +132,7 @@ class Bothunter(commands.Cog):
                         await msg.delete()
                     except (discord.NotFound, discord.Forbidden, discord.HTTPException):
                         pass
-            removed = await asyncio.to_thread(db.clear_bothunter_config, guild_id)
+            removed = await asyncio.to_thread(bothunter_cache.clear_config, guild_id)
             self._invalidate_cache()
             if removed:
                 await interaction.followup.send("Bothunter config cleared for this server.", ephemeral=True)
@@ -140,7 +140,7 @@ class Bothunter(commands.Cog):
                 await interaction.followup.send("No bothunter config was set for this server.", ephemeral=True)
             return
 
-        existing = await asyncio.to_thread(db.get_bothunter_config, guild_id)
+        existing = await asyncio.to_thread(bothunter_cache.get_config, guild_id)
         cfg = existing or bh.default_config(guild_id)
 
         # Status-only when no setup args provided
@@ -155,7 +155,7 @@ class Bothunter(commands.Cog):
                     ephemeral=True,
                 )
                 return
-            count = await asyncio.to_thread(db.get_bothunter_moderated_count, guild_id)
+            count = await asyncio.to_thread(bothunter_cache.get_count, guild_id)
             exps = ", ".join(f"`{e}`" for e in (existing.get("experiments") or [])) or "*(none)*"
             log_disp = (
                 f"<#{existing['log_channel_id']}>"
@@ -284,7 +284,7 @@ class Bothunter(commands.Cog):
             reinvite_code = None
 
         warning_msg_id = cfg.get("warning_msg_id") if str(cfg.get("channel_id")) == str(trap.id) else None
-        count = await asyncio.to_thread(db.get_bothunter_moderated_count, guild_id)
+        count = await asyncio.to_thread(bothunter_cache.get_count, guild_id)
 
         if "no-warning-msg" in experiments:
             if warning_msg_id and str(cfg.get("channel_id")) == str(trap.id):
@@ -327,7 +327,7 @@ class Bothunter(commands.Cog):
             "log_message": cfg.get("log_message"),
             "reinvite_code": reinvite_code,
         }
-        await asyncio.to_thread(db.set_bothunter_config, new_cfg)
+        await asyncio.to_thread(bothunter_cache.set_config, new_cfg)
         self._invalidate_cache()
 
         exps = ", ".join(f"`{e}`" for e in sorted(experiments)) or "*(none)*"
@@ -366,7 +366,7 @@ class Bothunter(commands.Cog):
 
         await interaction.response.defer(ephemeral=True)
         guild_id = str(interaction.guild.id)
-        cfg = await asyncio.to_thread(db.get_bothunter_config, guild_id)
+        cfg = await asyncio.to_thread(bothunter_cache.get_config, guild_id)
         if not cfg or not cfg.get("channel_id"):
             await interaction.followup.send(
                 "Set up bothunter first with `/bothunter` before configuring messages.",
@@ -395,13 +395,13 @@ class Bothunter(commands.Cog):
                         return
                 cfg["log_message"] = cleaned
 
-        await asyncio.to_thread(db.set_bothunter_config, cfg)
+        await asyncio.to_thread(bothunter_cache.set_config, cfg)
 
         # Refresh warning message in trap channel if present
         if cfg.get("channel_id") and "no-warning-msg" not in (cfg.get("experiments") or []):
             trap = interaction.guild.get_channel(int(cfg["channel_id"]))
             if isinstance(trap, discord.TextChannel):
-                count = await asyncio.to_thread(db.get_bothunter_moderated_count, guild_id)
+                count = await asyncio.to_thread(bothunter_cache.get_count, guild_id)
                 content = bh.warning_content(
                     count,
                     bh.normalize_action(cfg.get("action")),
@@ -415,11 +415,11 @@ class Bothunter(commands.Cog):
                         except (discord.NotFound, discord.Forbidden):
                             msg = await trap.send(content, allowed_mentions=discord.AllowedMentions.none())
                             cfg["warning_msg_id"] = str(msg.id)
-                            await asyncio.to_thread(db.set_bothunter_config, cfg)
+                            await asyncio.to_thread(bothunter_cache.set_config, cfg)
                     else:
                         msg = await trap.send(content, allowed_mentions=discord.AllowedMentions.none())
                         cfg["warning_msg_id"] = str(msg.id)
-                        await asyncio.to_thread(db.set_bothunter_config, cfg)
+                        await asyncio.to_thread(bothunter_cache.set_config, cfg)
                 except discord.HTTPException:
                     logger.exception("Failed to refresh bothunter warning message")
 
@@ -456,7 +456,7 @@ class Bothunter(commands.Cog):
         self._moderating.add(key)
 
         try:
-            cfg = await asyncio.to_thread(db.get_bothunter_config, guild_id)
+            cfg = await asyncio.to_thread(bothunter_cache.get_config, guild_id)
             if not cfg or not cfg.get("channel_id"):
                 return
             if str(cfg["channel_id"]) != str(message.channel.id):
@@ -528,10 +528,10 @@ class Bothunter(commands.Cog):
 
             if failed is False and not permission_skip:
                 await asyncio.to_thread(
-                    db.log_bothunter_event, guild_id, str(user.id), str(message.channel.id)
+                    bothunter_cache.log_event, guild_id, str(user.id), str(message.channel.id)
                 )
 
-            count = await asyncio.to_thread(db.get_bothunter_moderated_count, guild_id)
+            count = await asyncio.to_thread(bothunter_cache.get_count, guild_id)
             await self._send_log(
                 guild,
                 cfg,
@@ -688,7 +688,7 @@ class Bothunter(commands.Cog):
         except discord.NotFound:
             if log_id:
                 cfg["log_channel_id"] = None
-                await asyncio.to_thread(db.set_bothunter_config, cfg)
+                await asyncio.to_thread(bothunter_cache.set_config, cfg)
         except discord.Forbidden:
             logger.info("Bothunter log send forbidden in guild %s", guild.id)
         except discord.HTTPException:
@@ -712,13 +712,13 @@ class Bothunter(commands.Cog):
             await msg.edit(content=content)
         except discord.NotFound:
             cfg["warning_msg_id"] = None
-            await asyncio.to_thread(db.set_bothunter_config, cfg)
+            await asyncio.to_thread(bothunter_cache.set_config, cfg)
         except (discord.Forbidden, discord.HTTPException):
             pass
 
     @commands.Cog.listener()
     async def on_guild_channel_delete(self, channel: discord.abc.GuildChannel):
-        cfg = await asyncio.to_thread(db.get_bothunter_config, str(channel.guild.id))
+        cfg = await asyncio.to_thread(bothunter_cache.get_config, str(channel.guild.id))
         if not cfg:
             return
         changed = False
@@ -730,7 +730,7 @@ class Bothunter(commands.Cog):
             cfg["log_channel_id"] = None
             changed = True
         if changed:
-            await asyncio.to_thread(db.set_bothunter_config, cfg)
+            await asyncio.to_thread(bothunter_cache.set_config, cfg)
             self._invalidate_cache()
 
 

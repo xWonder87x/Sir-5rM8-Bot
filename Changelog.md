@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.5.0] - 2026-08-23
+
+### Added
+
+- JSON copies of Neon-backed rates, ARK notifications, Bothunter configuration/counters, and pending server-up notifications
+- Hourly Neon reconciliation repairs stale JSON cache copies while keeping Neon authoritative
+- Cache-aware writes update Neon first, then persist the successful value locally and in the Railway bucket
+- Deploy marker `v1.5.0`
+
 ## [1.4.1] - 2026-08-23
 
 ### Fixed

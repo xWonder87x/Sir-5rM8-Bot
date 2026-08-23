@@ -119,6 +119,7 @@ BattleMetrics remains optional for the uptime chart (official list has no histor
 
 - Prefer `DATABASE_URL` (Postgres) when set; else Postgres REST; else JSON files under `data/`.
 - When `STATE_BUCKET` + Railway S3 credentials are set, persist the official ASA list cache and sticky message ids in the bucket so they survive ephemeral disk.
+- Neon-backed runtime state also has JSON copies under `data/cache/db/` and `cache/db/` in `STATE_BUCKET`. Neon is authoritative; successful writes update the copies and the hourly cache sync repairs drift.
 - Offload sync Postgres/JSON storage from async slash handlers with `asyncio.to_thread(...)`.
 - Prefer `interaction.response.defer(...)` before any storage or network work, then `followup`.
 - Extension load failure aborts startup (`bot.close()`); do not mark the bot ready with a half-loaded tree.

@@ -12,13 +12,13 @@ from discord import app_commands
 from discord.ext import commands, tasks
 
 import config
-import db
 from functions.asa import match_server_key_in_list
 from functions.asa_cache import get_snapshot, refresh_asa_cache
 from functions.asa_status import STATUS_OFFLINE, STATUS_ONLINE
 from functions.charts import render_server_status_chart
 from functions.outage_form import build_outage_report_url
 from functions.server_status import ResolvedServer, resolve_from_asa_server, resolve_server_status
+from functions import up_notify_cache
 
 logger = logging.getLogger(__name__)
 
@@ -142,7 +142,7 @@ class NotifyWhenUpButton(discord.ui.DynamicItem[discord.ui.Button], template=r"s
             return
 
         added = await asyncio.to_thread(
-            db.add_up_notify,
+            up_notify_cache.add,
             self.server_key,
             str(interaction.user.id),
             str(channel_id),
@@ -253,7 +253,7 @@ class Server(commands.Cog):
 
     @tasks.loop(minutes=config.SERVER_UP_CHECK_MINUTES)
     async def check_up_notifies(self):
-        keys = await asyncio.to_thread(db.list_up_notify_keys)
+        keys = await asyncio.to_thread(up_notify_cache.list_keys)
         if not keys:
             return
         snap = await asyncio.to_thread(refresh_asa_cache)
@@ -270,7 +270,7 @@ class Server(commands.Cog):
             found = match_server_key_in_list(servers, key)
             if not found:
                 continue
-            watchers = await asyncio.to_thread(db.list_up_notify_watchers, key)
+            watchers = await asyncio.to_thread(up_notify_cache.list_watchers, key)
             if not watchers:
                 continue
             query = next((str(w.get("query") or "") for w in watchers if w.get("query")), key)
@@ -289,7 +289,7 @@ class Server(commands.Cog):
             for channel_id, user_ids in by_channel.items():
                 ok = await self._send_up_notify(channel_id, user_ids, embed, chart_bytes, filename)
                 if ok:
-                    await asyncio.to_thread(db.clear_up_notify, key, channel_id)
+                    await asyncio.to_thread(up_notify_cache.clear, key, channel_id)
 
     @check_up_notifies.before_loop
     async def before_check_up_notifies(self):

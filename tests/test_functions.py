@@ -3,9 +3,11 @@ from __future__ import annotations
 from unittest.mock import patch
 
 import functions
+from functions import json_db_cache
 
 
 def test_check_rate_changes_saves_baseline_when_no_previous():
+    json_db_cache.reset()
     current = {key: "1" for key in ("XPMultiplier", "HarvestAmountMultiplier")}
     with patch("functions.fetch_current_rates", return_value=current):
         with patch("db.get_previous_rate_values", return_value=None):
@@ -13,6 +15,7 @@ def test_check_rate_changes_saves_baseline_when_no_previous():
                 result = functions.check_rate_changes()
     assert result == (None, None, None, 1)
     save.assert_called_once_with(current)
+    json_db_cache.reset()
 
 
 def test_check_rate_changes_detects_difference():

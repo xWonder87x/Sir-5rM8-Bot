@@ -195,6 +195,24 @@ def get_bothunter_config(guild_id: str) -> dict | None:
     return _bothunter_row_to_dict(rows[0] if rows else None)
 
 
+def get_bothunter_configs() -> dict[str, dict]:
+    r = (
+        _sb()
+        .table("bothunter_config")
+        .select(
+            "guild_id,channel_id,log_channel_id,action,warning_msg_id,"
+            "experiments,warning_message,dm_message,log_message,reinvite_code"
+        )
+        .execute()
+    )
+    out: dict[str, dict] = {}
+    for row in r.data or []:
+        value = _bothunter_row_to_dict(row)
+        if value is not None:
+            out[str(row["guild_id"])] = value
+    return out
+
+
 def set_bothunter_config(config: dict) -> None:
     payload = {
         "guild_id": str(config["guild_id"]),
@@ -426,6 +444,27 @@ def list_up_notify_watchers(server_key: str) -> list[dict]:
             "session_name": row.get("session_name"),
         })
     return out
+
+
+def list_up_notify_watchers_all() -> list[dict]:
+    r = (
+        _sb()
+        .table("server_up_notify")
+        .select("server_key,user_id,channel_id,guild_id,query,session_name")
+        .order("server_key")
+        .execute()
+    )
+    return [
+        {
+            "server_key": str(row.get("server_key") or ""),
+            "user_id": str(row.get("user_id") or ""),
+            "channel_id": str(row.get("channel_id") or ""),
+            "guild_id": row.get("guild_id"),
+            "query": row.get("query"),
+            "session_name": row.get("session_name"),
+        }
+        for row in (r.data or [])
+    ]
 
 
 def clear_up_notify(server_key: str, channel_id: str | None = None) -> int:

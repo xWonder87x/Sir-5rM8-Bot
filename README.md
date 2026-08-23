@@ -10,7 +10,7 @@
 
 # **Sir-5rM8**
 
-**Version:** 1.4.1
+**Version:** 1.5.0
 
 ### *Making the community better, one command at a time.*
 
@@ -90,6 +90,7 @@ python main.py
 ```
 
 Optional storage: **Postgres** (`DATABASE_URL`) preferred, else Postgres REST — see [postgres/README.md](postgres/README.md).
+Neon-backed runtime state is copied to JSON under `data/cache/db/` and the configured Railway `STATE_BUCKET`; Neon remains authoritative and the copies are reconciled hourly.
 
 **Developer:** After code changes without a full restart, bot owner or admins can run `!reload` in Discord to reload cogs and re-sync slash commands.
 

@@ -82,7 +82,7 @@ async def test_arknotifications_uses_to_thread() -> None:
     with patch.object(ark_mod.asyncio, "to_thread", new_callable=AsyncMock) as mock_tt:
         mock_tt.return_value = None
         await cog.arknotifications.callback(cog, interaction)
-        mock_tt.assert_awaited_once_with(ark_mod.db.get_ark_notification, "1")
+        mock_tt.assert_awaited_once_with(ark_mod.notice_cache.get_ark_notification, "1")
         interaction.response.defer.assert_awaited()
         interaction.followup.send.assert_awaited()
 
@@ -120,4 +120,6 @@ async def test_post_ark_notice_replaces_previous_countdown() -> None:
     channel.fetch_message.assert_awaited_once_with(10)
     old.delete.assert_awaited_once()
     channel.send.assert_awaited()
-    mock_tt.assert_awaited_once_with(ark_mod.db.set_ark_notice_last_message, "1", "20")
+    mock_tt.assert_awaited_once_with(
+        ark_mod.notice_cache.set_ark_notice_last_message, "1", "20"
+    )

@@ -330,6 +330,22 @@ def get_bothunter_config(guild_id: str) -> dict | None:
     return _bothunter_row_to_dict(row)
 
 
+def get_bothunter_configs() -> dict[str, dict]:
+    with _conn() as conn:
+        rows = conn.execute(
+            """
+            SELECT guild_id, channel_id, log_channel_id, action, warning_msg_id,
+                   experiments, warning_message, dm_message, log_message, reinvite_code
+            FROM bothunter_config
+            """
+        ).fetchall()
+    return {
+        str(row["guild_id"]): _bothunter_row_to_dict(row)
+        for row in rows
+        if _bothunter_row_to_dict(row) is not None
+    }
+
+
 def set_bothunter_config(config: dict) -> None:
     with _conn() as conn:
         conn.execute(
@@ -582,6 +598,18 @@ def list_up_notify_watchers(server_key: str) -> list[dict]:
             (key,),
         ).fetchall()
     return [dict(r) for r in rows]
+
+
+def list_up_notify_watchers_all() -> list[dict]:
+    with _conn() as conn:
+        rows = conn.execute(
+            """
+            SELECT server_key, user_id, channel_id, guild_id, query, session_name
+            FROM server_up_notify
+            ORDER BY server_key, channel_id, user_id
+            """
+        ).fetchall()
+    return [dict(row) for row in rows]
 
 
 def clear_up_notify(server_key: str, channel_id: str | None = None) -> int:
