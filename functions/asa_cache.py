@@ -21,17 +21,22 @@ _network: NetworkStatus | None = None
 _announcement: AsaAnnouncement | None = None
 _last_network_label: str | None = None
 _last_log_fail_at: float = 0.0
+_last_bucket_write_at: float = 0.0
+_last_bucket_write_count: int | None = None
 
 
 def reset_asa_cache() -> None:
     """Test helper — clear process cache."""
     global _snapshot, _last_good, _network, _announcement, _last_network_label
+    global _last_bucket_write_at, _last_bucket_write_count
     with _lock:
         _snapshot = None
         _last_good = None
         _network = None
         _announcement = None
         _last_network_label = None
+        _last_bucket_write_at = 0.0
+        _last_bucket_write_count = None
 
 
 def last_good_snapshot() -> AsaSnapshot | None:
@@ -83,9 +88,104 @@ def snapshot_is_fresh(snapshot: AsaSnapshot | None, *, ttl_seconds: int | None =
     return age <= min(ttl, 15)
 
 
+def _hydrate_from_bucket() -> None:
+    """Load last-known official list from STATE_BUCKET after a process restart."""
+    global _snapshot, _last_good, _network, _announcement
+    from functions.asa_client import parse_server_list
+    from functions.blob_state import ASA_CACHE_KEY, load_json, state_bucket_configured
+
+    if not state_bucket_configured():
+        return
+    data = load_json(ASA_CACHE_KEY)
+    raw_servers = data.get("servers")
+    if not isinstance(raw_servers, list) or not raw_servers:
+        return
+    fetched_at = None
+    raw_ts = data.get("fetched_at")
+    if isinstance(raw_ts, str):
+        try:
+            fetched_at = datetime.fromisoformat(raw_ts.replace("Z", "+00:00"))
+        except ValueError:
+            fetched_at = None
+    snap = parse_server_list(raw_servers, now=fetched_at)
+    if not snap.fetch_ok or not snap.server_count:
+        return
+    net_raw = data.get("network") if isinstance(data.get("network"), dict) else {}
+    notice_raw = data.get("announcement") if isinstance(data.get("announcement"), dict) else {}
+    network = NetworkStatus(
+        fetch_ok=bool(net_raw.get("fetch_ok")),
+        online=net_raw.get("online"),
+        version=net_raw.get("version"),
+        raw=str(net_raw.get("raw") or ""),
+        error=net_raw.get("error"),
+    )
+    announcement = AsaAnnouncement(
+        fetch_ok=bool(notice_raw.get("fetch_ok", True)),
+        text=notice_raw.get("text"),
+        error=notice_raw.get("error"),
+    )
+    with _lock:
+        if _last_good is None:
+            _last_good = snap
+            _snapshot = snap
+            _network = network
+            _announcement = announcement
+            logger.info(
+                "ASA cache hydrated from STATE_BUCKET (%s servers)",
+                snap.server_count,
+            )
+
+
+def _persist_to_bucket(
+    snapshot: AsaSnapshot,
+    network: NetworkStatus,
+    announcement: AsaAnnouncement,
+) -> None:
+    import time as time_mod
+
+    import config
+    from functions.blob_state import ASA_CACHE_KEY, save_json, state_bucket_configured
+
+    global _last_bucket_write_at, _last_bucket_write_count
+
+    if not state_bucket_configured() or not snapshot.fetch_ok or not snapshot.server_count:
+        return
+    now = time_mod.monotonic()
+    interval = max(0, int(getattr(config, "ASA_BUCKET_FLUSH_SECONDS", 300)))
+    with _lock:
+        if (
+            _last_bucket_write_at
+            and _last_bucket_write_count == snapshot.server_count
+            and now - _last_bucket_write_at < interval
+        ):
+            return
+        _last_bucket_write_at = now
+        _last_bucket_write_count = snapshot.server_count
+    payload = {
+        "fetched_at": snapshot.fetched_at.isoformat(),
+        "servers": snapshot.as_raw_list(),
+        "network": {
+            "fetch_ok": network.fetch_ok,
+            "online": network.online,
+            "version": network.version,
+            "raw": network.raw,
+            "error": network.error,
+        },
+        "announcement": {
+            "fetch_ok": announcement.fetch_ok,
+            "text": announcement.text,
+            "error": announcement.error,
+        },
+    }
+    if save_json(ASA_CACHE_KEY, payload):
+        logger.info(
+            "ASA cache flushed to STATE_BUCKET (%s servers)",
+            snapshot.server_count,
+        )
+
+
 def refresh_asa_cache(*, force: bool = False) -> AsaSnapshot:
     """Fetch official list + network status. Preserve last-known-good on failure."""
-    import config
     import time as time_mod
 
     global _snapshot, _last_good, _network, _announcement, _last_network_label, _last_log_fail_at
@@ -93,6 +193,10 @@ def refresh_asa_cache(*, force: bool = False) -> AsaSnapshot:
     with _lock:
         if not force and snapshot_is_fresh(_snapshot):
             return _snapshot  # type: ignore[return-value]
+        need_hydrate = _last_good is None
+
+    if need_hydrate:
+        _hydrate_from_bucket()
 
     snapshot = fetch_official_snapshot()
     network = fetch_network_status()
@@ -129,6 +233,8 @@ def refresh_asa_cache(*, force: bool = False) -> AsaSnapshot:
                 snapshot.error,
             )
             _last_log_fail_at = now
+    if snapshot.fetch_ok:
+        _persist_to_bucket(snapshot, network, announcement)
     return snapshot
 
 

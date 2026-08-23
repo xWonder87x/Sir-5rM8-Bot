@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.0] - 2026-08-23
+
+### Added
+
+- Railway Storage Bucket (`STATE_BUCKET`) for the official ASA list cache and sticky guild-list message id
+- Deploy marker `v1.4.0`
+
 ## [1.3.0] - 2026-08-21
 
 ### Changed

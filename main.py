@@ -30,7 +30,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Bumps when deploy verification matters; check logs after redeploy.
-DEPLOY_MARKER = "v1.3.0"
+DEPLOY_MARKER = "v1.4.0"
 
 
 def _last_commit_title(*, fallback: str | None = None) -> str:
@@ -86,6 +86,16 @@ def _validate_env() -> None:
         sys.exit(1)
 
     logger.info("Deploy marker: %s · commit: %s", DEPLOY_MARKER, COMMIT_TITLE)
+
+    from functions.blob_state import state_bucket_configured
+
+    if state_bucket_configured():
+        logger.info("Object cache: Railway bucket (%s)", config.STATE_BUCKET)
+    elif config.STATE_BUCKET:
+        logger.warning(
+            "STATE_BUCKET is set but S3 credentials/endpoint are missing; "
+            "ASA cache will stay in-memory only"
+        )
 
     if db.use_postgres():
         logger.info("Storage backend: Postgres")

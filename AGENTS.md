@@ -56,6 +56,11 @@ No user-facing prefix commands.
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `DATA_DIR` | `data/` | Runtime JSON + bot.log |
+| `STORAGE_ENDPOINT` | — | Railway S3 endpoint (`https://storage.railway.app`) |
+| `STORAGE_REGION` | `auto` | S3 region |
+| `STATE_BUCKET` | — | Railway hashed bucket name for ASA cache + sticky ids |
+| `STATE_ACCESS_KEY_ID` / `STATE_SECRET_ACCESS_KEY` | — | Per-bucket Railway credentials |
+| `ASA_BUCKET_FLUSH_SECONDS` | `300` | Rewrite official-list object at most this often when size is unchanged |
 | `SLASH_SYNC_GUILD_IDS` | — | Comma-separated guild IDs for stale slash clears |
 | `GUILD_LIST_CHANNEL_ID` | `1540099281896087583` | Text channel for the sticky list of Discord guilds the bot is in (replaces `/servers`) |
 | `RESTART_NOTIFY_USER_ID` | `464386520124620800` | Discord user to DM on restart and ping in `GUILD_LIST_CHANNEL_ID` when the bot joins a guild; empty disables |
@@ -113,6 +118,7 @@ BattleMetrics remains optional for the uptime chart (official list has no histor
 ## Reliability notes
 
 - Prefer `DATABASE_URL` (Postgres) when set; else Postgres REST; else JSON files under `data/`.
+- When `STATE_BUCKET` + Railway S3 credentials are set, persist the official ASA list cache and sticky message ids in the bucket so they survive ephemeral disk.
 - Offload sync Postgres/JSON storage from async slash handlers with `asyncio.to_thread(...)`.
 - Prefer `interaction.response.defer(...)` before any storage or network work, then `followup`.
 - Extension load failure aborts startup (`bot.close()`); do not mark the bot ready with a half-loaded tree.

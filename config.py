@@ -11,6 +11,10 @@ load_dotenv()
 PROJECT_ROOT = Path(__file__).resolve().parent
 DATA_DIR = Path(os.environ.get("DATA_DIR", PROJECT_ROOT / "data"))
 
+# Railway Storage Bucket (S3) for ASA cache + sticky message ids
+STATE_BUCKET = (os.environ.get("STATE_BUCKET") or "").strip()
+ASA_BUCKET_FLUSH_SECONDS = int(os.environ.get("ASA_BUCKET_FLUSH_SECONDS", "300"))
+
 TOKEN = os.getenv("TOKEN")
 
 _slash_sync_raw = os.environ.get("SLASH_SYNC_GUILD_IDS", "")

@@ -12,7 +12,11 @@ from typing import Awaitable, Callable, Optional
 
 import discord
 
-from .state import load_persisted_message_id, save_persisted_message_id
+from .state import (
+    clear_persisted_message_id,
+    load_persisted_message_id,
+    save_persisted_message_id,
+)
 
 logger = logging.getLogger("commands.common.sticky")
 
@@ -65,11 +69,7 @@ class StickyMessage:
     async def clear(self) -> None:
         """Forget the tracked id and remove the persisted state file."""
         self.message_id = None
-        try:
-            if self.state_path.exists():
-                self.state_path.unlink()
-        except OSError as e:
-            logger.warning("%s: could not unlink state file: %s", self.log_label, e)
+        clear_persisted_message_id(self.state_path)
 
     async def ensure(
         self,
