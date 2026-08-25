@@ -62,6 +62,36 @@ def test_put_writes_v2_freshness_envelope(monkeypatch, tmp_path):
     assert payload["data"] == {"value": 2}
 
 
+def test_changed_cache_is_snapshotted_without_a_neon_read(monkeypatch, tmp_path):
+    import config
+
+    monkeypatch.setattr(config, "DATA_DIR", tmp_path)
+    uploads: list[tuple[str, dict]] = []
+    monkeypatch.setattr(cache.blob_state, "state_bucket_configured", lambda: True)
+    monkeypatch.setattr(
+        cache.blob_state,
+        "save_json",
+        lambda key, value: uploads.append((key, value)) or True,
+    )
+
+    cache.put("example", {"value": 3})
+
+    assert cache.snapshot_loaded_to_bucket() == 1
+    assert uploads == [
+        (
+            "cache/db/example.json",
+            {
+                "version": 2,
+                "written_at": uploads[0][1]["written_at"],
+                "generation": uploads[0][1]["generation"],
+                "source": "database-write",
+                "data": {"value": 3},
+            },
+        )
+    ]
+    assert cache.snapshot_loaded_to_bucket() == 0
+
+
 def test_newest_valid_persisted_copy_wins(monkeypatch, tmp_path):
     import config
 

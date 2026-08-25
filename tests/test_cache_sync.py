@@ -24,7 +24,7 @@ def test_startup_reconciliation_delay_uses_configured_grace_and_jitter(
 def test_reconciliation_loop_uses_configured_interval(monkeypatch) -> None:
     monkeypatch.setattr(cache_sync.config, "JSON_CACHE_RECONCILE_SECONDS", 123.0)
 
-    assert cache_sync._reconcile_interval() == 123.0
+    assert cache_sync._reconcile_interval() == 3600.0
 
 
 @pytest.mark.asyncio
@@ -48,6 +48,7 @@ def test_reconciliation_returns_diagnostics_and_stats(monkeypatch) -> None:
     monkeypatch.setattr(
         cache_sync.cache, "stats_snapshot", lambda: {"repairs": 1}
     )
+    monkeypatch.setattr(cache_sync.cache, "snapshot_loaded_to_bucket", lambda: 0)
 
     result, diagnostics, stats = cache_sync._run_reconciliation()
 

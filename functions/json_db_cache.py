@@ -33,6 +33,7 @@ _metadata: dict[str, dict[str, Any]] = {}
 _loaded: set[str] = set()
 _verified_at: dict[str, float] = {}
 _dirty: set[str] = set()
+_pending_bucket: set[str] = set()
 _stats: dict[str, int] = {
     "memory_hits": 0,
     "local_hits": 0,
@@ -144,7 +145,12 @@ def _new_envelope(value: Any, *, source: str) -> dict[str, Any]:
     }
 
 
-def _persist_envelope(name: str, payload: dict[str, Any]) -> bool:
+def _persist_envelope(
+    name: str,
+    payload: dict[str, Any],
+    *,
+    include_bucket: bool = True,
+) -> bool:
     path = _local_path(name)
     temp_path: Path | None = None
     local_ok = False
@@ -170,7 +176,7 @@ def _persist_envelope(name: str, payload: dict[str, Any]) -> bool:
             except OSError:
                 pass
     bucket_ok = True
-    if blob_state.state_bucket_configured():
+    if include_bucket and blob_state.state_bucket_configured():
         bucket_ok = blob_state.save_json(_bucket_key(name), payload)
     ok = local_ok and bucket_ok
     with _state_lock:
@@ -196,7 +202,12 @@ def _store_locked(name: str, value: Any, *, source: str) -> bool:
         }
         _loaded.add(name)
         _verified_at[name] = time.monotonic()
-    return _persist_envelope(name, payload)
+    with _state_lock:
+        if blob_state.state_bucket_configured():
+            _pending_bucket.add(name)
+    # Local recovery is immediate; bucket writes are coalesced by the
+    # short snapshot loop and never require a database read.
+    return _persist_envelope(name, payload, include_bucket=False)
 
 
 def _get_locked(name: str, loader: Callable[[], Any]) -> Any:
@@ -313,7 +324,10 @@ def verify(name: str, loader: Callable[[], Any]) -> bool:
 
 
 def verify_due(name: str, loader: Callable[[], Any]) -> bool:
-    verify_seconds = float(getattr(config, "JSON_CACHE_RECONCILE_SECONDS", 60 * 60))
+    verify_seconds = max(
+        60 * 60,
+        float(getattr(config, "JSON_CACHE_RECONCILE_SECONDS", 60 * 60)),
+    )
     with _state_lock:
         due = time.monotonic() - _verified_at.get(name, 0.0) >= verify_seconds
     return verify(name, loader) if due else True
@@ -342,6 +356,36 @@ def retry_dirty() -> dict[str, bool]:
             }
             result[name] = _persist_envelope(name, payload)
     return result
+
+
+def snapshot_loaded_to_bucket() -> int:
+    """Persist changed loaded keys without querying the database."""
+    if not blob_state.state_bucket_configured():
+        return 0
+    with _state_lock:
+        names = sorted(_pending_bucket | _dirty)
+    written = 0
+    for name in names:
+        with _key_lock(name):
+            with _state_lock:
+                if name not in _pending_bucket and name not in _dirty:
+                    continue
+                value = _copy(_memory.get(name))
+                meta = dict(_metadata.get(name) or {})
+            if not meta:
+                continue
+            payload = {
+                "version": ENVELOPE_VERSION,
+                "written_at": meta["written_at"],
+                "generation": meta["generation"],
+                "source": meta["source"],
+                "data": value,
+            }
+            if _persist_envelope(name, payload):
+                with _state_lock:
+                    _pending_bucket.discard(name)
+                written += 1
+    return written
 
 
 def stats_snapshot() -> dict[str, int]:
@@ -375,5 +419,6 @@ def reset() -> None:
         _loaded.clear()
         _verified_at.clear()
         _dirty.clear()
+        _pending_bucket.clear()
         for key in _stats:
             _stats[key] = 0

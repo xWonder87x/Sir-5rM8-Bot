@@ -17,6 +17,12 @@ logger = logging.getLogger(__name__)
 
 def _run_reconciliation() -> tuple[dict[str, bool], dict, dict]:
     result = verify_cached_db_state()
+    bucket_written = cache.snapshot_loaded_to_bucket()
+    if bucket_written:
+        logger.info(
+            "JSON cache bucket snapshot wrote %d changed key(s) after DB reconciliation",
+            bucket_written,
+        )
     return result, cache.diagnostics_snapshot(), cache.stats_snapshot()
 
 
@@ -27,7 +33,11 @@ def _startup_delay() -> float:
 
 
 def _reconcile_interval() -> float:
-    return config.JSON_CACHE_RECONCILE_SECONDS
+    return max(3600.0, float(config.JSON_CACHE_RECONCILE_SECONDS))
+
+
+def _bucket_snapshot_interval() -> float:
+    return max(30.0, float(config.JSON_CACHE_BUCKET_SNAPSHOT_SECONDS))
 
 
 class CacheSync(commands.Cog):
@@ -37,10 +47,31 @@ class CacheSync(commands.Cog):
             self.reconcile.change_interval(
                 seconds=_reconcile_interval()
             )
+            self.bucket_snapshot.change_interval(
+                seconds=_bucket_snapshot_interval()
+            )
             self.reconcile.start()
+            self.bucket_snapshot.start()
 
     def cog_unload(self) -> None:
         self.reconcile.cancel()
+        self.bucket_snapshot.cancel()
+
+    @tasks.loop(seconds=60)
+    async def bucket_snapshot(self) -> None:
+        try:
+            written = await asyncio.to_thread(cache.snapshot_loaded_to_bucket)
+            if written:
+                logger.info(
+                    "JSON cache bucket snapshot wrote %d changed key(s)",
+                    written,
+                )
+        except Exception:
+            logger.exception("JSON cache bucket snapshot failed")
+
+    @bucket_snapshot.before_loop
+    async def before_bucket_snapshot(self) -> None:
+        await self.bot.wait_until_ready()
 
     @tasks.loop(seconds=60 * 60)
     async def reconcile(self) -> None:

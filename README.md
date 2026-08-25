@@ -103,9 +103,12 @@ configurable 10–30 second startup grace, then refresh in the background withou
 blocking bot readiness; reconciliation repeats hourly by default.
 
 Cache timing is controlled by `JSON_CACHE_STARTUP_GRACE_SECONDS` (default `10`),
-`JSON_CACHE_STARTUP_JITTER_SECONDS` (default `20`), and
-`JSON_CACHE_RECONCILE_SECONDS` (default `3600`). Use a separate Sir-5rM8 state
-bucket rather than sharing another bot's credentials.
+`JSON_CACHE_STARTUP_JITTER_SECONDS` (default `20`),
+`JSON_CACHE_BUCKET_SNAPSHOT_SECONDS` (default `60`), and
+`JSON_CACHE_RECONCILE_SECONDS` (default `3600`). Changed in-memory values are
+snapshotted to the bucket every minute without querying Neon; authoritative Neon
+reads occur during startup verification and hourly reconciliation. Use a separate
+Sir-5rM8 state bucket rather than sharing another bot's credentials.
 
 **Developer:** After code changes without a full restart, bot owner or admins can run `!reload` in Discord to reload cogs and re-sync slash commands.
 

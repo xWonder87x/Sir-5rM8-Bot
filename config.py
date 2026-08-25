@@ -22,7 +22,10 @@ JSON_CACHE_STARTUP_JITTER_SECONDS = max(
     0.0, float(os.environ.get("JSON_CACHE_STARTUP_JITTER_SECONDS", "20"))
 )
 JSON_CACHE_RECONCILE_SECONDS = max(
-    1.0, float(os.environ.get("JSON_CACHE_RECONCILE_SECONDS", "3600"))
+    3600.0, float(os.environ.get("JSON_CACHE_RECONCILE_SECONDS", "3600"))
+)
+JSON_CACHE_BUCKET_SNAPSHOT_SECONDS = max(
+    30.0, float(os.environ.get("JSON_CACHE_BUCKET_SNAPSHOT_SECONDS", "60"))
 )
 
 TOKEN = os.getenv("TOKEN")

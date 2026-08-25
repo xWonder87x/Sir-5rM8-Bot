@@ -65,6 +65,7 @@ No user-facing prefix commands.
 | `ASA_BUCKET_FLUSH_SECONDS` | `300` | Rewrite official-list object at most this often when size is unchanged |
 | `JSON_CACHE_STARTUP_GRACE_SECONDS` | `10` | Minimum non-blocking startup grace before database cache verification |
 | `JSON_CACHE_STARTUP_JITTER_SECONDS` | `20` | Random extra startup verification delay |
+| `JSON_CACHE_BUCKET_SNAPSHOT_SECONDS` | `60` | Snapshot changed loaded cache keys to `STATE_BUCKET` without a Neon read |
 | `JSON_CACHE_RECONCILE_SECONDS` | `3600` | Database-authoritative cache reconciliation interval |
 | `SLASH_SYNC_GUILD_IDS` | — | Comma-separated guild IDs for stale slash clears |
 | `GUILD_LIST_CHANNEL_ID` | `1540099281896087583` | Text channel for the sticky list of Discord guilds the bot is in (replaces `/servers`) |
@@ -129,7 +130,7 @@ BattleMetrics remains optional for the uptime chart (official list has no histor
 
 - Prefer `DATABASE_URL` (Postgres) when set; else Postgres REST; else JSON files under `data/`.
 - When `STATE_BUCKET` + Railway S3 credentials are set, use a dedicated Sir-5rM8 bucket. Objects live under `cache/` and `state/`; do not share ALICE credentials.
-- Database-backed runtime state has versioned JSON copies under `data/cache/db/` and `cache/db/` in `STATE_BUCKET`. The database is authoritative; startup verification is delayed about 10–30 seconds without blocking ready, then repeats hourly by default.
+- Database-backed runtime state has versioned JSON copies under `data/cache/db/` and `cache/db/` in `STATE_BUCKET`. Changed loaded keys are coalesced into bucket snapshots every minute without a Neon read. The database is authoritative; startup verification is delayed about 10–30 seconds without blocking ready, then repeats hourly by default.
 - Cache compound mutations must use `json_db_cache.update`; failed persistence remains dirty and is retried during reconciliation. Cache statistics stay process-local.
 - Offload sync Postgres/JSON storage from async slash handlers with `asyncio.to_thread(...)`.
 - Prefer `interaction.response.defer(...)` before any storage or network work, then `followup`.

@@ -403,7 +403,7 @@ Several bots may share one Neon project with **separate databases** (or schemas)
 | `RESTART_NOTIFY_USER_ID` | Discord user to DM once when the process comes online; empty disables |
 | `DATA_DIR` | Runtime JSON / log directory when used |
 | `STATE_BUCKET`, `STATE_ACCESS_KEY_ID`, `STATE_SECRET_ACCESS_KEY` | Dedicated S3-compatible cache bucket and its exact credentials, when the optional cache standard is used |
-| `JSON_CACHE_STARTUP_GRACE_SECONDS`, `JSON_CACHE_RECONCILE_SECONDS` | Optional stale-while-revalidate and reconciliation intervals |
+| `JSON_CACHE_STARTUP_GRACE_SECONDS`, `JSON_CACHE_BUCKET_SNAPSHOT_SECONDS`, `JSON_CACHE_RECONCILE_SECONDS` | Optional startup grace, bucket snapshot, and reconciliation intervals; keep authoritative Neon reconciliation at least hourly |
 | `LOGIN_RETRY_ATTEMPT` | **Internal** — 429 retry counter; do not set manually |
 
 Feature-specific vars (channel IDs, API keys, intervals, etc.) belong in that bot's **`README.md`** and **`AGENTS.md`** — not in this file.
