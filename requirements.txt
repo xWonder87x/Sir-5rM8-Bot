@@ -1,6 +1,7 @@
 discord.py==2.4.0
 python-dotenv==1.0.1
 requests==2.32.3
+aiohttp>=3.9.0
 supabase>=2.15.0  # Postgres REST client
 psycopg[binary]>=3.2.0
 Pillow>=10.0.0

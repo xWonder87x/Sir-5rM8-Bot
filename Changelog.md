@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.6.0] - 2026-08-25
+
+### Added
+
+- Twitch go-live notifications and the `/streamers add`, `/streamers list`, `/streamers remove`, and `/streamers setup` command group
+- Twitch watchlist and ping deduplication persisted in the Railway state bucket
+- Deploy marker `v1.6.0`
+
 ## [1.5.0] - 2026-08-23
 
 ### Added

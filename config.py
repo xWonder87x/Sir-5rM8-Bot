@@ -73,6 +73,22 @@ HTTP_RETRY_DELAY = 2
 
 # /serverstatus charts (BattleMetrics uptime)
 BATTLEMETRICS_TOKEN = os.environ.get("BATTLEMETRICS_TOKEN", "").strip()
+TWITCH_CLIENT_ID = os.environ.get("TWITCH_CLIENT_ID", "").strip()
+TWITCH_CLIENT_SECRET = os.environ.get("TWITCH_CLIENT_SECRET", "").strip()
+TWITCH_CHANNELS = [
+    login.strip().lower()
+    for login in os.environ.get("TWITCH_CHANNELS", "").replace(",", " ").split()
+    if login.strip()
+]
+_twitch_channel_raw = os.environ.get("TWITCH_DISCORD_CHANNEL_ID", "").strip()
+TWITCH_DISCORD_CHANNEL_ID = (
+    int(_twitch_channel_raw) if _twitch_channel_raw.isdigit() else None
+)
+_twitch_role_raw = os.environ.get("TWITCH_PING_ROLE_ID", "").strip()
+TWITCH_PING_ROLE_ID = int(_twitch_role_raw) if _twitch_role_raw.isdigit() else None
+TWITCH_POLL_INTERVAL_MINUTES = int(
+    os.environ.get("TWITCH_POLL_INTERVAL_MINUTES", "10")
+)
 BM_UPTIME_HISTORY_DAYS = int(os.environ.get("BM_UPTIME_HISTORY_DAYS", "90"))
 BM_UPTIME_RESOLUTION_MINUTES = int(os.environ.get("BM_UPTIME_RESOLUTION_MINUTES", "60"))
 SERVER_UP_CHECK_MINUTES = int(os.environ.get("SERVER_UP_CHECK_MINUTES", "1"))

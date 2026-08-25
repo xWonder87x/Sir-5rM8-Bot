@@ -13,6 +13,8 @@ logger = logging.getLogger(__name__)
 
 ASA_CACHE_KEY = "cache/asa.json"
 GUILD_LIST_KEY = "state/guild_list_message.json"
+TWITCH_WATCHLIST_KEY = "state/twitch_watchlist.json"
+TWITCH_PINGED_KEY = "state/twitch_pinged.json"
 
 _lock = threading.Lock()
 _caches: dict[str, dict[str, Any]] = {}

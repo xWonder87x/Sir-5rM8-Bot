@@ -15,6 +15,7 @@ COG_EXTENSIONS: list[tuple[str, str]] = [
     ("commands.community.ark_notifications", "ARK notifications cog loaded"),
     ("commands.mod.bothunter", "Bothunter cog loaded"),
     ("commands.integrations.ratecheck", "Rate check integration loaded"),
+    ("commands.integrations.twitch_stream", "Twitch stream integration loaded"),
 ]
 
 

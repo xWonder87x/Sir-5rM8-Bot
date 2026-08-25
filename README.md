@@ -10,7 +10,7 @@
 
 # **Sir-5rM8**
 
-**Version:** 1.5.0
+**Version:** 1.6.0
 
 ### *Making the community better, one command at a time.*
 
@@ -63,6 +63,12 @@ Catch mass-spam bots by monitoring a dedicated trap channel. Anyone who posts th
 | `/bothunter-messages` | Customize warning / DM / log messages *(Admin)* |
 
 **Setup tips:** place the trap near the top of your channel list, keep the bot’s role above member roles, and ensure it has **Ban Members**. Softban bans then unbans so Discord deletes recent messages.
+
+### Twitch go-live alerts
+
+The `/streamers add`, `/streamers list`, `/streamers remove`, and `/streamers setup`
+commands manage a Twitch watchlist. Configure Twitch API credentials in the
+environment, then choose the alert role and channel with `/streamers setup`.
 
 ### Help & admin tools
 
