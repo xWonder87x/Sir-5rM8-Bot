@@ -1,5 +1,21 @@
 # Changelog
 
+## [Unreleased]
+
+### Features
+
+### Fixes
+
+### Docs
+
+## [1.6.1] - 2026-08-28
+
+### Fixed
+
+- Suppress ASA notification messages containing `ExecEnableFullCrashDumps`
+- Treat 1–15 minute restart notices as countdown replacements, including skipped steps like 4 minutes
+- Deploy marker `v1.6.1`
+
 ## [1.6.0] - 2026-08-25
 
 ### Added

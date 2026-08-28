@@ -12,8 +12,8 @@ import config
 from functions import ark_notices as notice_cache
 from functions.ark_notices import (
     consume_ark_notice_update,
-    is_execsave_notice,
     is_restart_countdown_notice,
+    should_post_ark_notice,
 )
 from functions.asa_cache import current_announcement
 
@@ -54,7 +54,7 @@ async def post_ark_notice(
     last_message_id: str | None,
 ) -> str | None:
     """Post a notice, replacing the previous countdown message. Returns the new message id."""
-    if is_execsave_notice(text):
+    if not should_post_ark_notice(text):
         return last_message_id
     if is_restart_countdown_notice(text):
         await _delete_previous_notice(channel, last_message_id)
@@ -146,7 +146,7 @@ class ArkNotifyChannelSelect(discord.ui.ChannelSelect):
             notice is not None
             and notice.fetch_ok
             and notice.text
-            and not is_execsave_notice(notice.text)
+            and should_post_ark_notice(notice.text)
         ):
             try:
                 await post_ark_notice(

@@ -60,7 +60,7 @@ Wildcard posts the same notices inside ASA from [notification.html](https://cdn2
 2. Run `/arknotifications` *(Admin)* and select that channel from the menu
 3. Use **Disable** on the same command if you want to stop
 
-When a notice is already live, the bot posts it once after you pick the channel. Empty pages (`..`) and `execsave` are ignored. Restart countdowns (15 / 10 / 5 minutes) replace the previous countdown message so only the latest stays.
+When a notice is already live, the bot posts it once after you pick the channel. Empty pages (`..`), `execsave`, and `ExecEnableFullCrashDumps` are ignored. Restart countdowns from 1–15 minutes replace the previous countdown message so only the latest stays.
 
 ---
 

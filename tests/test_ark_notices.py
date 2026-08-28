@@ -7,6 +7,7 @@ import pytest
 from functions import json_db_cache
 from functions.ark_notices import (
     consume_ark_notice_update,
+    is_crash_dump_notice,
     is_execsave_notice,
     is_restart_countdown_notice,
 )
@@ -142,8 +143,14 @@ def test_execsave_and_countdown_helpers():
     assert is_restart_countdown_notice("Official servers restart in 15 minutes")
     assert is_restart_countdown_notice("10 min remaining")
     assert is_restart_countdown_notice("Going down in 5 minutes")
+    assert is_restart_countdown_notice("Going down in 4 minutes")
+    assert is_restart_countdown_notice("Restart in 3 mins")
+    assert is_restart_countdown_notice("1 minute remaining")
+    assert not is_restart_countdown_notice("Maintenance in 30 minutes")
     assert not is_restart_countdown_notice("execsave")
-    assert not is_restart_countdown_notice("Servers coming down for maintenance")
+    assert is_crash_dump_notice("ExecEnableFullCrashDumps")
+    assert is_crash_dump_notice("Command: execenablefullcrashdumps now")
+    assert not is_crash_dump_notice("Servers coming down for maintenance")
 
 
 def test_consume_execsave_does_not_post():
@@ -163,6 +170,27 @@ def test_consume_execsave_does_not_post():
     assert text is None
     assert dest == []
     save.assert_called_once_with("execsave")
+    channels.assert_not_called()
+
+
+def test_consume_crash_dump_notice_does_not_post():
+    notice = "ExecEnableFullCrashDumps"
+    with patch(
+        "functions.ark_notices.current_announcement",
+        return_value=AsaAnnouncement(fetch_ok=True, text=notice),
+    ):
+        with patch(
+            "functions.ark_notices.db.get_previous_ark_notice",
+            return_value="5 minutes",
+        ):
+            with patch("functions.ark_notices.db.save_previous_ark_notice") as save:
+                with patch(
+                    "functions.ark_notices.db.get_ark_notification_channels"
+                ) as channels:
+                    text, dest = consume_ark_notice_update()
+    assert text is None
+    assert dest == []
+    save.assert_called_once_with(notice)
     channels.assert_not_called()
 
 

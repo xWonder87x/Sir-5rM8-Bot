@@ -8,8 +8,10 @@ from functions import json_db_cache as cache
 from functions.asa_cache import current_announcement
 
 _EXECSAVE_RE = re.compile(r"^execsave[.!]*$", re.IGNORECASE)
+_CRASH_DUMP_COMMAND_RE = re.compile(r"ExecEnableFullCrashDumps", re.IGNORECASE)
+# Official restart countdowns are usually 15→1 minutes; Wildcard sometimes skips one.
 _COUNTDOWN_RE = re.compile(
-    r"\b(?:15|10|5)\s*(?:minutes?|mins?)\b",
+    r"\b(?:1[0-5]|[1-9])\s*(?:minutes?|mins?)\b",
     re.IGNORECASE,
 )
 
@@ -20,9 +22,22 @@ def is_execsave_notice(text: str) -> bool:
     return bool(compact) and bool(_EXECSAVE_RE.fullmatch(compact))
 
 
+def is_crash_dump_notice(text: str) -> bool:
+    """True when a notice contains the crash-dump diagnostic command."""
+    return bool(_CRASH_DUMP_COMMAND_RE.search(text or ""))
+
+
 def is_restart_countdown_notice(text: str) -> bool:
-    """True for the usual 15 / 10 / 5 minute restart warnings."""
+    """True for restart countdown warnings from 1 through 15 minutes."""
     return bool(_COUNTDOWN_RE.search(text or ""))
+
+
+def should_post_ark_notice(text: str) -> bool:
+    """False for empty pages and internal-only exec lines Wildcard publishes."""
+    compact = (text or "").strip()
+    if not compact:
+        return False
+    return not is_execsave_notice(compact) and not is_crash_dump_notice(compact)
 
 
 def consume_ark_notice_update() -> tuple[str | None, list[dict]]:
@@ -50,7 +65,7 @@ def consume_ark_notice_update() -> tuple[str | None, list[dict]]:
         previous = verified_previous
     db.save_previous_ark_notice(current)
     cache.put("ark_notice_state", current)
-    if not current or is_execsave_notice(current):
+    if not should_post_ark_notice(current):
         return None, []
     return current, cache.get("ark_notifications", db.get_ark_notification_channels)
 
