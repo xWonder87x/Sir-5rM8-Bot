@@ -105,6 +105,8 @@ No user-facing prefix commands.
 | `server_watchlist` | Legacy local sample watchlist (unused by live chart) |
 | `server_player_samples` | Legacy local player samples (unused by live chart) |
 | `server_up_notify` | Users waiting for an offline server to come back |
+| `twitch_stream_watchlist` | Persisted Twitch logins for `/streamers` |
+| `twitch_stream_pinged` | Legacy go-live ping dedupe (migrated once into `STATE_BUCKET`) |
 
 Without a remote DB, the same data lives under `data/` as JSON.
 

@@ -580,3 +580,85 @@ def clear_up_notify(server_key: str, channel_id: str | None = None) -> int:
     if removed:
         _save_up_notify(kept)
     return removed
+
+
+TWITCH_PINGED_FILE = DATA_DIR / "twitch_stream_pinged.json"
+TWITCH_WATCHLIST_FILE = DATA_DIR / "twitch_stream_watchlist.json"
+
+
+def _load_twitch_pinged() -> dict:
+    _ensure_data_dir()
+    if not TWITCH_PINGED_FILE.exists():
+        return {}
+    try:
+        with open(TWITCH_PINGED_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except (IOError, json.JSONDecodeError):
+        return {}
+
+
+def _save_twitch_pinged(data: dict) -> None:
+    _ensure_data_dir()
+    with open(TWITCH_PINGED_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2)
+
+
+def _load_twitch_watchlist() -> list[str]:
+    _ensure_data_dir()
+    if not TWITCH_WATCHLIST_FILE.exists():
+        return []
+    try:
+        with open(TWITCH_WATCHLIST_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        if isinstance(data, list):
+            return [str(login).lower() for login in data if login]
+        return []
+    except (IOError, json.JSONDecodeError):
+        return []
+
+
+def _save_twitch_watchlist(logins: list[str]) -> None:
+    _ensure_data_dir()
+    with open(TWITCH_WATCHLIST_FILE, "w", encoding="utf-8") as f:
+        json.dump(logins, f, indent=2)
+
+
+def get_twitch_pinged() -> dict:
+    return {
+        str(login).lower(): str(stream_id)
+        for login, stream_id in _load_twitch_pinged().items()
+        if login and stream_id
+    }
+
+
+def set_twitch_pinged(login: str, stream_id: str) -> None:
+    key = str(login).strip().lower()
+    sid = str(stream_id).strip()
+    if not key or not sid:
+        return
+    data = _load_twitch_pinged()
+    data[key] = sid
+    _save_twitch_pinged(data)
+
+
+def get_twitch_watchlist() -> list[str]:
+    return list(dict.fromkeys(_load_twitch_watchlist()))
+
+
+def add_twitch_watchlist(logins: list[str]) -> tuple[list[str], list[str]]:
+    existing = set(get_twitch_watchlist())
+    normalized = list(dict.fromkeys(login.lower() for login in logins if login))
+    already_present = [login for login in normalized if login in existing]
+    added = [login for login in normalized if login not in existing]
+    if added:
+        current = get_twitch_watchlist()
+        current.extend(added)
+        _save_twitch_watchlist(current)
+    return added, already_present
+
+
+def remove_twitch_watchlist(logins: list[str]) -> None:
+    remove = {str(login).lower() for login in logins}
+    current = [login for login in get_twitch_watchlist() if login not in remove]
+    _save_twitch_watchlist(current)

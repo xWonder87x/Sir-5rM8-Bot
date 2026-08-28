@@ -1,4 +1,10 @@
-"""Twitch go-live notifications and the /streamers command group."""
+"""
+Twitch stream notifications: ping in Discord when the streamer goes live.
+Requires TWITCH_CLIENT_ID and TWITCH_CLIENT_SECRET in .env.
+
+Pinged stream ids live in memory and flush to STATE_BUCKET (not Neon polls).
+Watchlist logins persist in the database and are mirrored to STATE_BUCKET.
+"""
 from __future__ import annotations
 
 import asyncio
@@ -12,29 +18,30 @@ from discord import app_commands
 from discord.ext import commands, tasks
 
 import config
+import db
 from functions import blob_state
 
 logger = logging.getLogger(__name__)
 
-TWITCH_CHANNELS = getattr(config, "TWITCH_CHANNELS", [])
+TWITCH_CHANNELS = getattr(config, "TWITCH_CHANNELS", None) or []
 TWITCH_LOGIN_RE = re.compile(r"^[A-Za-z0-9_]{1,25}$")
 MAX_STREAMERS_PER_BATCH = 25
-POLL_INTERVAL_MINUTES = max(1, int(getattr(config, "TWITCH_POLL_INTERVAL_MINUTES", 10)))
-WATCHLIST_KEY = blob_state.TWITCH_WATCHLIST_KEY
-PINGED_KEY = blob_state.TWITCH_PINGED_KEY
+DISCORD_CHANNEL_ID = getattr(config, "TWITCH_DISCORD_CHANNEL_ID", None)
+PING_ROLE_ID = getattr(config, "TWITCH_PING_ROLE_ID", None)
+POLL_INTERVAL_MINUTES = int(getattr(config, "TWITCH_POLL_INTERVAL_MINUTES", 10) or 10)
 
 
 def parse_twitch_logins(value: str) -> tuple[list[str], list[str]]:
     """Parse comma/space-separated Twitch logins into valid and invalid names."""
+    tokens = [token for token in re.split(r"[\s,]+", value or "") if token]
     valid: list[str] = []
     invalid: list[str] = []
-    for token in re.split(r"[\s,]+", value or ""):
-        if not token:
-            continue
+    for token in tokens:
         normalized = token.lower()
+        if TWITCH_LOGIN_RE.fullmatch(token) and normalized in valid:
+            continue
         if TWITCH_LOGIN_RE.fullmatch(token) and len(valid) < MAX_STREAMERS_PER_BATCH:
-            if normalized not in valid:
-                valid.append(normalized)
+            valid.append(normalized)
         else:
             invalid.append(token)
     return valid, invalid
@@ -49,14 +56,24 @@ def _can_manage_streamers(interaction: discord.Interaction) -> bool:
     )
 
 
-def _watchlist_state(cog: "TwitchStream") -> dict:
-    state = blob_state.cache_get(WATCHLIST_KEY)
-    if not isinstance(state, dict):
-        state = {}
-    state.setdefault("logins", list(TWITCH_CHANNELS))
-    state.setdefault("ping_role_id", config.TWITCH_PING_ROLE_ID)
-    state.setdefault("discord_channel_id", config.TWITCH_DISCORD_CHANNEL_ID)
-    return state
+def _ensure_pinged_cache() -> dict:
+    """Load Twitch ping map once: bucket first, else one-shot Neon migrate."""
+    data = blob_state.cache_get(blob_state.TWITCH_PINGED_KEY)
+    if data:
+        return data
+    try:
+        neon = db.get_twitch_pinged()
+    except Exception as e:
+        logger.warning("Twitch: Neon migrate read failed: %s", e)
+        neon = {}
+    if neon:
+        blob_state.cache_replace(blob_state.TWITCH_PINGED_KEY, neon, flush=True)
+        logger.info(
+            "Twitch: migrated %d pinged login(s) from Neon to state bucket",
+            len(neon),
+        )
+        return dict(neon)
+    return {}
 
 
 async def _get_twitch_token() -> str | None:
@@ -74,39 +91,17 @@ async def _get_twitch_token() -> str | None:
                     "grant_type": "client_credentials",
                 },
                 timeout=aiohttp.ClientTimeout(total=10),
-            ) as response:
-                response.raise_for_status()
-                data = await response.json()
+            ) as r:
+                r.raise_for_status()
+                data = await r.json()
                 return data.get("access_token")
-    except (aiohttp.ClientError, KeyError, TypeError):
-        logger.warning("Twitch token request failed")
+    except (aiohttp.ClientError, KeyError) as e:
+        logger.warning("Twitch: failed to get token: %s", e)
         return None
 
 
-async def _get_stream_info(login: str) -> dict | None:
-    token = await _get_twitch_token()
-    client_id = os.environ.get("TWITCH_CLIENT_ID")
-    if not token or not client_id:
-        return None
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(
-                "https://api.twitch.tv/helix/streams",
-                params={"user_login": login},
-                headers={"Client-ID": client_id, "Authorization": f"Bearer {token}"},
-                timeout=aiohttp.ClientTimeout(total=10),
-            ) as response:
-                response.raise_for_status()
-                data = await response.json()
-                streams = data.get("data", [])
-                return streams[0] if streams else None
-    except (aiohttp.ClientError, KeyError, TypeError):
-        logger.warning("Twitch stream lookup failed for %s", login)
-        return None
-
-
-class StreamNotifyView(discord.ui.View):
-    """Buttons for adding or removing the configured notification role."""
+class StreamNotifyButton(discord.ui.View):
+    """Button to subscribe to stream notifications (adds the ping role)."""
 
     def __init__(self, role_id: int, timeout: float | None = None):
         super().__init__(timeout=timeout)
@@ -115,87 +110,271 @@ class StreamNotifyView(discord.ui.View):
     @discord.ui.button(
         label="Notify me when streamers go live",
         style=discord.ButtonStyle.primary,
-        custom_id="s5_twitch_notify",
+        custom_id="twitch_notify",
     )
-    async def notify(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self._toggle(interaction, add=True)
-
-    @discord.ui.button(
-        label="Remove notifications",
-        style=discord.ButtonStyle.secondary,
-        custom_id="s5_twitch_notify_remove",
-    )
-    async def remove(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self._toggle(interaction, add=False)
-
-    async def _toggle(self, interaction: discord.Interaction, *, add: bool) -> None:
+    async def notify_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.guild is None:
             await interaction.response.send_message("Use this in a server.", ephemeral=True)
             return
         role = interaction.guild.get_role(self.role_id)
-        member = interaction.user
-        if role is None or not isinstance(member, discord.Member):
+        if not role:
             await interaction.response.send_message(
-                "I couldn't find the notification role or your member record.",
-                ephemeral=True,
+                "The notification role could not be found.", ephemeral=True
+            )
+            return
+        member = interaction.user
+        if isinstance(member, discord.User):
+            member = interaction.guild.get_member(member.id)
+        if not member:
+            await interaction.response.send_message(
+                "Could not find you in this server.", ephemeral=True
+            )
+            return
+        if role in member.roles:
+            await interaction.response.send_message(
+                "You already have the stream notification role!", ephemeral=True
             )
             return
         try:
-            if add:
-                await member.add_roles(role, reason="Twitch stream notifications")
-                message = "You will now get Twitch go-live notifications."
-            else:
-                await member.remove_roles(role, reason="Twitch stream notifications")
-                message = "You will no longer get Twitch go-live notifications."
-            await interaction.response.send_message(message, ephemeral=True)
+            await member.add_roles(role)
+            await interaction.response.send_message(
+                "You will now get notified when streamers go live!", ephemeral=True
+            )
         except discord.Forbidden:
             await interaction.response.send_message(
-                "I don't have permission to manage that role.", ephemeral=True
+                "I don't have permission to add that role.", ephemeral=True
             )
-        except discord.HTTPException:
+        except discord.HTTPException as e:
+            await interaction.response.send_message(f"Something went wrong: {e}", ephemeral=True)
+
+    @discord.ui.button(
+        emoji="🔕",
+        style=discord.ButtonStyle.secondary,
+        custom_id="twitch_notify_remove",
+    )
+    async def remove_notify_button(
+        self, interaction: discord.Interaction, button: discord.ui.Button
+    ):
+        if interaction.guild is None:
+            await interaction.response.send_message("Use this in a server.", ephemeral=True)
+            return
+        role = interaction.guild.get_role(self.role_id)
+        if not role:
             await interaction.response.send_message(
-                "Discord rejected the role update. Please try again.", ephemeral=True
+                "The notification role could not be found.", ephemeral=True
             )
+            return
+        member = interaction.user
+        if isinstance(member, discord.User):
+            member = interaction.guild.get_member(member.id)
+        if not member:
+            await interaction.response.send_message(
+                "Could not find you in this server.", ephemeral=True
+            )
+            return
+        if role not in member.roles:
+            await interaction.response.send_message(
+                "You do not have the stream notification role.", ephemeral=True
+            )
+            return
+        try:
+            await member.remove_roles(role)
+            await interaction.response.send_message(
+                "You will no longer get notified when streamers go live.", ephemeral=True
+            )
+        except discord.Forbidden:
+            await interaction.response.send_message(
+                "I don't have permission to remove that role.", ephemeral=True
+            )
+        except discord.HTTPException as e:
+            await interaction.response.send_message(f"Something went wrong: {e}", ephemeral=True)
+
+
+async def _get_stream_info(channel_login: str) -> dict | None:
+    token = await _get_twitch_token()
+    client_id = os.environ.get("TWITCH_CLIENT_ID")
+    if not token or not client_id:
+        return None
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                "https://api.twitch.tv/helix/streams",
+                params={"user_login": channel_login},
+                headers={
+                    "Client-ID": client_id,
+                    "Authorization": f"Bearer {token}",
+                },
+                timeout=aiohttp.ClientTimeout(total=10),
+            ) as r:
+                r.raise_for_status()
+                data = await r.json()
+                streams = data.get("data", [])
+                return streams[0] if streams else None
+    except (aiohttp.ClientError, KeyError) as e:
+        logger.warning("Twitch: failed to get stream: %s", e)
+        return None
 
 
 class TwitchStream(commands.Cog):
-    def __init__(self, bot: commands.Bot):
+    def __init__(self, bot):
         self.bot = bot
-        self._ready = False
-        state = _watchlist_state(self)
-        self.streamers = [str(x).lower() for x in state.get("logins", []) if x]
-        self.ping_role_id = state.get("ping_role_id")
-        self.discord_channel_id = state.get("discord_channel_id")
-        if self.ping_role_id:
-            bot.add_view(StreamNotifyView(int(self.ping_role_id)))
+        self._pinged_ready = False
+        self._streamers_ready = False
+        self.streamers: list[str] = []
+        self.ping_role_id = PING_ROLE_ID
+        self.discord_channel_id = DISCORD_CHANNEL_ID
+        if PING_ROLE_ID:
+            bot.add_view(StreamNotifyButton(PING_ROLE_ID))
         if not os.environ.get("EXTENSION_VERIFY"):
-            self.check_stream_task.change_interval(minutes=POLL_INTERVAL_MINUTES)
+            self.check_stream_task.change_interval(minutes=max(1, POLL_INTERVAL_MINUTES))
             self.check_stream_task.start()
 
-    def cog_unload(self) -> None:
+    def cog_unload(self):
         self.check_stream_task.cancel()
 
-    def _save_state(self) -> None:
-        blob_state.cache_replace(
-            WATCHLIST_KEY,
-            {
-                "logins": self.streamers,
-                "ping_role_id": self.ping_role_id,
-                "discord_channel_id": self.discord_channel_id,
-            },
-            flush=True,
+    async def _pinged_map(self) -> dict:
+        if not self._pinged_ready:
+            await asyncio.to_thread(_ensure_pinged_cache)
+            self._pinged_ready = True
+        return await asyncio.to_thread(
+            blob_state.cache_get, blob_state.TWITCH_PINGED_KEY
         )
 
+    async def _streamer_logins(self) -> list[str]:
+        if not self._streamers_ready:
+            state = await asyncio.to_thread(
+                blob_state.cache_get, blob_state.TWITCH_WATCHLIST_KEY
+            )
+            persisted = state.get("logins") if isinstance(state, dict) else None
+            if isinstance(state, dict) and isinstance(state.get("ping_role_id"), int):
+                self.ping_role_id = state["ping_role_id"]
+            if isinstance(state, dict) and isinstance(state.get("discord_channel_id"), int):
+                self.discord_channel_id = state["discord_channel_id"]
+            if not isinstance(persisted, list):
+                try:
+                    persisted = await asyncio.to_thread(db.get_twitch_watchlist)
+                except Exception:
+                    logger.warning(
+                        "Twitch: watchlist table unavailable; using config defaults"
+                    )
+                    persisted = []
+                await asyncio.to_thread(
+                    blob_state.cache_replace,
+                    blob_state.TWITCH_WATCHLIST_KEY,
+                    {
+                        "logins": persisted,
+                        "ping_role_id": getattr(self, "ping_role_id", PING_ROLE_ID),
+                        "discord_channel_id": getattr(
+                            self, "discord_channel_id", DISCORD_CHANNEL_ID
+                        ),
+                    },
+                    flush=True,
+                )
+            self.streamers = list(
+                dict.fromkeys(
+                    str(login).lower()
+                    for login in [*TWITCH_CHANNELS, *persisted]
+                    if login
+                )
+            )
+            self._streamers_ready = True
+        return self.streamers
+
     streamers_group = app_commands.Group(
-        name="streamers", description="Manage Twitch go-live notifications"
+        name="streamers", description="Manage the Twitch go-live watchlist"
     )
 
-    @streamers_group.command(name="add", description="Add Twitch logins to the watchlist")
+    @streamers_group.command(name="add", description="Add Twitch logins to the go-live watchlist")
     @app_commands.describe(streamers="Comma- or space-separated Twitch login names")
     async def streamers_add(self, interaction: discord.Interaction, streamers: str):
         if not _can_manage_streamers(interaction):
             await interaction.response.send_message(
-                "Administrator permission is required.", ephemeral=True
+                "Administrator permission is required.",
+                ephemeral=True,
+            )
+            return
+        valid, invalid = parse_twitch_logins(streamers)
+        if not valid:
+            detail = f" Invalid names: {', '.join(invalid)}." if invalid else ""
+            await interaction.response.send_message(
+                f"No valid Twitch login names were provided.{detail}", ephemeral=True
+            )
+            return
+        current = await self._streamer_logins()
+        already_present = [login for login in valid if login in current]
+        to_add = [login for login in valid if login not in current]
+        await interaction.response.defer(ephemeral=True)
+        try:
+            added, persisted_already = await asyncio.to_thread(
+                db.add_twitch_watchlist, to_add
+            )
+        except Exception:
+            logger.exception("Twitch: failed to persist stream watchlist")
+            await interaction.followup.send(
+                "I couldn't save the Twitch watchlist. Please try again.", ephemeral=True
+            )
+            return
+        already_present.extend(
+            login for login in persisted_already if login not in already_present
+        )
+        current.extend(login for login in added if login not in current)
+        await asyncio.to_thread(
+            blob_state.cache_replace,
+            blob_state.TWITCH_WATCHLIST_KEY,
+            {
+                "logins": current,
+                "ping_role_id": getattr(self, "ping_role_id", PING_ROLE_ID),
+                "discord_channel_id": getattr(
+                    self, "discord_channel_id", DISCORD_CHANNEL_ID
+                ),
+            },
+            flush=True,
+        )
+        self._streamers_ready = True
+        parts = []
+        if added:
+            parts.append(f"Added: {', '.join(added)}")
+        if already_present:
+            parts.append(f"Already present: {', '.join(already_present)}")
+        if invalid:
+            parts.append(f"Invalid: {', '.join(invalid)}")
+        await interaction.followup.send(". ".join(parts) + ".", ephemeral=True)
+
+    @streamers_group.command(name="list", description="List Twitch logins on the go-live watchlist")
+    async def streamers_list(self, interaction: discord.Interaction):
+        if not _can_manage_streamers(interaction):
+            await interaction.response.send_message(
+                "Administrator permission is required.",
+                ephemeral=True,
+            )
+            return
+        current = await self._streamer_logins()
+        role = (
+            interaction.guild.get_role(self.ping_role_id)
+            if self.ping_role_id and interaction.guild
+            else None
+        )
+        role_text = role.mention if role else "none"
+        channel = (
+            interaction.guild.get_channel(self.discord_channel_id)
+            if self.discord_channel_id and interaction.guild
+            else None
+        )
+        channel_text = channel.mention if channel else "configured default / none"
+        body = ", ".join(f"`{login}`" for login in current) or "The watchlist is empty."
+        await interaction.response.send_message(
+            f"Streamers ({len(current)}): {body}\n"
+            f"Ping role: {role_text}\nPing channel: {channel_text}",
+            ephemeral=True,
+        )
+
+    @streamers_group.command(name="remove", description="Remove Twitch logins from the go-live watchlist")
+    @app_commands.describe(streamers="Comma- or space-separated Twitch login names")
+    async def streamers_remove(self, interaction: discord.Interaction, streamers: str):
+        if not _can_manage_streamers(interaction):
+            await interaction.response.send_message(
+                "Administrator permission is required.",
+                ephemeral=True,
             )
             return
         valid, invalid = parse_twitch_logins(streamers)
@@ -204,60 +383,25 @@ class TwitchStream(commands.Cog):
                 "No valid Twitch login names were provided.", ephemeral=True
             )
             return
-        current = self.streamers
-        already = [login for login in valid if login in current]
-        added = [login for login in valid if login not in current]
-        current.extend(added)
-        self._save_state()
-        parts = []
-        if added:
-            parts.append(f"Added: {', '.join(added)}")
-        if already:
-            parts.append(f"Already present: {', '.join(already)}")
-        if invalid:
-            parts.append(f"Invalid: {', '.join(invalid)}")
-        await interaction.response.send_message(". ".join(parts) + ".", ephemeral=True)
-
-    @streamers_group.command(name="list", description="List Twitch logins on the watchlist")
-    async def streamers_list(self, interaction: discord.Interaction):
-        if not _can_manage_streamers(interaction):
-            await interaction.response.send_message(
-                "Administrator permission is required.", ephemeral=True
-            )
-            return
-        role = (
-            interaction.guild.get_role(int(self.ping_role_id))
-            if interaction.guild and self.ping_role_id
-            else None
-        )
-        channel = (
-            interaction.guild.get_channel(int(self.discord_channel_id))
-            if interaction.guild and self.discord_channel_id
-            else None
-        )
-        body = ", ".join(f"`{login}`" for login in self.streamers) or "The watchlist is empty."
-        await interaction.response.send_message(
-            f"Streamers ({len(self.streamers)}): {body}\n"
-            f"Ping role: {role.mention if role else 'none'}\n"
-            f"Ping channel: {channel.mention if channel else 'configured default / none'}",
-            ephemeral=True,
-        )
-
-    @streamers_group.command(name="remove", description="Remove Twitch logins from the watchlist")
-    @app_commands.describe(streamers="Comma- or space-separated Twitch login names")
-    async def streamers_remove(self, interaction: discord.Interaction, streamers: str):
-        if not _can_manage_streamers(interaction):
-            await interaction.response.send_message(
-                "Administrator permission is required.", ephemeral=True
-            )
-            return
-        valid, invalid = parse_twitch_logins(streamers)
-        removed = [login for login in valid if login in self.streamers and login not in TWITCH_CHANNELS]
+        current = await self._streamer_logins()
+        removed = [login for login in valid if login in current and login not in TWITCH_CHANNELS]
         protected = [login for login in valid if login in TWITCH_CHANNELS]
-        missing = [login for login in valid if login not in self.streamers]
-        self.streamers[:] = [login for login in self.streamers if login not in removed]
+        missing = [login for login in valid if login not in current]
         if removed:
-            self._save_state()
+            current[:] = [login for login in current if login not in removed]
+            await asyncio.to_thread(db.remove_twitch_watchlist, removed)
+            await asyncio.to_thread(
+                blob_state.cache_replace,
+                blob_state.TWITCH_WATCHLIST_KEY,
+                {
+                    "logins": current,
+                    "ping_role_id": getattr(self, "ping_role_id", PING_ROLE_ID),
+                    "discord_channel_id": getattr(
+                        self, "discord_channel_id", DISCORD_CHANNEL_ID
+                    ),
+                },
+                flush=True,
+            )
         parts = []
         if removed:
             parts.append(f"Removed: {', '.join(removed)}")
@@ -269,9 +413,12 @@ class TwitchStream(commands.Cog):
             parts.append(f"Invalid: {', '.join(invalid)}")
         await interaction.response.send_message(". ".join(parts) + ".", ephemeral=True)
 
-    @streamers_group.command(name="setup", description="Choose the alert role and channel")
+    @streamers_group.command(
+        name="setup", description="Choose the role and channel for Twitch go-live alerts"
+    )
     @app_commands.describe(
-        role="The Discord role to mention", channel="The text channel for go-live alerts"
+        role="The Discord role to mention",
+        channel="The text channel where alerts will be posted",
     )
     async def streamers_setup(
         self,
@@ -281,17 +428,13 @@ class TwitchStream(commands.Cog):
     ):
         if not _can_manage_streamers(interaction):
             await interaction.response.send_message(
-                "Administrator permission is required.", ephemeral=True
+                "Administrator permission is required.",
+                ephemeral=True,
             )
             return
         if role.is_default() or role.managed:
             await interaction.response.send_message(
                 "That role cannot be used for Twitch alerts.", ephemeral=True
-            )
-            return
-        if interaction.guild is None or channel.guild.id != interaction.guild.id:
-            await interaction.response.send_message(
-                "That channel is not in this server.", ephemeral=True
             )
             return
         bot_member = interaction.guild.me
@@ -300,66 +443,85 @@ class TwitchStream(commands.Cog):
                 "I cannot use a role at or above my highest role.", ephemeral=True
             )
             return
+        if channel.guild.id != interaction.guild.id:
+            await interaction.response.send_message(
+                "That channel is not in this server.", ephemeral=True
+            )
+            return
+        await self._streamer_logins()
         self.ping_role_id = role.id
         self.discord_channel_id = channel.id
-        self._save_state()
+        await asyncio.to_thread(
+            blob_state.cache_replace,
+            blob_state.TWITCH_WATCHLIST_KEY,
+            {
+                "logins": self.streamers,
+                "ping_role_id": role.id,
+                "discord_channel_id": channel.id,
+            },
+            flush=True,
+        )
         await interaction.response.send_message(
-            f"Twitch alerts will ping {role.mention} in {channel.mention}.",
+            f"Twitch go-live alerts will now ping {role.mention} in {channel.mention}.",
             ephemeral=True,
         )
 
-    async def _streamer_logins(self) -> list[str]:
-        if not self._ready:
-            state = _watchlist_state(self)
-            self.streamers = list(dict.fromkeys(
-                str(login).lower() for login in state.get("logins", []) if login
-            ))
-            self.ping_role_id = state.get("ping_role_id")
-            self.discord_channel_id = state.get("discord_channel_id")
-            self._ready = True
-        return self.streamers
-
-    async def _pinged_map(self) -> dict:
-        state = blob_state.cache_get(PINGED_KEY)
-        return state if isinstance(state, dict) else {}
-
     @tasks.loop(minutes=10)
     async def check_stream_task(self):
-        streamers = await self._streamer_logins()
-        if not streamers or not self.discord_channel_id:
-            return
-        channel = self.bot.get_channel(int(self.discord_channel_id))
-        if channel is None or channel.type != discord.ChannelType.text:
-            return
-        pinged = await self._pinged_map()
-        for login in streamers:
-            stream = await _get_stream_info(login)
-            if not stream or not stream.get("id"):
-                continue
-            stream_id = str(stream["id"])
-            if pinged.get(login) == stream_id:
-                continue
-            title = stream.get("title", "Live")
-            game = stream.get("game_name") or "Unknown"
-            content = (
-                f"<@&{self.ping_role_id}> **{login}** is now live on Twitch!\n\n"
-                f"**{title}**\n{game} | https://twitch.tv/{login}"
-            ) if self.ping_role_id else (
-                f"**{login}** is now live on Twitch!\n\n"
-                f"**{title}**\n{game} | https://twitch.tv/{login}"
-            )
-            view = StreamNotifyView(int(self.ping_role_id), timeout=None) if self.ping_role_id else None
-            try:
-                await channel.send(content, view=view)
-                pinged[login] = stream_id
-                blob_state.cache_replace(PINGED_KEY, pinged, flush=True)
-            except (discord.Forbidden, discord.HTTPException):
-                logger.warning("Twitch: failed to send ping for %s", login)
+        try:
+            await self.bot.wait_until_ready()
+            streamers = await self._streamer_logins()
+            if not streamers or not self.discord_channel_id:
+                return
+            channel = self.bot.get_channel(self.discord_channel_id)
+            if not channel or channel.type != discord.ChannelType.text:
+                return
+            pinged = await self._pinged_map()
+            ping = f"<@&{self.ping_role_id}> " if self.ping_role_id else "@here "
+            for twitch_login in streamers:
+                stream = await _get_stream_info(twitch_login)
+                if not stream:
+                    continue
+                stream_id = stream.get("id")
+                if not stream_id:
+                    continue
+                key = str(twitch_login).lower()
+                if pinged.get(key) == stream_id:
+                    continue
+                title = stream.get("title", "Live")
+                game = stream.get("game_name") or "Unknown"
+                url = f"https://twitch.tv/{twitch_login}"
+                content = (
+                    f"{ping}**{twitch_login}** is now live on Twitch!\n\n"
+                    f"**{title}**\n{game} | {url}"
+                )
+                view = discord.ui.View()
+                if self.ping_role_id:
+                    view = StreamNotifyButton(self.ping_role_id, timeout=None)
+                try:
+                    await channel.send(content, view=view)
+                except (discord.Forbidden, discord.HTTPException) as e:
+                    logger.warning("Twitch: failed to send ping for %s: %s", twitch_login, e)
+                    continue
+                try:
+                    await asyncio.to_thread(
+                        blob_state.cache_set_item,
+                        blob_state.TWITCH_PINGED_KEY,
+                        key,
+                        stream_id,
+                        flush=True,
+                    )
+                    pinged[key] = stream_id
+                    logger.info("Twitch: sent go-live ping for %s", twitch_login)
+                except Exception as e:
+                    logger.warning("Twitch: failed to persist ping for %s: %s", twitch_login, e)
+        except Exception:
+            logger.exception("Twitch: check_stream_task failed")
 
     @check_stream_task.before_loop
     async def before_check_stream_task(self):
         await self.bot.wait_until_ready()
 
 
-async def setup(bot: commands.Bot):
+async def setup(bot):
     await bot.add_cog(TwitchStream(bot))

@@ -97,3 +97,14 @@ CREATE TABLE IF NOT EXISTS ark_notification_state (
 INSERT INTO ark_notification_state (id, previous_text)
 VALUES (1, NULL)
 ON CONFLICT (id) DO NOTHING;
+
+-- Twitch go-live watchlist + ping dedupe (managed by /streamers)
+CREATE TABLE IF NOT EXISTS twitch_stream_pinged (
+  twitch_login TEXT PRIMARY KEY,
+  stream_id    TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS twitch_stream_watchlist (
+  twitch_login TEXT PRIMARY KEY,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);

@@ -10,7 +10,7 @@
 
 # **Sir-5rM8**
 
-**Version:** 1.6.2
+**Version:** 1.7.0
 
 ### *Making the community better, one command at a time.*
 
@@ -66,9 +66,14 @@ Catch mass-spam bots by monitoring a dedicated trap channel. Anyone who posts th
 
 ### Twitch go-live alerts
 
-The `/streamers add`, `/streamers list`, `/streamers remove`, and `/streamers setup`
-commands manage a Twitch watchlist. Configure Twitch API credentials in the
-environment, then choose the alert role and channel with `/streamers setup`.
+| Command | Description |
+|---------|-------------|
+| `/streamers add` | Add comma- or space-separated Twitch logins to the go-live watchlist *(Admin)* |
+| `/streamers list` | List the watchlist plus current ping role and channel *(Admin)* |
+| `/streamers remove` | Remove saved Twitch logins from the watchlist *(Admin)* |
+| `/streamers setup` | Choose the Discord role and channel for go-live alerts *(Admin)* |
+
+Set `TWITCH_CLIENT_ID` / `TWITCH_CLIENT_SECRET`, then configure the alert role and channel with `/streamers setup`. Watchlist logins persist in Postgres (or JSON fallback) and are mirrored to `STATE_BUCKET`; go-live ping dedupe lives in the bucket.
 
 ### Help & admin tools
 

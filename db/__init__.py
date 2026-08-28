@@ -12,6 +12,7 @@ from db._base import (  # noqa: F401
 
 if use_postgres():
     from db.postgres import (  # noqa: F401
+        add_twitch_watchlist,
         add_up_notify,
         check_connection,
         clear_bothunter_config,
@@ -29,6 +30,8 @@ if use_postgres():
         get_ark_notification,
         get_ark_notification_channels,
         get_server_player_history,
+        get_twitch_pinged,
+        get_twitch_watchlist,
         list_up_notify_keys,
         list_up_notify_watchers,
         list_up_notify_watchers_all,
@@ -36,16 +39,19 @@ if use_postgres():
         log_bothunter_event,
         prune_server_samples,
         record_server_sample,
+        remove_twitch_watchlist,
         save_previous_rate_values,
         save_previous_ark_notice,
         set_bothunter_config,
         set_rate_notification,
         set_ark_notification,
         set_ark_notice_last_message,
+        set_twitch_pinged,
         watch_server,
     )
 elif use_postgrest():
     from db.postgrest import (  # noqa: F401
+        add_twitch_watchlist,
         add_up_notify,
         check_connection,
         clear_bothunter_config,
@@ -63,6 +69,8 @@ elif use_postgrest():
         get_ark_notification,
         get_ark_notification_channels,
         get_server_player_history,
+        get_twitch_pinged,
+        get_twitch_watchlist,
         list_up_notify_keys,
         list_up_notify_watchers,
         list_up_notify_watchers_all,
@@ -70,16 +78,19 @@ elif use_postgrest():
         log_bothunter_event,
         prune_server_samples,
         record_server_sample,
+        remove_twitch_watchlist,
         save_previous_rate_values,
         save_previous_ark_notice,
         set_bothunter_config,
         set_rate_notification,
         set_ark_notification,
         set_ark_notice_last_message,
+        set_twitch_pinged,
         watch_server,
     )
 else:
     from db.files import (  # noqa: F401
+        add_twitch_watchlist,
         add_up_notify,
         clear_bothunter_config,
         clear_rate_notification,
@@ -96,6 +107,8 @@ else:
         get_ark_notification,
         get_ark_notification_channels,
         get_server_player_history,
+        get_twitch_pinged,
+        get_twitch_watchlist,
         list_up_notify_keys,
         list_up_notify_watchers,
         list_up_notify_watchers_all,
@@ -103,12 +116,14 @@ else:
         log_bothunter_event,
         prune_server_samples,
         record_server_sample,
+        remove_twitch_watchlist,
         save_previous_rate_values,
         save_previous_ark_notice,
         set_bothunter_config,
         set_rate_notification,
         set_ark_notification,
         set_ark_notice_last_message,
+        set_twitch_pinged,
         watch_server,
     )
 

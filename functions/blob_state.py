@@ -115,6 +115,17 @@ def cache_replace(key: str, data: dict[str, Any], *, flush: bool = True) -> None
             save_json(key, _caches[key])
 
 
+def cache_set_item(key: str, item_key: str, value: Any, *, flush: bool = True) -> None:
+    """Set one entry in a cached JSON object map."""
+    with _lock:
+        if key not in _loaded:
+            _caches[key] = dict(load_json(key))
+            _loaded.add(key)
+        _caches[key][str(item_key)] = value
+        if flush:
+            save_json(key, _caches[key])
+
+
 def reset_blob_state() -> None:
     """Test helper — drop in-memory maps."""
     with _lock:

@@ -35,7 +35,9 @@ python scripts/migrate_to_postgres.py --apply
 Schema source: [`postgres/schema.sql`](schema.sql).
 
 If you already applied an older schema, re-run `--apply-schema` after upgrades that add tables
-(e.g. bothunter, `server_up_notify`, `guild_ark_notifications`). `CREATE TABLE IF NOT EXISTS` is safe to re-run.
+(e.g. bothunter, `server_up_notify`, `guild_ark_notifications`, `twitch_stream_watchlist`). `CREATE TABLE IF NOT EXISTS` is safe to re-run.
+
+Twitch-only patch: [`postgres/twitch_watchlist.sql`](twitch_watchlist.sql).
 
 ## 4. Dedicated Railway object cache (optional)
 

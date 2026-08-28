@@ -476,3 +476,59 @@ def clear_up_notify(server_key: str, channel_id: str | None = None) -> int:
         q = q.eq("channel_id", str(channel_id))
     r = q.execute()
     return len(r.data or [])
+
+
+def get_twitch_pinged() -> dict:
+    """{twitch_login: stream_id}"""
+    try:
+        r = _sb().table("twitch_stream_pinged").select("twitch_login,stream_id").execute()
+        return {
+            str(row["twitch_login"]).lower(): str(row["stream_id"])
+            for row in (r.data or [])
+            if row.get("twitch_login") and row.get("stream_id")
+        }
+    except Exception:
+        return {}
+
+
+def set_twitch_pinged(login: str, stream_id: str) -> None:
+    key = str(login).strip().lower()
+    sid = str(stream_id).strip()
+    if not key or not sid:
+        return
+    try:
+        _sb().table("twitch_stream_pinged").upsert(
+            {"twitch_login": key, "stream_id": sid},
+            on_conflict="twitch_login",
+        ).execute()
+    except Exception:
+        pass
+
+
+def get_twitch_watchlist() -> list[str]:
+    r = _sb().table("twitch_stream_watchlist").select("twitch_login").execute()
+    return [
+        str(row["twitch_login"]).lower()
+        for row in (r.data or [])
+        if row.get("twitch_login")
+    ]
+
+
+def add_twitch_watchlist(logins: list[str]) -> tuple[list[str], list[str]]:
+    existing = set(get_twitch_watchlist())
+    normalized = list(dict.fromkeys(login.lower() for login in logins if login))
+    already_present = [login for login in normalized if login in existing]
+    added = [login for login in normalized if login not in existing]
+    if added:
+        _sb().table("twitch_stream_watchlist").upsert(
+            [{"twitch_login": login} for login in added],
+            on_conflict="twitch_login",
+        ).execute()
+    return added, already_present
+
+
+def remove_twitch_watchlist(logins: list[str]) -> None:
+    for login in logins:
+        _sb().table("twitch_stream_watchlist").delete().eq(
+            "twitch_login", str(login).lower()
+        ).execute()

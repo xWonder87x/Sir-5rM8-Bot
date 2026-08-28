@@ -8,6 +8,13 @@
 
 ### Docs
 
+## [1.7.0] - 2026-08-29
+
+### Features
+
+- Match ALICE `/streamers` end-to-end: database watchlist persistence, STATE_BUCKET ping dedupe, notify buttons, and go-live polling with `@here` fallback
+- Deploy marker `v1.7.0`
+
 ## [1.6.2] - 2026-08-28
 
 ### Fixed

@@ -37,6 +37,22 @@ def check_connection() -> None:
             ADD COLUMN IF NOT EXISTS last_message_id TEXT
             """
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS twitch_stream_pinged (
+              twitch_login TEXT PRIMARY KEY,
+              stream_id    TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS twitch_stream_watchlist (
+              twitch_login TEXT PRIMARY KEY,
+              created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+            """
+        )
 
 
 def _ensure_rate_state_row(conn: psycopg.Connection) -> None:
@@ -631,3 +647,72 @@ def clear_up_notify(server_key: str, channel_id: str | None = None) -> int:
                 (key,),
             )
         return int(cur.rowcount or 0)
+
+
+def get_twitch_pinged() -> dict:
+    """{twitch_login: stream_id}"""
+    try:
+        with _conn() as conn:
+            rows = conn.execute(
+                "SELECT twitch_login, stream_id FROM twitch_stream_pinged"
+            ).fetchall()
+        return {
+            str(row["twitch_login"]).lower(): str(row["stream_id"])
+            for row in rows
+            if row.get("twitch_login") and row.get("stream_id")
+        }
+    except Exception:
+        return {}
+
+
+def set_twitch_pinged(login: str, stream_id: str) -> None:
+    key = str(login).strip().lower()
+    sid = str(stream_id).strip()
+    if not key or not sid:
+        return
+    with _conn() as conn:
+        conn.execute(
+            """
+            INSERT INTO twitch_stream_pinged (twitch_login, stream_id)
+            VALUES (%s, %s)
+            ON CONFLICT (twitch_login) DO UPDATE
+              SET stream_id = EXCLUDED.stream_id
+            """,
+            (key, sid),
+        )
+
+
+def get_twitch_watchlist() -> list[str]:
+    with _conn() as conn:
+        rows = conn.execute(
+            "SELECT twitch_login FROM twitch_stream_watchlist ORDER BY twitch_login"
+        ).fetchall()
+    return [str(row["twitch_login"]).lower() for row in rows if row.get("twitch_login")]
+
+
+def add_twitch_watchlist(logins: list[str]) -> tuple[list[str], list[str]]:
+    existing = set(get_twitch_watchlist())
+    normalized = list(dict.fromkeys(login.lower() for login in logins if login))
+    already_present = [login for login in normalized if login in existing]
+    added = [login for login in normalized if login not in existing]
+    if added:
+        with _conn() as conn:
+            for login in added:
+                conn.execute(
+                    """
+                    INSERT INTO twitch_stream_watchlist (twitch_login)
+                    VALUES (%s)
+                    ON CONFLICT (twitch_login) DO NOTHING
+                    """,
+                    (login,),
+                )
+    return added, already_present
+
+
+def remove_twitch_watchlist(logins: list[str]) -> None:
+    with _conn() as conn:
+        for login in logins:
+            conn.execute(
+                "DELETE FROM twitch_stream_watchlist WHERE twitch_login = %s",
+                (str(login).lower(),),
+            )
