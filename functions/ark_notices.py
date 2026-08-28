@@ -8,7 +8,10 @@ from functions import json_db_cache as cache
 from functions.asa_cache import current_announcement
 
 _EXECSAVE_RE = re.compile(r"^execsave[.!]*$", re.IGNORECASE)
-_CRASH_DUMP_COMMAND_RE = re.compile(r"ExecEnableFullCrashDumps", re.IGNORECASE)
+_CRASH_DUMP_COMMAND_RE = re.compile(
+    r"Exec(?:Enable|Disable)FullCrashDumps",
+    re.IGNORECASE,
+)
 # Official restart countdowns are usually 15→1 minutes; Wildcard sometimes skips one.
 _COUNTDOWN_RE = re.compile(
     r"\b(?:1[0-5]|[1-9])\s*(?:minutes?|mins?)\b",

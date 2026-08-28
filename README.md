@@ -10,7 +10,7 @@
 
 # **Sir-5rM8**
 
-**Version:** 1.6.1
+**Version:** 1.6.2
 
 ### *Making the community better, one command at a time.*
 

@@ -149,7 +149,9 @@ def test_execsave_and_countdown_helpers():
     assert not is_restart_countdown_notice("Maintenance in 30 minutes")
     assert not is_restart_countdown_notice("execsave")
     assert is_crash_dump_notice("ExecEnableFullCrashDumps")
+    assert is_crash_dump_notice("ExecDisableFullCrashDumps")
     assert is_crash_dump_notice("Command: execenablefullcrashdumps now")
+    assert is_crash_dump_notice("Command: execdisablefullcrashdumps now")
     assert not is_crash_dump_notice("Servers coming down for maintenance")
 
 

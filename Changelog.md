@@ -8,6 +8,13 @@
 
 ### Docs
 
+## [1.6.2] - 2026-08-28
+
+### Fixed
+
+- Suppress ASA notification messages containing `ExecDisableFullCrashDumps`
+- Deploy marker `v1.6.2`
+
 ## [1.6.1] - 2026-08-28
 
 ### Fixed
