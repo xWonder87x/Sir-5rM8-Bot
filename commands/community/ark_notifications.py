@@ -13,6 +13,8 @@ from functions import ark_notices as notice_cache
 from functions.ark_notices import (
     consume_ark_notice_update,
     is_restart_countdown_notice,
+    is_server_removal_notice,
+    replaces_previous_ark_notice,
     should_post_ark_notice,
 )
 from functions.asa_cache import current_announcement
@@ -26,10 +28,19 @@ _CHANNEL_TYPES = [
 
 
 def build_ark_notice_embed(text: str) -> discord.Embed:
+    if is_server_removal_notice(text):
+        title = "Official ARK Server Removal"
+        colour = discord.Colour.red()
+    elif is_restart_countdown_notice(text):
+        title = "Official ARK Restart Notice"
+        colour = discord.Colour.orange()
+    else:
+        title = "Official ARK Notification"
+        colour = discord.Colour.orange()
     embed = discord.Embed(
-        title="Official ARK Notification",
+        title=title,
         description=text[:4096],
-        colour=discord.Colour.orange(),
+        colour=colour,
     )
     embed.set_thumbnail(url=config.THUMBNAIL_URL)
     embed.set_footer(text="In-game official notice")
@@ -56,7 +67,7 @@ async def post_ark_notice(
     """Post a notice, replacing the previous countdown message. Returns the new message id."""
     if not should_post_ark_notice(text):
         return last_message_id
-    if is_restart_countdown_notice(text):
+    if replaces_previous_ark_notice(text):
         await _delete_previous_notice(channel, last_message_id)
     sent = await channel.send(embed=build_ark_notice_embed(text))
     await asyncio.to_thread(notice_cache.set_ark_notice_last_message, guild_id, str(sent.id))

@@ -8,6 +8,13 @@
 
 ### Docs
 
+## [1.8.0] - 2026-08-31
+
+### Features
+
+- Post official server-removal notices as red alerts and replace stale countdown messages
+- Deploy marker `v1.8.0`
+
 ## [1.7.0] - 2026-08-29
 
 ### Features

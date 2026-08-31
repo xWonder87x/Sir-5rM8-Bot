@@ -17,6 +17,14 @@ _COUNTDOWN_RE = re.compile(
     r"\b(?:1[0-5]|[1-9])\s*(?:minutes?|mins?)\b",
     re.IGNORECASE,
 )
+_SERVER_REMOVAL_RE = re.compile(
+    r"\b(?:"
+    r"servers?\s+(?:will\s+be\s+|have\s+been\s+|are\s+being\s+)?remov(?:ed|al|ing)"
+    r"|remov(?:ed|al|ing)\s+from\s+the\s+official"
+    r"|decommission(?:ed|ing)?"
+    r")\b",
+    re.IGNORECASE,
+)
 
 
 def is_execsave_notice(text: str) -> bool:
@@ -33,6 +41,16 @@ def is_crash_dump_notice(text: str) -> bool:
 def is_restart_countdown_notice(text: str) -> bool:
     """True for restart countdown warnings from 1 through 15 minutes."""
     return bool(_COUNTDOWN_RE.search(text or ""))
+
+
+def is_server_removal_notice(text: str) -> bool:
+    """True when Wildcard announces official server removals."""
+    return bool(_SERVER_REMOVAL_RE.search(text or ""))
+
+
+def replaces_previous_ark_notice(text: str) -> bool:
+    """Countdown and removal notices replace the prior posted message."""
+    return is_restart_countdown_notice(text) or is_server_removal_notice(text)
 
 
 def should_post_ark_notice(text: str) -> bool:

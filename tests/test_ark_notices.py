@@ -10,6 +10,8 @@ from functions.ark_notices import (
     is_crash_dump_notice,
     is_execsave_notice,
     is_restart_countdown_notice,
+    is_server_removal_notice,
+    replaces_previous_ark_notice,
 )
 from functions.asa_client import parse_announcement
 from functions.asa_models import AsaAnnouncement
@@ -153,6 +155,12 @@ def test_execsave_and_countdown_helpers():
     assert is_crash_dump_notice("Command: execenablefullcrashdumps now")
     assert is_crash_dump_notice("Command: execdisablefullcrashdumps now")
     assert not is_crash_dump_notice("Servers coming down for maintenance")
+    assert is_server_removal_notice("The following servers will be removed from the official list")
+    assert is_server_removal_notice("Servers have been decommissioned")
+    assert not is_server_removal_notice("Servers restart in 5 minutes")
+    assert replaces_previous_ark_notice("Restart in 5 minutes")
+    assert replaces_previous_ark_notice("Servers will be removed from the official list")
+    assert not replaces_previous_ark_notice("Servers coming down for maintenance")
 
 
 def test_consume_execsave_does_not_post():

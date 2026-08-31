@@ -123,3 +123,30 @@ async def test_post_ark_notice_replaces_previous_countdown() -> None:
     mock_tt.assert_awaited_once_with(
         ark_mod.notice_cache.set_ark_notice_last_message, "1", "20"
     )
+
+
+@pytest.mark.asyncio
+async def test_post_ark_notice_replaces_previous_removal() -> None:
+    old = MagicMock()
+    old.delete = AsyncMock()
+    sent = MagicMock()
+    sent.id = 21
+    channel = MagicMock()
+    channel.fetch_message = AsyncMock(return_value=old)
+    channel.send = AsyncMock(return_value=sent)
+    with patch.object(ark_mod.asyncio, "to_thread", new_callable=AsyncMock) as mock_tt:
+        result = await ark_mod.post_ark_notice(
+            channel,
+            "The following servers will be removed from the official list",
+            guild_id="1",
+            last_message_id="10",
+        )
+    assert result == "21"
+    channel.fetch_message.assert_awaited_once_with(10)
+    old.delete.assert_awaited_once()
+    channel.send.assert_awaited()
+    embed = channel.send.await_args.kwargs["embed"]
+    assert embed.title == "Official ARK Server Removal"
+    mock_tt.assert_awaited_once_with(
+        ark_mod.notice_cache.set_ark_notice_last_message, "1", "21"
+    )
