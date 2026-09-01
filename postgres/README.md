@@ -42,7 +42,7 @@ Twitch-only patch: [`postgres/twitch_watchlist.sql`](twitch_watchlist.sql).
 ## 4. Dedicated Railway object cache (optional)
 
 Provision a separate Railway bucket for Sir-5rM8 (for example,
-`sir-5rm8-state`). Do not reuse ALICE's bucket or credentials. On the Sir-5rM8
+`sir-5rm8-state`). Do not reuse another bot's bucket or credentials. On the Sir-5rM8
 bot service, add Variable References from the dedicated resource:
 
 ```env

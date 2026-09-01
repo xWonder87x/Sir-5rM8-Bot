@@ -10,7 +10,7 @@ if [[ -z "${resource}" ]]; then
   exit 2
 fi
 if [[ "${resource}" == "bot-state" ]]; then
-  echo "Refusing the shared ALICE bot-state resource; provision a dedicated Sir-5rM8 bucket." >&2
+  echo "Refusing the shared bot-state resource name; provision a dedicated Sir-5rM8 bucket." >&2
   exit 2
 fi
 

@@ -131,7 +131,7 @@ BattleMetrics remains optional for the uptime chart (official list has no histor
 ## Reliability notes
 
 - Prefer `DATABASE_URL` (Postgres) when set; else Postgres REST; else JSON files under `data/`.
-- When `STATE_BUCKET` + Railway S3 credentials are set, use a dedicated Sir-5rM8 bucket. Objects live under `cache/` and `state/`; do not share ALICE credentials.
+- When `STATE_BUCKET` + Railway S3 credentials are set, use a dedicated Sir-5rM8 bucket. Objects live under `cache/` and `state/`; do not share another bot's bucket credentials.
 - Database-backed runtime state has versioned JSON copies under `data/cache/db/` and `cache/db/` in `STATE_BUCKET`. Changed loaded keys are coalesced into bucket snapshots every minute without a Neon read. The database is authoritative; startup verification is delayed about 10–30 seconds without blocking ready, then repeats hourly by default.
 - Cache compound mutations must use `json_db_cache.update`; failed persistence remains dirty and is retried during reconciliation. Cache statistics stay process-local.
 - Offload sync Postgres/JSON storage from async slash handlers with `asyncio.to_thread(...)`.
