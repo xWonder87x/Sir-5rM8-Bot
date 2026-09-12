@@ -14,6 +14,9 @@ from functions import bothunter_cache
 
 logger = logging.getLogger(__name__)
 
+# Reaction on trap triggers and on the warning panel when first posted.
+BOTHUNTER_REACTION = "🤠"
+
 
 class UnbanView(discord.ui.View):
     def __init__(self, user_id: int):
@@ -71,6 +74,13 @@ class Bothunter(commands.Cog):
 
     def _invalidate_cache(self) -> None:
         self._channel_cache = None
+
+    async def _react_once(self, message: discord.Message) -> None:
+        """Add the bothunter reaction to a message (best-effort)."""
+        try:
+            await message.add_reaction(BOTHUNTER_REACTION)
+        except (discord.Forbidden, discord.HTTPException):
+            pass
 
     async def _channel_map(self) -> dict[int, int]:
         if self._channel_cache is None:
@@ -304,9 +314,11 @@ class Bothunter(commands.Cog):
                     except (discord.NotFound, discord.Forbidden):
                         msg = await trap.send(content, allowed_mentions=discord.AllowedMentions.none())
                         warning_msg_id = str(msg.id)
+                        await self._react_once(msg)
                 else:
                     msg = await trap.send(content, allowed_mentions=discord.AllowedMentions.none())
                     warning_msg_id = str(msg.id)
+                    await self._react_once(msg)
             except discord.Forbidden:
                 await interaction.followup.send(
                     f"I couldn't post the warning message in {trap.mention}. "
@@ -415,10 +427,12 @@ class Bothunter(commands.Cog):
                         except (discord.NotFound, discord.Forbidden):
                             msg = await trap.send(content, allowed_mentions=discord.AllowedMentions.none())
                             cfg["warning_msg_id"] = str(msg.id)
+                            await self._react_once(msg)
                             await asyncio.to_thread(bothunter_cache.set_config, cfg)
                     else:
                         msg = await trap.send(content, allowed_mentions=discord.AllowedMentions.none())
                         cfg["warning_msg_id"] = str(msg.id)
+                        await self._react_once(msg)
                         await asyncio.to_thread(bothunter_cache.set_config, cfg)
                 except discord.HTTPException:
                     logger.exception("Failed to refresh bothunter warning message")
@@ -467,7 +481,7 @@ class Bothunter(commands.Cog):
 
             # Acknowledge quickly
             try:
-                await message.add_reaction("🍯")
+                await message.add_reaction(BOTHUNTER_REACTION)
             except (discord.Forbidden, discord.HTTPException):
                 pass
 
