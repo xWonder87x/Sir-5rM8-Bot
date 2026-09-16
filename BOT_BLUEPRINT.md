@@ -60,7 +60,7 @@ Every bot shares the **skeleton** below. Feature folders under `commands/` are c
 │   └── <concern>.py        # Logic shared by 2+ cogs — name by purpose, not by copying another bot
 ├── commands/
 │   ├── common/             # Optional cross-cog helpers — NO cog, NO setup()
-│   ├── core/               # Optional: help, sync, maintenance, extensions loader
+│   ├── core/               # Optional: help, sync, maintenance, killswitch, extensions loader
 │   └── <feature>/          # One folder per feature area THIS bot implements
 ├── scripts/                # Offline verification scripts (no Discord token required)
 ├── data/                   # Runtime JSON state (gitignored); created by main.py if used
@@ -73,7 +73,7 @@ Every bot shares the **skeleton** below. Feature folders under `commands/` are c
 
 | Path | Role |
 |------|------|
-| `main.py` | `commands.Bot`, staggered login / 429 exit+restart, `on_ready` extension load list, maintenance gate, global listeners |
+| `main.py` | `commands.Bot`, staggered login / 429 exit+restart, `on_ready` extension load list, maintenance + killswitch gate, global listeners |
 | `config.py` | `CHANNELS`, `ROLES`, guild IDs, timeouts, message templates — read env with `os.environ.get` |
 | `db/` | All Neon/Postgres access; `EXPECTED_SCHEMA` + `check_schema()` in `db/_base.py` |
 | `functions/` | Guards, shared business logic — add modules only when 2+ cogs need the same code |
@@ -89,10 +89,10 @@ These appear in some bots (e.g. ALICE) but are **not required** by this blueprin
 
 - `commands/mod/`, `economy/`, `partner/`, `integrations/` — feature areas, not standard folders
 - Sticky-channel embeds (`commands/common/sticky.py`)
-- Admin slash commands like `/sync-commands` or `/maintenance` — add only if that bot needs them
+- Admin slash commands like `/sync-commands`, `/maintenance`, or `/killswitch` — add only if that bot needs them
 - Remote log handler writing to Postgres (`bot_logs`)
 - Background `@tasks.loop` jobs
-- Restart/redeploy owner DM (`RESTART_NOTIFY_USER_ID`)
+- Restart/redeploy owner DM (`RESTART_NOTIFY_USER_ID`) — also used as the `/killswitch` owner identity when that command is present
 - JSON-file storage fallback when `DATABASE_URL` is unset
 - Shared multi-bot Neon project (separate databases or schemas per bot)
 
@@ -290,6 +290,42 @@ Document which sync/admin commands **this bot** exposes in its `AGENTS.md` — t
 
 ---
 
+## Slash command gates (maintenance + kill switch)
+
+Optional production controls. Wire once on the app-command tree in `main.py` (discord.py has no `tree.add_check`):
+
+```python
+bot.maintenance_until = None  # datetime (UTC) or None
+bot.killswitch_on = False     # owner hard-block; off by default; not persisted
+
+async def slash_gate_check(interaction: discord.Interaction) -> bool:
+    cmd_name = interaction.command.name if interaction.command else None
+    if getattr(bot, "killswitch_on", False):
+        if cmd_name == "killswitch":
+            return True
+        await interaction.response.send_message(
+            "Kill switch is **on**. Commands are blocked until the owner runs `/killswitch off`.",
+            ephemeral=True,
+        )
+        return False
+    if cmd_name in ("maintenance", "sync-commands", "help", "killswitch"):
+        return True
+    until = getattr(bot, "maintenance_until", None)
+    # ... if until is set and still in the future, ephemeral block and return False
+    return True
+
+bot.tree.interaction_check = slash_gate_check
+```
+
+| Control | Command | Who | Behaviour |
+|---------|---------|-----|-----------|
+| **Kill switch** | `/killswitch on` \| `off` | Bot owner only (`RESTART_NOTIFY_USER_ID`) | When **on**, **every** slash command is blocked except `/killswitch` (so the owner can turn it **off**). Harder than maintenance — no admin bypass. **Off by default**; resets on process restart (not persisted). |
+| **Maintenance** | `/maintenance <minutes>` (`0` = off) | Server administrators (typical) | Timed block; still allow `/maintenance`, `/sync-commands`, `/help`, and `/killswitch`. |
+
+Reference shape: **ALICE** (`main.py` gate + `commands/core/utility.py`). When a bot ships these, list them in that bot's **`AGENTS.md`** and **`README.md`**.
+
+---
+
 ## Async / interaction reliability
 
 Discord must ACK interactions quickly. Established pattern across reference bots:
@@ -400,7 +436,7 @@ Several bots may share one Neon project with **separate databases** (or schemas)
 | Variable | Purpose |
 |----------|---------|
 | `SLASH_SYNC_GUILD_IDS` | Comma-separated guild IDs for guild-scope command clear |
-| `RESTART_NOTIFY_USER_ID` | Discord user to DM once when the process comes online; empty disables |
+| `RESTART_NOTIFY_USER_ID` | Discord user to DM once when the process comes online; empty disables. Also the only user allowed to run `/killswitch` when that command is present. |
 | `DATA_DIR` | Runtime JSON / log directory when used |
 | `STATE_BUCKET`, `STATE_ACCESS_KEY_ID`, `STATE_SECRET_ACCESS_KEY` | Dedicated S3-compatible cache bucket and its exact credentials, when the optional cache standard is used |
 | `JSON_CACHE_STARTUP_GRACE_SECONDS`, `JSON_CACHE_BUCKET_SNAPSHOT_SECONDS`, `JSON_CACHE_RECONCILE_SECONDS` | Optional startup grace, bucket snapshot, and reconciliation intervals; keep authoritative Neon reconciliation at least hourly |
