@@ -292,22 +292,17 @@ Document which sync/admin commands **this bot** exposes in its `AGENTS.md` — t
 
 ## Slash command gates (maintenance + kill switch)
 
-Optional production controls. Wire once on the app-command tree in `main.py` (discord.py has no `tree.add_check`):
+Optional production controls.
+
+### Maintenance (`main.py`)
+
+Wire maintenance once on the app-command tree in `main.py` (discord.py has no `tree.add_check`):
 
 ```python
 bot.maintenance_until = None  # datetime (UTC) or None
-bot.killswitch_on = False     # owner hard-block; off by default; not persisted
 
 async def slash_gate_check(interaction: discord.Interaction) -> bool:
     cmd_name = interaction.command.name if interaction.command else None
-    if getattr(bot, "killswitch_on", False):
-        if cmd_name == "killswitch":
-            return True
-        await interaction.response.send_message(
-            "Kill switch is **on**. Commands are blocked until the owner runs `/killswitch off`.",
-            ephemeral=True,
-        )
-        return False
     if cmd_name in ("maintenance", "sync-commands", "help", "killswitch"):
         return True
     until = getattr(bot, "maintenance_until", None)
@@ -319,10 +314,19 @@ bot.tree.interaction_check = slash_gate_check
 
 | Control | Command | Who | Behaviour |
 |---------|---------|-----|-----------|
-| **Kill switch** | `/killswitch on` \| `off` | Bot owner only (`RESTART_NOTIFY_USER_ID`) | When **on**, **every** slash command is blocked except `/killswitch` (so the owner can turn it **off**). Harder than maintenance — no admin bypass. **Off by default**; resets on process restart (not persisted). |
 | **Maintenance** | `/maintenance <minutes>` (`0` = off) | Server administrators (typical) | Timed block; still allow `/maintenance`, `/sync-commands`, `/help`, and `/killswitch`. |
 
-Reference shape: **ALICE** (`main.py` gate + `commands/core/utility.py`). When a bot ships these, list them in that bot's **`AGENTS.md`** and **`README.md`**.
+Reference shape: **ALICE** (`main.py` gate + `commands/core/utility.py`).
+
+### Kill switch (`commands/core/killswitch.py`)
+
+Ship a dedicated cog that **composes** `tree.interaction_check` and `tree.on_error` around any existing `main.py` gate (Wonderbot pattern). Load the extension **early** in `commands/core/extensions.py`. Do **not** duplicate kill-switch logic in `main.py` once the cog is loaded.
+
+| Control | Command | Who | Behaviour |
+|---------|---------|-----|-----------|
+| **Kill switch** | `/killswitch on` \| `off` | Bot owner (`RESTART_NOTIFY_USER_ID`; optional `KILLSWITCH_USER_ID` override) | When **on**, **every** slash command is blocked except `/killswitch` (so the owner can turn it **off**). Harder than maintenance — no admin bypass. **Off by default.** Persist `{"enabled": true}` via `db.get_state` / `db.set_state` when Postgres (or remote DB) is configured; otherwise in-memory only (resets on restart). **If persistence fails, do not enable** and do not tell the owner it is on — reply with an ephemeral error and leave the previous state. |
+
+Background event listeners (`on_message`, `@tasks.loop`, etc.) **keep running** — document this in each bot's **`AGENTS.md`**. List `/killswitch` in **`README.md`** / **`AGENTS.md`** when the bot ships it.
 
 ---
 
@@ -343,6 +347,44 @@ Do **not** call blocking `requests` / `psycopg` `.execute()` directly inside asy
 ## Object-storage JSON cache standard (optional)
 
 Use this pattern only when profiling shows repeated reads, timer scans, or restart recovery justify the extra state layer. A bucket reduces database load only when hot paths actually read memory/JSON instead of querying Postgres; it does not replace correct database indexes or queries.
+
+Bots that adopt this standard ship the same pair of modules (no shared pip package yet): **`functions/json_db_cache.py`** (in-process API + replicas) and **`commands/core/cache_sync.py`** (background reconcile + bucket snapshot loops). List each registered cache key and its authority class in that bot's **`AGENTS.md`**.
+
+### Fleet contract (database-backed keys)
+
+| Layer | Location | Role |
+|-------|----------|------|
+| **Authority** | Neon/Postgres domain tables | Source of truth for DB-owned rows |
+| **Replica** | In-process memory | Hot reads; deep-copied on access |
+| **Replica** | `{DATA_DIR}/cache/db/{key}.json` | Local recovery across restarts |
+| **Replica** | `STATE_BUCKET` object `cache/db/{key}.json` | Cross-host recovery when S3 credentials are set |
+
+**Non-negotiable:** replicas must never silently become authoritative for Postgres-owned rows. A JSON file or bucket object alone does not justify skipping a failed database read or writing domain tables from cache.
+
+**Envelope v2** (persisted shape): `version` (2), `written_at` (unix seconds), `generation` (uuid hex), `source` (provenance string), `data` (payload). v1 envelopes may be read for migration; invalid or corrupt copies are ignored. When local and bucket copies both exist, keep the freshest by `(written_at, version)`.
+
+**Lifecycle**
+
+1. **Reads:** memory → local JSON → bucket → database loader on a complete miss (`get` / `update`).
+2. **Writes:** commit the domain write in Postgres, verify success, then `put` or `update` replicas. A replica write failure does not roll back the database; mark the key dirty and retry (`retry_dirty`, bucket snapshot loop).
+3. **Startup:** `cache_sync` waits for bot ready, then **startup grace** (`JSON_CACHE_STARTUP_GRACE_SECONDS` + jitter) before the first hourly reconcile — persisted replicas may serve during grace, but reconciliation always refreshes from the database.
+4. **Background:** at least **hourly** DB reconcile (`verify_due` via `verify_cached_db_state`); **periodic bucket snapshot** of dirty/pending keys (`JSON_CACHE_BUCKET_SNAPSHOT_SECONDS`, default 60s) without extra database reads.
+
+**Public API (`functions/json_db_cache`)**
+
+| Symbol | Purpose |
+|--------|---------|
+| `get(key, loader)` | Load through replicas; call `loader` only on miss |
+| `put(key, value)` | After successful DB write |
+| `update(key, loader, mutator)` | Per-key locked read-modify-write |
+| `update_loaded(key, mutator)` | Mutate only if already in memory or on disk |
+| `peek` / `has` | Introspection without hitting the database |
+| `verify` / `verify_due` | Refresh from DB; repair mismatches |
+| `retry_dirty` / `snapshot_loaded_to_bucket` | Replica persistence recovery |
+| `stats_snapshot` / `diagnostics_snapshot` | Local observability |
+| `ENVELOPE_VERSION`, `MISSING` | Contract constants |
+
+Greenfield bots without tables yet (e.g. **W0nd3r**): follow this contract in **`AGENTS.md`** only; add the modules when the first database-backed cache keys exist.
 
 ### Classify every object by authority
 
@@ -436,10 +478,11 @@ Several bots may share one Neon project with **separate databases** (or schemas)
 | Variable | Purpose |
 |----------|---------|
 | `SLASH_SYNC_GUILD_IDS` | Comma-separated guild IDs for guild-scope command clear |
-| `RESTART_NOTIFY_USER_ID` | Discord user to DM once when the process comes online; empty disables. Also the only user allowed to run `/killswitch` when that command is present. |
+| `RESTART_NOTIFY_USER_ID` | Discord user to DM once when the process comes online; empty disables. Default identity for `/killswitch` when that command is present. |
+| `KILLSWITCH_USER_ID` | Optional override for who may run `/killswitch` (when set, takes precedence over `RESTART_NOTIFY_USER_ID`). |
 | `DATA_DIR` | Runtime JSON / log directory when used |
 | `STATE_BUCKET`, `STATE_ACCESS_KEY_ID`, `STATE_SECRET_ACCESS_KEY` | Dedicated S3-compatible cache bucket and its exact credentials, when the optional cache standard is used |
-| `JSON_CACHE_STARTUP_GRACE_SECONDS`, `JSON_CACHE_BUCKET_SNAPSHOT_SECONDS`, `JSON_CACHE_RECONCILE_SECONDS` | Optional startup grace, bucket snapshot, and reconciliation intervals; keep authoritative Neon reconciliation at least hourly |
+| `JSON_CACHE_STARTUP_GRACE_SECONDS`, `JSON_CACHE_STARTUP_JITTER_SECONDS`, `JSON_CACHE_BUCKET_SNAPSHOT_SECONDS`, `JSON_CACHE_RECONCILE_SECONDS` | Startup grace before first DB reconcile, jitter, coalesced bucket snapshots, and minimum hourly authoritative reconciliation |
 | `LOGIN_RETRY_ATTEMPT` | **Internal** — 429 retry counter; do not set manually |
 
 Feature-specific vars (channel IDs, API keys, intervals, etc.) belong in that bot's **`README.md`** and **`AGENTS.md`** — not in this file.

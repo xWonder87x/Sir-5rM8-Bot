@@ -28,6 +28,49 @@ def _conn() -> Iterator[psycopg.Connection]:
         conn.commit()
 
 
+RUNTIME_STATE_TABLE = "bot_runtime_state"
+
+
+def _ensure_runtime_state_table(conn: psycopg.Connection) -> None:
+    conn.execute(
+        f"""
+        CREATE TABLE IF NOT EXISTS {RUNTIME_STATE_TABLE} (
+          key        TEXT PRIMARY KEY,
+          value      JSONB NOT NULL DEFAULT '{{}}'::jsonb,
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+        """
+    )
+
+
+def get_runtime_state_sync(key: str) -> dict[str, Any]:
+    with _conn() as conn:
+        _ensure_runtime_state_table(conn)
+        row = conn.execute(
+            f"SELECT value FROM {RUNTIME_STATE_TABLE} WHERE key = %s LIMIT 1",
+            (key,),
+        ).fetchone()
+    if not row:
+        return {}
+    value = row.get("value")
+    return value if isinstance(value, dict) else {}
+
+
+def set_runtime_state_sync(key: str, value: dict[str, Any]) -> None:
+    with _conn() as conn:
+        _ensure_runtime_state_table(conn)
+        conn.execute(
+            f"""
+            INSERT INTO {RUNTIME_STATE_TABLE} (key, value, updated_at)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (key) DO UPDATE
+              SET value = EXCLUDED.value,
+                  updated_at = EXCLUDED.updated_at
+            """,
+            (key, Jsonb(value), datetime.now(timezone.utc)),
+        )
+
+
 def check_connection() -> None:
     with _conn() as conn:
         conn.execute("SELECT 1 FROM rate_state WHERE id = 1 LIMIT 1")

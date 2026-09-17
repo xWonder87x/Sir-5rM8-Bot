@@ -108,3 +108,9 @@ CREATE TABLE IF NOT EXISTS twitch_stream_watchlist (
   twitch_login TEXT PRIMARY KEY,
   created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+CREATE TABLE IF NOT EXISTS bot_runtime_state (
+  key        TEXT PRIMARY KEY,
+  value      JSONB NOT NULL DEFAULT '{}'::jsonb,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);

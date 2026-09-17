@@ -12,14 +12,16 @@ Defined in `commands/core/extensions.py` (`COG_EXTENSIONS`):
 
 1. `commands.core.help`
 2. `commands.core.sync_commands`
-3. `commands.core.admin`
-4. `commands.core.guild_list`
-5. `commands.community.rates`
-6. `commands.community.server`
-7. `commands.community.ark_notifications`
-8. `commands.mod.bothunter`
-9. `commands.integrations.ratecheck`
-10. `commands.integrations.twitch_stream`
+3. `commands.core.killswitch`
+4. `commands.core.admin`
+5. `commands.core.cache_sync`
+6. `commands.core.guild_list`
+7. `commands.community.rates`
+8. `commands.community.server`
+9. `commands.community.ark_notifications`
+10. `commands.mod.bothunter`
+11. `commands.integrations.ratecheck`
+12. `commands.integrations.twitch_stream`
 
 ## Slash commands
 
@@ -27,6 +29,7 @@ Defined in `commands/core/extensions.py` (`COG_EXTENSIONS`):
 |---------|-----|-------|
 | `/help` | `commands.core.help` | Setup guide |
 | `/sync-commands` | `commands.core.sync_commands` | Admin only |
+| `/killswitch` | `commands.core.killswitch` | Owner only: hard-block all slash commands except `/killswitch` (`on` / `off`); persisted in `bot_runtime_state` when `DATABASE_URL` is set |
 | `/say`, `/set_rate_channel`, `/rate_channel_status`, `/clear_rate_channel` | `commands.core.admin` | Admin tools |
 | `/rates` | `commands.community.rates` | Live ASA rates; Subscribe / Unsubscribe rate-alert role |
 | `/serverstatus` | `commands.community.server` | Official-list status + occupancy; BM uptime graph fallback |
@@ -35,6 +38,8 @@ Defined in `commands/core/extensions.py` (`COG_EXTENSIONS`):
 | `/streamers add`, `/streamers list`, `/streamers remove`, `/streamers setup` | `commands.integrations.twitch_stream` | Twitch go-live watchlist and alert configuration |
 
 No user-facing prefix commands.
+
+**Kill switch:** While `/killswitch` is on, only that command is accepted; rate loops, bothunter, and other listeners keep running. State is stored in `bot_runtime_state` when Postgres is configured.
 
 ## Environment variables
 

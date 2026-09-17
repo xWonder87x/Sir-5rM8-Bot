@@ -122,21 +122,27 @@ class NotifyWhenUpButton(discord.ui.DynamicItem[discord.ui.Button], template=r"s
             )
             return
 
-        servers = None
         snap = await asyncio.to_thread(get_snapshot)
         if snap.fetch_ok:
             servers = snap.as_raw_list()
-        if servers is not None:
-            found = match_server_key_in_list(servers, self.server_key)
-            if found:
+            live_list = True
+        else:
+            from functions.asa_cache import last_good_snapshot
+
+            good = last_good_snapshot()
+            if good is None:
                 await interaction.followup.send(
-                    "That server is already online — try `/serverstatus` again.",
+                    "I couldn't reach the official server list just now. Try the button again in a minute.",
                     ephemeral=True,
                 )
                 return
-        else:
+            servers = good.as_raw_list()
+            live_list = False
+
+        found = match_server_key_in_list(servers, self.server_key)
+        if found and live_list:
             await interaction.followup.send(
-                "I couldn't reach the official server list just now. Try the button again in a minute.",
+                "That server is already online — try `/serverstatus` again.",
                 ephemeral=True,
             )
             return

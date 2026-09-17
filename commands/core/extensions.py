@@ -7,6 +7,7 @@ logger = logging.getLogger(__name__)
 COG_EXTENSIONS: list[tuple[str, str]] = [
     ("commands.core.help", "Help cog loaded"),
     ("commands.core.sync_commands", "Sync commands cog loaded"),
+    ("commands.core.killswitch", "Kill switch cog loaded"),
     ("commands.core.admin", "Admin cog loaded"),
     ("commands.core.cache_sync", "JSON cache sync loaded"),
     ("commands.core.guild_list", "Guild list sticky loaded"),

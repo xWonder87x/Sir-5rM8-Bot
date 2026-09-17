@@ -23,7 +23,9 @@ class Admin(commands.Cog):
     async def say(self, interaction: discord.Interaction, message: str):
         await interaction.response.send_message("Done.", ephemeral=True)
         if interaction.channel:
-            await interaction.channel.send(message)
+            await interaction.channel.send(
+                message, allowed_mentions=discord.AllowedMentions.none()
+            )
 
     @app_commands.command(name="set_rate_channel", description="Set channel for rate updates")
     @app_commands.describe(channel="Channel", role="Role")

@@ -215,8 +215,10 @@ def refresh_asa_cache(*, force: bool = False) -> AsaSnapshot:
             _snapshot = snapshot
             if snapshot.fetch_ok:
                 _last_good = snapshot
-            _network = network
-            _announcement = announcement
+            if network.fetch_ok:
+                _network = network
+            if announcement.fetch_ok:
+                _announcement = announcement
             prev_label = _last_network_label
 
         if network.fetch_ok and network.label != prev_label:
@@ -246,6 +248,9 @@ def refresh_asa_cache(*, force: bool = False) -> AsaSnapshot:
                 )
                 _last_log_fail_at = now
         if snapshot.fetch_ok:
+            from functions.asa_status import prune_status_tracker
+
+            prune_status_tracker(snapshot.by_key().keys())
             _persist_to_bucket(snapshot, network, announcement)
         return snapshot
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 
 from functions.asa import _score_server, match_server_in_list
@@ -18,6 +19,7 @@ from functions.asa_status import (
     STATUS_UNKNOWN,
     get_server_status,
     miss_count,
+    prune_status_tracker,
     reset_status_tracker,
 )
 from functions.battlemetrics import BattleMetricsUptime
@@ -163,6 +165,19 @@ def test_online_when_present_in_list(monkeypatch):
     assert resolved.presence_reason == "present_in_official_list"
 
 
+def test_prune_status_tracker_drops_stale_keys():
+    reset_status_tracker()
+    from functions.asa_status import note_missing
+
+    note_missing("keep-me")
+    note_missing("drop-me")
+    assert miss_count("drop-me") == 1
+    prune_status_tracker({"keep-me"})
+    assert miss_count("keep-me") == 1
+    assert miss_count("drop-me") == 0
+    reset_status_tracker()
+
+
 def test_unknown_then_offline_after_consecutive_misses():
     reset_status_tracker()
     snap = parse_server_list([_row()])
@@ -227,6 +242,26 @@ def test_stale_last_updated_is_unknown():
         server,
         snapshot=snap,
         network=_online_network(),
+        stale_seconds=300,
+    )
+    assert status.status == STATUS_UNKNOWN
+    assert status.reason == "stale_last_updated"
+
+
+def test_stale_age_recomputed_without_reparse():
+    """Cached rows keep a frozen parse-time age; status must use last_updated vs now."""
+    reset_status_tracker()
+    old = datetime.now(timezone.utc) - timedelta(minutes=20)
+    row = _row(LastUpdated=int(old.timestamp() * 1000))
+    server = parse_asa_server(row)
+    cached = replace(server, last_updated_age_seconds=0.0)
+    snap = parse_server_list([row])
+    now = datetime.now(timezone.utc)
+    status = get_server_status(
+        cached,
+        snapshot=snap,
+        network=_online_network(),
+        now=now,
         stale_seconds=300,
     )
     assert status.status == STATUS_UNKNOWN

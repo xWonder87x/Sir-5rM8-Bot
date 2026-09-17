@@ -51,7 +51,8 @@ class Help(commands.Cog):
             _embed(
                 "Admin Tools",
                 "`/say [message]`\n"
-                "`/sync-commands` *(Admin)* — refresh slash commands\n\n"
+                "`/sync-commands` *(Admin)* — refresh slash commands\n"
+                "`/killswitch on|off` *(Owner)* — block all slash commands except `/killswitch`\n\n"
                 "**Quick Start**\n"
                 "1. Try `/rates` and `/serverstatus server:5313`\n"
                 "2. Optional: `/set_rate_channel` for rate alerts\n"

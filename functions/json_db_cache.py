@@ -23,6 +23,11 @@ from functions import blob_state
 
 logger = logging.getLogger(__name__)
 
+
+def _data_dir() -> Path:
+    return Path(getattr(config, "DATA_DIR", "data"))
+
+
 ENVELOPE_VERSION = 2
 _MISSING = object()
 MISSING = _MISSING
@@ -55,7 +60,7 @@ class _PersistedCopy:
 
 
 def _local_path(name: str) -> Path:
-    return config.DATA_DIR / "cache" / "db" / f"{name}.json"
+    return _data_dir() / "cache" / "db" / f"{name}.json"
 
 
 def _bucket_key(name: str) -> str:

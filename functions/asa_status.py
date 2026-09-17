@@ -29,6 +29,19 @@ def reset_status_tracker() -> None:
         _last_version.clear()
 
 
+def prune_status_tracker(active_keys: set[str] | frozenset[str]) -> None:
+    """Drop tracker state for servers no longer on the official list."""
+    active = {str(k).strip() for k in active_keys if str(k).strip()}
+    with _miss_lock:
+        for key in list(_miss_counts):
+            if key not in active:
+                del _miss_counts[key]
+        for key in list(_last_status):
+            if key not in active:
+                del _last_status[key]
+                _last_version.pop(key, None)
+
+
 def miss_count(server_key: str) -> int:
     with _miss_lock:
         return int(_miss_counts.get(server_key, 0))
@@ -130,9 +143,10 @@ def get_server_status(
         )
 
     if server is not None:
-        age = server.last_updated_age_seconds
-        if age is None and server.last_updated is not None:
+        if server.last_updated is not None:
             age = max(0.0, (now - server.last_updated).total_seconds())
+        else:
+            age = server.last_updated_age_seconds
         if age is not None and age > stale:
             if record and key:
                 _record_transition(key, STATUS_UNKNOWN, version=server.version)

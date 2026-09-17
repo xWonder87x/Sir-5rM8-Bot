@@ -44,6 +44,7 @@ EXPECTED_SCHEMA: dict[str, list[str]] = {
     "ark_notification_state": ["id", "previous_text"],
     "twitch_stream_pinged": ["twitch_login", "stream_id"],
     "twitch_stream_watchlist": ["twitch_login"],
+    "bot_runtime_state": ["key", "value", "updated_at"],
 }
 
 _client: Any = None

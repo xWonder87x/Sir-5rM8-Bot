@@ -82,6 +82,7 @@ Set `TWITCH_CLIENT_ID` / `TWITCH_CLIENT_SECRET`, then configure the alert role a
 | `/help` | Setup guide and command reference |
 | `/say [message]` | Repeats a message *(Admin)* |
 | `/sync-commands` | Refresh slash commands *(Admin)* |
+| `/killswitch on\|off` | Owner only: hard-block all slash commands except `/killswitch` (persisted when `DATABASE_URL` is set) |
 
 ### Coming soon features
 

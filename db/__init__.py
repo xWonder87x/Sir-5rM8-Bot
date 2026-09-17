@@ -130,3 +130,5 @@ else:
     def check_connection() -> None:
         """JSON file backend — no remote connection to verify."""
         return None
+
+from db.state import get_state, killswitch_key, set_state  # noqa: E402,F401

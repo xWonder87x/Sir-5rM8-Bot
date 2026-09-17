@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from functions.asa_cache import (
+    current_network,
     get_snapshot,
     last_good_snapshot,
     refresh_asa_cache,
@@ -107,6 +108,52 @@ def test_refresh_single_flight(monkeypatch):
     assert calls["n"] == 1
     assert len(results) == 2
     assert all(r.fetch_ok and r.server_count == 1 for r in results)
+    reset_asa_cache()
+
+
+def test_cache_keeps_last_good_network_on_failure(monkeypatch):
+    reset_asa_cache()
+    good_net = NetworkStatus(fetch_ok=True, online=True, version="v92.43")
+    bad_net = NetworkStatus(fetch_ok=False, online=None, version=None, error="fetch_failed")
+    good = parse_server_list(
+        [
+            {
+                "SessionName": "EU-PVE-TheIsland5313 - (v92.43)",
+                "Name": "EU-PVE-TheIsland5313",
+                "SessionID": "abc",
+                "IP": "1.1.1.1",
+                "NumPlayers": 3,
+                "MaxPlayers": 70,
+                "LastUpdated": int(datetime.now(timezone.utc).timestamp() * 1000),
+            }
+        ]
+    )
+    failed = AsaSnapshot(fetch_ok=False, fetched_at=datetime.now(timezone.utc), error="fetch_failed")
+    snap_calls = {"n": 0}
+
+    def fake_fetch():
+        snap_calls["n"] += 1
+        return good if snap_calls["n"] == 1 else failed
+
+    monkeypatch.setattr("functions.asa_cache.fetch_official_snapshot", fake_fetch)
+    net_calls = {"n": 0}
+
+    def fake_net():
+        net_calls["n"] += 1
+        return good_net if net_calls["n"] == 1 else bad_net
+
+    monkeypatch.setattr("functions.asa_cache.fetch_network_status", fake_net)
+    monkeypatch.setattr(
+        "functions.asa_cache.fetch_announcement",
+        lambda: AsaAnnouncement(fetch_ok=True, text="maintenance"),
+    )
+    refresh_asa_cache(force=True)
+    assert current_network() is not None
+    assert current_network().fetch_ok
+    refresh_asa_cache(force=True)
+    assert current_network() is not None
+    assert current_network().fetch_ok
+    assert current_network().label == "ONLINE"
     reset_asa_cache()
 
 

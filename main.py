@@ -231,6 +231,12 @@ async def on_ready():
 
 async def main():
     _validate_env()
+    attempt = int(os.environ.get("LOGIN_RETRY_ATTEMPT", "0"))
+    startup_delay = random.uniform(15, 45)
+    if attempt > 0:
+        startup_delay += 10 * attempt
+    logger.info("Waiting %.0f seconds before login (staggered startup)...", startup_delay)
+    await asyncio.sleep(startup_delay)
     await bot.start(config.TOKEN)
 
 
@@ -242,12 +248,6 @@ if __name__ == "__main__":
     if attempt >= MAX_LOGIN_RETRIES:
         logger.error("Max login retries (%s) reached. Exiting.", MAX_LOGIN_RETRIES)
         sys.exit(1)
-
-    startup_delay = random.uniform(15, 45)
-    if attempt > 0:
-        startup_delay += 10 * attempt
-    logger.info("Waiting %.0f seconds before login (staggered startup)...", startup_delay)
-    time.sleep(startup_delay)
 
     try:
         asyncio.run(main())
@@ -261,7 +261,7 @@ if __name__ == "__main__":
                 "Rate limited (429). Waiting %s seconds, then restarting for retry (%s/%s)...",
                 wait, attempt + 1, MAX_LOGIN_RETRIES
             )
-            time.sleep(wait)
+            asyncio.run(asyncio.sleep(wait))
             os.environ["LOGIN_RETRY_ATTEMPT"] = str(attempt + 1)
             os.execv(sys.executable, [sys.executable, os.path.abspath(__file__)] + sys.argv[1:])
         else:
