@@ -139,6 +139,13 @@ def _validate_env() -> None:
         for name, ok, err in db.check_schema():
             if ok:
                 logger.info("Schema OK: %s", name)
+            elif name == "bot_runtime_state":
+                # Killswitch can run in-memory until DDL is applied.
+                logger.warning(
+                    "Optional schema missing for %s: %s (killswitch will not persist)",
+                    name,
+                    err,
+                )
             else:
                 logger.error("Schema check failed for %s: %s", name, err)
                 sys.exit(1)
@@ -160,6 +167,12 @@ def _validate_env() -> None:
         for name, ok, err in db.check_schema():
             if ok:
                 logger.info("Schema OK: %s", name)
+            elif name == "bot_runtime_state":
+                logger.warning(
+                    "Optional schema missing for %s: %s (killswitch will not persist)",
+                    name,
+                    err,
+                )
             else:
                 logger.error("Schema check failed for %s: %s", name, err)
                 sys.exit(1)
