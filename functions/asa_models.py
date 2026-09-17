@@ -1,14 +1,14 @@
 """Internal ASA models — Discord code should use these, not raw CDN JSON."""
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
 
 @dataclass(frozen=True)
 class AsaServer:
-    """Mapped official-list row. `raw` is the original dict for legacy helpers."""
+    """Mapped official-list row. Legacy dict helpers use `to_raw_dict()` (not retained)."""
 
     session_id: str
     name: str
@@ -30,15 +30,51 @@ class AsaServer:
     is_official: bool
     session_is_pve: bool | None
     server_key: str
-    raw: dict[str, Any] = field(default_factory=dict, repr=False, compare=False)
 
     @property
     def ip_port(self) -> str | None:
-        if not self.ip:
+        if not self.ip or self.ip == "—":
             return None
         if self.port is None:
             return self.ip
         return f"{self.ip}:{self.port}"
+
+    def to_raw_dict(self) -> dict[str, Any]:
+        """Synthesize the slim official-list shape used by matchers / BM / bucket flush."""
+        last_ms = (
+            int(self.last_updated.timestamp() * 1000) if self.last_updated is not None else None
+        )
+        ip = "" if self.ip == "—" else self.ip
+        map_name = "" if self.map_name == "—" else self.map_name
+        platform = "" if self.platform == "—" else self.platform
+        day_time = "" if self.day_time == "—" else self.day_time
+        out: dict[str, Any] = {
+            "SessionName": self.session_name,
+            "SessionNameUpper": self.session_name.upper(),
+            "Name": self.name,
+            "SessionID": self.session_id,
+            "IP": ip,
+            "Port": self.port,
+            "MapName": map_name,
+            "NumPlayers": self.num_players,
+            "MaxPlayers": self.max_players,
+            "ServerPing": self.ping,
+            "BuildId": self.build_id,
+            "MinorBuildId": self.minor_build_id,
+            "PlatformType": platform,
+            "ClusterId": self.cluster_id,
+            "DayTime": day_time,
+            "LastUpdated": last_ms,
+            "IsOfficial": "1" if self.is_official else "0",
+        }
+        if self.session_is_pve is not None:
+            out["SessionIsPve"] = "1" if self.session_is_pve else "0"
+        return {k: v for k, v in out.items() if v is not None and v != ""}
+
+    @property
+    def raw(self) -> dict[str, Any]:
+        """Alias for legacy call sites — synthesized, not a retained CDN copy."""
+        return self.to_raw_dict()
 
 
 @dataclass(frozen=True)
@@ -80,4 +116,4 @@ class AsaSnapshot:
         return {s.server_key: s for s in self.servers if s.server_key}
 
     def as_raw_list(self) -> list[dict]:
-        return [s.raw for s in self.servers if s.raw]
+        return [s.to_raw_dict() for s in self.servers]

@@ -256,7 +256,8 @@ class Server(commands.Cog):
         keys = await asyncio.to_thread(up_notify_cache.list_keys)
         if not keys:
             return
-        snap = await asyncio.to_thread(refresh_asa_cache)
+        # Reuse the shared TTL cache (poll_asa refreshes); avoid a second CDN pull.
+        snap = await asyncio.to_thread(get_snapshot)
         if not snap.fetch_ok:
             logger.warning("Up-notify check skipped: official ASA list unavailable")
             return

@@ -56,6 +56,23 @@ def _can_manage_streamers(interaction: discord.Interaction) -> bool:
     )
 
 
+async def _interaction_member(interaction: discord.Interaction) -> discord.Member | None:
+    """Resolve the invoker as a guild Member without relying on the member cache."""
+    guild = interaction.guild
+    if guild is None:
+        return None
+    user = interaction.user
+    if isinstance(user, discord.Member):
+        return user
+    member = guild.get_member(user.id)
+    if member is not None:
+        return member
+    try:
+        return await guild.fetch_member(user.id)
+    except (discord.NotFound, discord.HTTPException):
+        return None
+
+
 def _ensure_pinged_cache() -> dict:
     """Load Twitch ping map once: bucket first, else one-shot Neon migrate."""
     data = blob_state.cache_get(blob_state.TWITCH_PINGED_KEY)
@@ -122,9 +139,7 @@ class StreamNotifyButton(discord.ui.View):
                 "The notification role could not be found.", ephemeral=True
             )
             return
-        member = interaction.user
-        if isinstance(member, discord.User):
-            member = interaction.guild.get_member(member.id)
+        member = await _interaction_member(interaction)
         if not member:
             await interaction.response.send_message(
                 "Could not find you in this server.", ephemeral=True
@@ -164,9 +179,7 @@ class StreamNotifyButton(discord.ui.View):
                 "The notification role could not be found.", ephemeral=True
             )
             return
-        member = interaction.user
-        if isinstance(member, discord.User):
-            member = interaction.guild.get_member(member.id)
+        member = await _interaction_member(interaction)
         if not member:
             await interaction.response.send_message(
                 "Could not find you in this server.", ephemeral=True

@@ -30,7 +30,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Bumps when deploy verification matters; check logs after redeploy.
-DEPLOY_MARKER = "v1.8.0"
+DEPLOY_MARKER = "v1.8.1"
 
 
 def _last_commit_title(*, fallback: str | None = None) -> str:
@@ -60,7 +60,14 @@ intents = discord.Intents.default()
 intents.guilds = True
 intents.members = True
 
-bot = commands.Bot(command_prefix="!", intents=intents)
+# Keep members intent for moderation events, but do not retain a full guild member
+# cache (~hundreds of MB across many ARK communities). Call sites use fetch_member.
+bot = commands.Bot(
+    command_prefix="!",
+    intents=intents,
+    chunk_guilds_at_startup=False,
+    member_cache_flags=discord.MemberCacheFlags.none(),
+)
 
 extensions_loaded = False
 global_sync_ok = False

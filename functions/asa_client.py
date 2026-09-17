@@ -140,7 +140,6 @@ def parse_asa_server(row: Any, *, now: datetime | None = None) -> AsaServer | No
         is_official=is_official,
         session_is_pve=session_is_pve,
         server_key=server_key,
-        raw=row,
     )
 
 
