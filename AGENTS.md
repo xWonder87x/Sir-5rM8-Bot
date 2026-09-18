@@ -112,6 +112,7 @@ No user-facing prefix commands.
 | `server_up_notify` | Users waiting for an offline server to come back |
 | `twitch_stream_watchlist` | Persisted Twitch logins for `/streamers` |
 | `twitch_stream_pinged` | Legacy go-live ping dedupe (migrated once into `STATE_BUCKET`) |
+| `bot_runtime_state` | Key/value JSON runtime flags (kill switch) |
 
 Without a remote DB, the same data lives under `data/` as JSON.
 

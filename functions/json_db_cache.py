@@ -312,12 +312,21 @@ def update_loaded(name: str, mutator: Callable[[Any], Any]) -> bool:
 
 
 def verify(name: str, loader: Callable[[], Any]) -> bool:
-    """Refresh a loaded cache from the database; return whether it was equal."""
+    """Refresh a loaded cache from the database; return whether it was equal.
+
+    A loader failure keeps the existing cache (failed reconcile must not wipe).
+    """
     with _key_lock(name):
         with _state_lock:
             if name not in _loaded:
                 return True
-        fresh = loader()
+        try:
+            fresh = loader()
+        except Exception:
+            logger.exception(
+                "JSON DB cache reconcile failed for %s; keeping existing cache", name
+            )
+            return False
         _increment("db_hits")
         with _state_lock:
             equal = _memory.get(name) == fresh

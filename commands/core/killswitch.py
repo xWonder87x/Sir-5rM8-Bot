@@ -29,6 +29,12 @@ def killswitch_owner_user_id() -> int | None:
     override = os.environ.get("KILLSWITCH_USER_ID", "").strip()
     if override.isdigit():
         return int(override)
+    configured = getattr(config, "KILLSWITCH_USER_ID", None)
+    if configured is not None:
+        try:
+            return int(configured)
+        except (TypeError, ValueError):
+            pass
     owner = getattr(config, "RESTART_NOTIFY_USER_ID", None)
     if owner is None:
         return None
@@ -89,8 +95,12 @@ class KillswitchCog(commands.Cog):
         try:
             state = await db.get_state(db.killswitch_key())
         except Exception:
-            logger.exception("Failed to load kill switch state; defaulting to off")
-            self._enabled = False
+            # Fail closed: if we cannot read persisted state, keep slash commands
+            # blocked until a successful load rather than silently re-enabling.
+            logger.exception(
+                "Failed to load kill switch state; defaulting to on (fail-closed)"
+            )
+            self._enabled = True
             return
         self._enabled = bool(state.get("enabled", False))
 

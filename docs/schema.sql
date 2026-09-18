@@ -44,3 +44,9 @@ CREATE TABLE IF NOT EXISTS ark_notification_state (
 INSERT INTO ark_notification_state (id, previous_text)
 VALUES (1, NULL)
 ON CONFLICT (id) DO NOTHING;
+
+CREATE TABLE IF NOT EXISTS bot_runtime_state (
+  key        TEXT PRIMARY KEY,
+  value      JSONB NOT NULL DEFAULT '{}'::jsonb,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
